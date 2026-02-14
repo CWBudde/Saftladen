@@ -1,0 +1,7 @@
+export const WORLD_GRAVITY_PX_PER_S2 = 2200
+export const PARTICLE_GRAVITY_PX_PER_S2 = 2800
+export const OFFSCREEN_MARGIN_PX = 80
+export const JUICE_PARTICLE_COUNT = 14
+export const JUICE_SPLAT_DECAL_COUNT = 2
+export const BASE_FRUIT_POINTS = 10
+export const SCORE_FEEDBACK_LIFETIME_MS = 700
