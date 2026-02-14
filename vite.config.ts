@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: false,
       includeAssets: ['favicon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.webmanifest'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,mp3,wav}'],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
