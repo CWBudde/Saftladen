@@ -1,4 +1,4 @@
-import type { GameMode, GamePhase, GameState } from '../types'
+import type { ActivePowerUp, GameMode, GamePhase, GameState } from '../types'
 
 export type UiView = 'menu' | 'playing' | 'paused' | 'game-over'
 
@@ -19,9 +19,11 @@ export type GameUiSnapshot = {
   strikesRemaining: number
   strikesMax: number
   elapsedMs: number
+  arcadeRemainingMs: number
+  activePowerUps: ActivePowerUp[]
 }
 
-export const UI_SETTINGS_STORAGE_KEY = 'fruitninja.ui.settings'
+export const UI_SETTINGS_STORAGE_KEY = 'saftladen.ui.settings'
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
   musicVolume: 0.6,
@@ -45,6 +47,18 @@ export function mapPhaseToView(phase: GamePhase): UiView {
 }
 
 export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot {
+  const activePowerUps: ActivePowerUp[] = []
+  const timers = state.modeState.arcade.powerUpTimers
+  if (timers.freezeMs > 0) {
+    activePowerUps.push('freeze')
+  }
+  if (timers.frenzyMs > 0) {
+    activePowerUps.push('frenzy')
+  }
+  if (timers.doublePointsMs > 0) {
+    activePowerUps.push('double-points')
+  }
+
   return {
     view: mapPhaseToView(state.phase),
     phase: state.phase,
@@ -55,6 +69,8 @@ export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot
     strikesRemaining: state.strikes.remaining,
     strikesMax: state.strikes.max,
     elapsedMs: state.world.elapsedMs,
+    arcadeRemainingMs: state.modeState.arcade.remainingMs,
+    activePowerUps,
   }
 }
 
@@ -68,7 +84,9 @@ export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnaps
       left.bestScore === right.bestScore &&
       left.strikesRemaining === right.strikesRemaining &&
       left.strikesMax === right.strikesMax &&
-      left.elapsedMs === right.elapsedMs
+      left.elapsedMs === right.elapsedMs &&
+      left.arcadeRemainingMs === right.arcadeRemainingMs &&
+      left.activePowerUps.join('|') === right.activePowerUps.join('|')
   )
 }
 

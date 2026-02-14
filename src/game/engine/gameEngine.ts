@@ -1,5 +1,5 @@
 import { resetEntityIds } from '../model'
-import { applyCoreSystems } from '../systems'
+import { applyCoreSystems, createInitialArcadeState } from '../systems'
 import type { EntityId, GameEntity, GameMode, GameState, SliceTrail, TimeScalePreset } from '../types'
 import { transitionGamePhase } from './phaseMachine'
 import { createSeededRng } from './rng'
@@ -15,7 +15,7 @@ const DEFAULT_MAX_FRAME_DELTA_MS = 100
 const MAX_FIXED_STEPS_PER_ADVANCE = 12
 const DEFAULT_COMBO_WINDOW_MS = 320
 const DEFAULT_STRIKES = 3
-const BEST_SCORE_STORAGE_KEY_PREFIX = 'fruitninja.bestScore.'
+const BEST_SCORE_STORAGE_KEY_PREFIX = 'saftladen.bestScore.'
 
 type EngineOptions = {
   seed?: number
@@ -137,6 +137,9 @@ function createBaseState(
       rngCalls: 0,
       simulationSteps: 0,
     },
+    modeState: {
+      arcade: createInitialArcadeState(),
+    },
   }
 }
 
@@ -199,16 +202,22 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       inputTrails,
     )
 
-    if (outcome.missedFruits > 0) {
+    if (outcome.missedFruits > 0 && state.mode === 'classic') {
       state.strikes.remaining = Math.max(0, state.strikes.remaining - outcome.missedFruits)
       state.strikes.lastStrikeAtMs = state.world.elapsedMs
     }
 
-    if ((outcome.bombHit || state.strikes.remaining <= 0) && state.phase === 'running') {
-      if (outcome.bombHit) {
-        state.world.lastBombHitAtMs = state.world.elapsedMs
+    if (state.phase === 'running') {
+      if (state.mode === 'classic' && (outcome.bombHit || state.strikes.remaining <= 0)) {
+        if (outcome.bombHit) {
+          state.world.lastBombHitAtMs = state.world.elapsedMs
+        }
+        transition('game-over')
       }
-      transition('game-over')
+
+      if (state.mode === 'arcade' && outcome.roundEnded) {
+        transition('game-over')
+      }
     }
 
     if (state.score.current > state.score.best) {

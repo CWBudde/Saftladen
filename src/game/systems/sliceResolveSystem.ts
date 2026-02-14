@@ -2,10 +2,12 @@ import { createDecalEntity, createFruitHalfEntity, createParticleEntity } from '
 import type { FruitEntity, GameState } from '../types'
 import {
   BASE_FRUIT_POINTS,
+  BOMB_ARCADE_SCORE_PENALTY,
   JUICE_PARTICLE_COUNT,
   JUICE_SPLAT_DECAL_COUNT,
   SCORE_FEEDBACK_LIFETIME_MS,
 } from './constants'
+import { activatePowerUp, type ModeSystemModifiers } from './modeSystem'
 
 type RandomSource = {
   nextFloat: () => number
@@ -112,7 +114,11 @@ function spawnJuiceSplats(
   }
 }
 
-export function resolveSliceEvents(state: GameState, random: RandomSource): { bombHit: boolean; fruitSlices: number } {
+export function resolveSliceEvents(
+  state: GameState,
+  random: RandomSource,
+  modifiers: ModeSystemModifiers,
+): { bombHit: boolean; fruitSlices: number } {
   let bombHit = false
   let fruitSlices = 0
 
@@ -129,7 +135,40 @@ export function resolveSliceEvents(state: GameState, random: RandomSource): { bo
 
     if (entity.kind === 'bomb') {
       delete state.world.entities[entity.id]
-      bombHit = true
+      if (state.mode === 'arcade') {
+        state.score.current = Math.max(0, state.score.current - BOMB_ARCADE_SCORE_PENALTY)
+        state.score.combo = 0
+        state.score.lastSliceAtMs = event.atMs
+        state.world.lastBombHitAtMs = state.world.elapsedMs
+        state.world.scoreFeedbackEvents.push({
+          id: state.world.nextScoreFeedbackId,
+          amount: -BOMB_ARCADE_SCORE_PENALTY,
+          combo: 1,
+          position: { ...event.hitPosition },
+          createdAtMs: state.world.elapsedMs,
+          lifetimeMs: SCORE_FEEDBACK_LIFETIME_MS,
+        })
+        state.world.nextScoreFeedbackId += 1
+      } else {
+        bombHit = true
+      }
+      continue
+    }
+
+    if (entity.kind === 'power-up') {
+      delete state.world.entities[entity.id]
+      activatePowerUp(state, entity.powerUpType)
+      const bonusPoints = Math.round(BASE_FRUIT_POINTS * 1.5 * modifiers.scoreMultiplier)
+      state.score.current += bonusPoints
+      state.world.scoreFeedbackEvents.push({
+        id: state.world.nextScoreFeedbackId,
+        amount: bonusPoints,
+        combo: Math.max(1, state.score.combo),
+        position: { ...event.hitPosition },
+        createdAtMs: state.world.elapsedMs,
+        lifetimeMs: SCORE_FEEDBACK_LIFETIME_MS,
+      })
+      state.world.nextScoreFeedbackId += 1
       continue
     }
 
@@ -140,7 +179,7 @@ export function resolveSliceEvents(state: GameState, random: RandomSource): { bo
     const withinComboWindow =
       state.score.lastSliceAtMs !== null && event.atMs - state.score.lastSliceAtMs <= state.score.comboWindowMs
     const nextCombo = withinComboWindow ? state.score.combo + 1 : 1
-    const points = BASE_FRUIT_POINTS * nextCombo
+    const points = BASE_FRUIT_POINTS * nextCombo * modifiers.scoreMultiplier
 
     state.score.combo = nextCombo
     state.score.lastSliceAtMs = event.atMs

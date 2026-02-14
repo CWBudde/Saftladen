@@ -1,6 +1,7 @@
 import { createBombEntity, createFruitEntity, createPowerUpEntity } from '../model'
 import type { FruitType, GameState, PowerUpType, Vec2 } from '../types'
 import { WORLD_GRAVITY_PX_PER_S2 } from './constants'
+import type { ModeSystemModifiers } from './modeSystem'
 
 type RandomSource = {
   nextFloat: () => number
@@ -37,6 +38,15 @@ function getDifficultyProgress(elapsedMs: number): number {
   return clamp(elapsedMs / 90000, 0, 1)
 }
 
+function getArcadeProgress(state: GameState): number {
+  const arcadeState = state.modeState.arcade
+  const elapsedMs = arcadeState.roundDurationMs - arcadeState.remainingMs
+  if (arcadeState.roundDurationMs <= 0) {
+    return 0
+  }
+  return clamp(elapsedMs / arcadeState.roundDurationMs, 0, 1)
+}
+
 function createLaunchVelocity(
   random: RandomSource,
   worldBounds: Vec2,
@@ -53,18 +63,23 @@ function createLaunchVelocity(
   return { x: vx, y: -vyAbs }
 }
 
-export function stepSpawnSystem(state: GameState, random: RandomSource): void {
+export function stepSpawnSystem(state: GameState, random: RandomSource, modifiers: ModeSystemModifiers): void {
   const { world } = state
   if (world.elapsedMs < world.spawn.nextWaveAtMs) {
     return
   }
 
-  const difficulty = getDifficultyProgress(world.elapsedMs)
-  const maxWaveSize = clamp(1 + Math.floor(difficulty * 5), 1, 6)
-  const waveSize = random.nextInt(1, maxWaveSize)
+  const difficulty = state.mode === 'arcade' ? getArcadeProgress(state) : getDifficultyProgress(world.elapsedMs)
+  const minWaveSize = state.mode === 'arcade' ? 2 : 1
+  const maxWaveSize = state.mode === 'arcade' ? clamp(3 + Math.floor(difficulty * 3), 3, 7) : clamp(1 + Math.floor(difficulty * 5), 1, 6)
+  const waveSize = random.nextInt(minWaveSize, maxWaveSize)
 
-  const bombChance = lerp(0.08, 0.2, difficulty)
-  const powerUpChance = world.elapsedMs >= 20000 ? lerp(0.03, 0.09, difficulty) : 0
+  let bombChance = state.mode === 'arcade' ? lerp(0.04, 0.12, difficulty) : lerp(0.08, 0.2, difficulty)
+  if (modifiers.suppressBombSpawns) {
+    bombChance = 0
+  }
+  const powerUpStartMs = state.mode === 'arcade' ? 8000 : 20000
+  const powerUpChance = world.elapsedMs >= powerUpStartMs ? lerp(0.05, 0.12, difficulty) : 0
 
   for (let i = 0; i < waveSize; i += 1) {
     const roll = random.nextFloat()
@@ -117,7 +132,8 @@ export function stepSpawnSystem(state: GameState, random: RandomSource): void {
   }
 
   world.spawn.wavesSpawned += 1
-  const intervalBaseMs = lerp(1300, 520, difficulty)
+  const intervalBaseMs = state.mode === 'arcade' ? lerp(980, 360, difficulty) : lerp(1300, 520, difficulty)
   const intervalWithJitterMs = intervalBaseMs * randomRange(random, 0.82, 1.24)
-  world.spawn.nextWaveAtMs = world.elapsedMs + clamp(intervalWithJitterMs, 320, 1600)
+  const adjustedIntervalMs = intervalWithJitterMs / Math.max(0.35, modifiers.spawnRateScale)
+  world.spawn.nextWaveAtMs = world.elapsedMs + clamp(adjustedIntervalMs, 200, 1600)
 }
