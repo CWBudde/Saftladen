@@ -235,6 +235,7 @@ function App() {
 
   const startMode = (mode: GameMode) => {
     audio.initOnUserGesture()
+    audio.playSfx('ui-click')
     setSelectedMode(mode)
     setLastRunRewards(null)
     engine.setMode(mode)
@@ -242,22 +243,26 @@ function App() {
   }
 
   const handlePause = () => {
+    audio.playSfx('ui-click')
     engine.pause()
   }
 
   const handleResume = () => {
     audio.initOnUserGesture()
+    audio.playSfx('ui-click')
     engine.resume()
   }
 
   const handleRestart = () => {
     audio.initOnUserGesture()
+    audio.playSfx('ui-click')
     setLastRunRewards(null)
     engine.reset()
     engine.start()
   }
 
   const handleReturnToMenu = () => {
+    audio.playSfx('ui-click')
     engine.reset()
   }
 
@@ -329,7 +334,14 @@ function App() {
               </div>
 
               <div className="menu-actions">
-                <button type="button" className="profile-button" onClick={() => setProfileOpen((open) => !open)}>
+                <button
+                  type="button"
+                  className="profile-button"
+                  onClick={() => {
+                    audio.playSfx('ui-click')
+                    setProfileOpen((open) => !open)
+                  }}
+                >
                   Profile & Rewards
                 </button>
               </div>

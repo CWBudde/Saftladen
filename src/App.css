@@ -113,6 +113,7 @@
   letter-spacing: 0.08em;
   font-weight: 800;
   cursor: pointer;
+  transition: transform 0.1s ease;
 }
 
 .ring-fruit {
@@ -162,6 +163,10 @@
   transform: translateY(-2px) scale(1.04);
 }
 
+.ring-mode:not(:disabled):hover {
+  transform: scale(1.06);
+}
+
 .ring-mode.locked {
   opacity: 0.68;
   cursor: not-allowed;
@@ -182,6 +187,7 @@
   padding: 0.48rem 0.9rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  transition: transform 0.1s ease;
 }
 
 .primary-button {
@@ -195,6 +201,12 @@
   border: 1px solid rgba(255, 213, 144, 0.4);
   background: rgba(28, 18, 14, 0.85);
   color: #ffeac9;
+}
+
+.primary-button:not(:disabled):hover,
+.ghost-button:not(:disabled):hover,
+.profile-button:not(:disabled):hover {
+  transform: scale(1.05);
 }
 
 .profile-panel {
