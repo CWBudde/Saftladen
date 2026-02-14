@@ -20,6 +20,7 @@ export type GameUiSnapshot = {
   strikesMax: number
   elapsedMs: number
   arcadeRemainingMs: number
+  zenRemainingMs: number
   activePowerUps: ActivePowerUp[]
 }
 
@@ -70,6 +71,7 @@ export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot
     strikesMax: state.strikes.max,
     elapsedMs: state.world.elapsedMs,
     arcadeRemainingMs: state.modeState.arcade.remainingMs,
+    zenRemainingMs: state.modeState.zen.remainingMs,
     activePowerUps,
   }
 }
@@ -86,6 +88,7 @@ export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnaps
       left.strikesMax === right.strikesMax &&
       left.elapsedMs === right.elapsedMs &&
       left.arcadeRemainingMs === right.arcadeRemainingMs &&
+      left.zenRemainingMs === right.zenRemainingMs &&
       left.activePowerUps.join('|') === right.activePowerUps.join('|')
   )
 }

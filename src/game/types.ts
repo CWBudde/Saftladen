@@ -94,7 +94,7 @@ export type ScoreFeedbackEvent = {
 }
 
 export type TimeScalePreset = 'normal' | 'slow' | 'freeze'
-export type GameMode = 'classic' | 'arcade'
+export type GameMode = 'classic' | 'arcade' | 'zen'
 export type ActivePowerUp = PowerUpType
 
 export type TimeScale = {
@@ -166,8 +166,14 @@ export type ArcadeModeState = {
   powerUpTimers: ArcadePowerUpTimers
 }
 
+export type ZenModeState = {
+  roundDurationMs: number
+  remainingMs: number
+}
+
 export type ModeState = {
   arcade: ArcadeModeState
+  zen: ZenModeState
 }
 
 export type GameState = {
