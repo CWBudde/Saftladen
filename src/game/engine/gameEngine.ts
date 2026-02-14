@@ -41,6 +41,7 @@ export type GameEngine = {
   getState: () => Readonly<GameState>
   getDiagnostics: () => EngineDiagnostics
   setInputTrails: (trails: SliceTrail[]) => void
+  setMode: (mode: GameMode) => void
   start: (options?: StartOptions) => void
   pause: () => void
   resume: () => void
@@ -229,6 +230,28 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }))
   }
 
+  const setMode = (nextMode: GameMode) => {
+    if (state.mode === nextMode) {
+      return
+    }
+
+    const seed = state.run.seed
+    const bestScore = loadBestScore(nextMode)
+    state = createBaseState(
+      nextMode,
+      seed,
+      state.settings.fixedDtMs,
+      state.settings.maxFrameDeltaMs,
+      bestScore,
+    )
+    state.run.seed = seed
+    accumulatorMs = 0
+    lastAdvanceSteps = 0
+    inputTrails = []
+    resetEntityIds(1)
+    emit()
+  }
+
   const start = (startOptions: StartOptions = {}) => {
     const nextPhase = transitionGamePhase(state.phase, 'start')
     if (nextPhase !== 'running') {
@@ -335,6 +358,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       lastAdvanceSteps,
     }),
     setInputTrails,
+    setMode,
     start,
     pause,
     resume,

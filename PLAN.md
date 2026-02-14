@@ -253,22 +253,22 @@ Conventions used in this plan:
 **Deliverable:** A functional UI layer: Main menu, HUD, pause menu, game over screen, settings.
 
 ### TODO
-- [ ] Define UI state model
-  - [ ] Current view: menu / playing / paused / game over
-  - [ ] Selected mode: classic (and arcade later)
-  - [ ] Settings: sound volumes, sensitivity, reduced motion
-- [ ] Implement minimal screens (DOM overlay)
-  - [ ] Main menu: Start button + mode select
-  - [ ] HUD: score, strikes/lives (and timer later)
-  - [ ] Pause menu: resume + restart
-  - [ ] Game over: final score + best score + restart
-- [ ] Wire UI actions to engine API
-  - [ ] Start, pause/resume, restart, set mode
-  - [ ] Read-only engine stats surfaced to React (score, lives, phase)
-- [ ] Accessibility & input
-  - [ ] Keyboard navigation for menus
-  - [ ] Visible focus states
-  - [ ] Ensure canvas has an aria-label (already present) and UI controls are semantic
+- [x] Define UI state model
+  - [x] Current view: menu / playing / paused / game over
+  - [x] Selected mode: classic (and arcade later)
+  - [x] Settings: sound volumes, sensitivity, reduced motion
+- [x] Implement minimal screens (DOM overlay)
+  - [x] Main menu: Start button + mode select
+  - [x] HUD: score, strikes/lives (and timer later)
+  - [x] Pause menu: resume + restart
+  - [x] Game over: final score + best score + restart
+- [x] Wire UI actions to engine API
+  - [x] Start, pause/resume, restart, set mode
+  - [x] Read-only engine stats surfaced to React (score, lives, phase)
+- [x] Accessibility & input
+  - [x] Keyboard navigation for menus
+  - [x] Visible focus states
+  - [x] Ensure canvas has an aria-label (already present) and UI controls are semantic
 
 ### Acceptance
 - Menus are operable without touching the canvas.
