@@ -8,6 +8,27 @@ const backgroundImageModules = import.meta.glob('../../assets/background.png', {
 }) as Record<string, string>
 const preferredBackgroundImageUrl = Object.values(backgroundImageModules)[0] ?? null
 
+const fruitImageModules = import.meta.glob('../../assets/{apple,melon,orange,pineapple}{1,3}.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+
+type FruitImageSet = {
+  whole: HTMLImageElement | null
+  cut: HTMLImageElement | null
+  wholeReady: boolean
+  cutReady: boolean
+}
+
+type FruitImages = {
+  apple: FruitImageSet
+  orange: FruitImageSet
+  watermelon: FruitImageSet
+  pineapple: FruitImageSet
+  banana: FruitImageSet
+}
+
 function worldToCanvas(
   xWorld: number,
   yWorld: number,
@@ -260,6 +281,7 @@ function drawFruitBombPowerLayer(
   state: Parameters<Renderer['render']>[1],
   widthCssPx: number,
   heightCssPx: number,
+  fruitImages: FruitImages,
 ): void {
   const worldWidth = state.world.bounds.x
   const worldHeight = state.world.bounds.y
@@ -276,13 +298,23 @@ function drawFruitBombPowerLayer(
     ctx.rotate(entity.rotationRad)
 
     if (entity.kind === 'fruit') {
-      ctx.fillStyle = entity.color
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = 'rgba(17, 24, 39, 0.4)'
-      ctx.lineWidth = 2
-      ctx.stroke()
+      const imageSet = fruitImages[entity.fruitType]
+      const useImage = imageSet?.whole && imageSet.wholeReady
+
+      if (useImage) {
+        const img = imageSet.whole!
+        const size = radius * 2
+        ctx.drawImage(img, -radius, -radius, size, size)
+      } else {
+        // Fallback to circle rendering
+        ctx.fillStyle = entity.color
+        ctx.beginPath()
+        ctx.arc(0, 0, radius, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(17, 24, 39, 0.4)'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
     } else if (entity.kind === 'bomb') {
       ctx.fillStyle = entity.color
       ctx.beginPath()
@@ -314,6 +346,7 @@ function drawFruitHalfLayer(
   state: Parameters<Renderer['render']>[1],
   widthCssPx: number,
   heightCssPx: number,
+  fruitImages: FruitImages,
 ): void {
   const worldWidth = state.world.bounds.x
   const worldHeight = state.world.bounds.y
@@ -332,18 +365,31 @@ function drawFruitHalfLayer(
     ctx.translate(center.x, center.y)
     ctx.rotate(entity.rotationRad)
     ctx.scale(popScale, popScale)
-    ctx.fillStyle = entity.color
-    ctx.beginPath()
-    if (entity.half === 'left') {
-      ctx.arc(0, 0, radius, Math.PI * 0.5, Math.PI * 1.5)
+
+    const imageSet = fruitImages[entity.fruitType]
+    const useImage = imageSet?.cut && imageSet.cutReady
+
+    if (useImage) {
+      const img = imageSet.cut!
+      const size = radius * 2
+      // Draw the full cut fruit image
+      ctx.drawImage(img, -radius, -radius, size, size)
     } else {
-      ctx.arc(0, 0, radius, -Math.PI * 0.5, Math.PI * 0.5)
+      // Fallback to half-circle rendering
+      ctx.fillStyle = entity.color
+      ctx.beginPath()
+      if (entity.half === 'left') {
+        ctx.arc(0, 0, radius, Math.PI * 0.5, Math.PI * 1.5)
+      } else {
+        ctx.arc(0, 0, radius, -Math.PI * 0.5, Math.PI * 0.5)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(17, 24, 39, 0.3)'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
     }
-    ctx.closePath()
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(17, 24, 39, 0.3)'
-    ctx.lineWidth = 1.5
-    ctx.stroke()
+
     ctx.restore()
   })
 }
@@ -435,6 +481,30 @@ function drawScreenFlashLayer(
   }
 }
 
+function createFruitImageSet(): FruitImageSet {
+  return {
+    whole: null,
+    cut: null,
+    wholeReady: false,
+    cutReady: false,
+  }
+}
+
+function loadFruitImage(url: string, onReady: (img: HTMLImageElement) => void): void {
+  if (typeof Image === 'undefined') {
+    return
+  }
+  const img = new Image()
+  img.decoding = 'async'
+  img.src = url
+  img.onload = () => {
+    onReady(img)
+  }
+  img.onerror = () => {
+    // Silently fail - fallback rendering will be used
+  }
+}
+
 export function createPlaceholderRenderer(): Renderer {
   let woodTextureCache: WoodTextureCache | null = null
   let preferredBackgroundImage: HTMLImageElement | null = null
@@ -453,6 +523,36 @@ export function createPlaceholderRenderer(): Renderer {
     }
   }
 
+  // Initialize fruit images
+  const fruitImages: FruitImages = {
+    apple: createFruitImageSet(),
+    orange: createFruitImageSet(),
+    watermelon: createFruitImageSet(),
+    pineapple: createFruitImageSet(),
+    banana: createFruitImageSet(),
+  }
+
+  // Load fruit images from the glob imports
+  Object.entries(fruitImageModules).forEach(([path, url]) => {
+    const match = path.match(/\/(apple|melon|orange|pineapple)([13])\.png$/)
+    if (!match) return
+
+    const [, fruitName, variant] = match
+    const fruitKey = fruitName === 'melon' ? 'watermelon' : (fruitName as 'apple' | 'orange' | 'pineapple')
+
+    if (variant === '1') {
+      loadFruitImage(url, (img) => {
+        fruitImages[fruitKey].whole = img
+        fruitImages[fruitKey].wholeReady = true
+      })
+    } else if (variant === '3') {
+      loadFruitImage(url, (img) => {
+        fruitImages[fruitKey].cut = img
+        fruitImages[fruitKey].cutReady = true
+      })
+    }
+  })
+
   return {
     render: (ctx, state, frameInfo, context) => {
       const { widthCssPx, heightCssPx } = context.metrics
@@ -465,8 +565,8 @@ export function createPlaceholderRenderer(): Renderer {
         preferredBackgroundReady,
       )
       drawDecalLayer(ctx, state, widthCssPx, heightCssPx)
-      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx)
-      drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx)
+      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages)
+      drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx, fruitImages)
       drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
       drawPointerTrails(ctx, context)
       drawScoreFeedbackLayer(ctx, state, widthCssPx, heightCssPx)
