@@ -10,6 +10,8 @@ type AudioService = {
   setMusicVolume: (volume: number) => void
   setSfxVolume: (volume: number) => void
   stopAll: () => void
+  toggleMusic: () => boolean
+  isMusicPlaying: () => boolean
 }
 
 type SfxPack = Record<AudioSfxName, Howl>
@@ -116,12 +118,29 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     sfxObjectUrls = []
   }
 
+  const toggleMusic = (): boolean => {
+    ensureUnlocked()
+    if (music.playing()) {
+      music.pause()
+      return false
+    } else {
+      music.play()
+      return true
+    }
+  }
+
+  const isMusicPlaying = (): boolean => {
+    return music.playing()
+  }
+
   return {
     initOnUserGesture: ensureUnlocked,
     playSfx,
     setMusicVolume,
     setSfxVolume,
     stopAll,
+    toggleMusic,
+    isMusicPlaying,
   }
 }
 
