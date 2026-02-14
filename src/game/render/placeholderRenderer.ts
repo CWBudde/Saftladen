@@ -14,11 +14,21 @@ const fruitImageModules = import.meta.glob('../../assets/{apple,melon,orange,pin
   query: '?url',
 }) as Record<string, string>
 
+const pineappleHalfModules = import.meta.glob('../../assets/pineapple{4,5}.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+
 type FruitImageSet = {
   whole: HTMLImageElement | null
   cut: HTMLImageElement | null
+  cutLeft: HTMLImageElement | null
+  cutRight: HTMLImageElement | null
   wholeReady: boolean
   cutReady: boolean
+  cutLeftReady: boolean
+  cutRightReady: boolean
 }
 
 type FruitImages = {
@@ -367,12 +377,24 @@ function drawFruitHalfLayer(
     ctx.scale(popScale, popScale)
 
     const imageSet = fruitImages[entity.fruitType]
-    const useImage = imageSet?.cut && imageSet.cutReady
 
-    if (useImage) {
+    // For pineapple, use separate left/right images; for others, use single cut image
+    const isPineapple = entity.fruitType === 'pineapple'
+    const useLeftImage = isPineapple && entity.half === 'left' && imageSet?.cutLeft && imageSet.cutLeftReady
+    const useRightImage = isPineapple && entity.half === 'right' && imageSet?.cutRight && imageSet.cutRightReady
+    const useSingleCutImage = !isPineapple && imageSet?.cut && imageSet.cutReady
+
+    if (useLeftImage) {
+      const img = imageSet.cutLeft!
+      const size = radius * 2
+      ctx.drawImage(img, -radius, -radius, size, size)
+    } else if (useRightImage) {
+      const img = imageSet.cutRight!
+      const size = radius * 2
+      ctx.drawImage(img, -radius, -radius, size, size)
+    } else if (useSingleCutImage) {
       const img = imageSet.cut!
       const size = radius * 2
-      // Draw the full cut fruit image
       ctx.drawImage(img, -radius, -radius, size, size)
     } else {
       // Fallback to half-circle rendering
@@ -485,8 +507,12 @@ function createFruitImageSet(): FruitImageSet {
   return {
     whole: null,
     cut: null,
+    cutLeft: null,
+    cutRight: null,
     wholeReady: false,
     cutReady: false,
+    cutLeftReady: false,
+    cutRightReady: false,
   }
 }
 
@@ -549,6 +575,25 @@ export function createPlaceholderRenderer(): Renderer {
       loadFruitImage(url, (img) => {
         fruitImages[fruitKey].cut = img
         fruitImages[fruitKey].cutReady = true
+      })
+    }
+  })
+
+  // Load pineapple half images (4=right, 5=left)
+  Object.entries(pineappleHalfModules).forEach(([path, url]) => {
+    const match = path.match(/\/pineapple([45])\.png$/)
+    if (!match) return
+
+    const [, variant] = match
+    if (variant === '4') {
+      loadFruitImage(url, (img) => {
+        fruitImages.pineapple.cutRight = img
+        fruitImages.pineapple.cutRightReady = true
+      })
+    } else if (variant === '5') {
+      loadFruitImage(url, (img) => {
+        fruitImages.pineapple.cutLeft = img
+        fruitImages.pineapple.cutLeftReady = true
       })
     }
   })
