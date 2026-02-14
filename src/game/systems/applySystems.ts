@@ -1,5 +1,6 @@
 import type { GameState, SliceTrail } from '../types'
 import { stepDespawnSystem } from './despawnSystem'
+import { stepModeSystem } from './modeSystem'
 import { stepPhysicsSystem } from './physicsSystem'
 import { detectSliceEvents } from './sliceDetectSystem'
 import { resolveSliceEvents } from './sliceResolveSystem'
@@ -14,6 +15,7 @@ export type SystemStepOutcome = {
   missedFruits: number
   bombHit: boolean
   fruitSlices: number
+  roundEnded: boolean
 }
 
 export function applyCoreSystems(
@@ -22,15 +24,17 @@ export function applyCoreSystems(
   random: RandomSource,
   trails: SliceTrail[],
 ): SystemStepOutcome {
-  stepSpawnSystem(state, random)
-  stepPhysicsSystem(state, dtMs)
+  const modifiers = stepModeSystem(state, dtMs)
+  stepSpawnSystem(state, random, modifiers)
+  stepPhysicsSystem(state, dtMs * modifiers.physicsDtScale)
   detectSliceEvents(state, trails)
-  const sliceOutcome = resolveSliceEvents(state, random)
+  const sliceOutcome = resolveSliceEvents(state, random, modifiers)
   const despawnOutcome = stepDespawnSystem(state)
 
   return {
     missedFruits: despawnOutcome.missedFruits,
     bombHit: sliceOutcome.bombHit,
     fruitSlices: sliceOutcome.fruitSlices,
+    roundEnded: modifiers.roundEnded,
   }
 }

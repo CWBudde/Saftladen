@@ -213,9 +213,13 @@ function drawScoreFeedbackLayer(
     ctx.arc(anchor.x, anchor.y, 10 + lifeProgress * 26, 0, Math.PI * 2)
     ctx.stroke()
 
-    ctx.fillStyle = `rgba(236, 253, 245, ${alpha.toFixed(3)})`
+    const isPenalty = event.amount < 0
+    ctx.fillStyle = isPenalty
+      ? `rgba(254, 202, 202, ${alpha.toFixed(3)})`
+      : `rgba(236, 253, 245, ${alpha.toFixed(3)})`
     ctx.font = "700 16px 'Segoe UI', Tahoma, sans-serif"
-    ctx.fillText(`+${event.amount}`, anchor.x, anchor.y - floatOffsetY)
+    const scoreLabel = event.amount >= 0 ? `+${event.amount}` : `${event.amount}`
+    ctx.fillText(scoreLabel, anchor.x, anchor.y - floatOffsetY)
 
     if (event.combo > 1) {
       ctx.font = "600 11px 'Segoe UI', Tahoma, sans-serif"

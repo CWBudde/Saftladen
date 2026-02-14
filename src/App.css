@@ -67,6 +67,11 @@
   letter-spacing: 0.01em;
 }
 
+.power-up-pill {
+  border-color: rgba(136, 246, 255, 0.6);
+  color: #ddf9ff;
+}
+
 .menu-home {
   pointer-events: auto;
   width: min(1200px, 100%);

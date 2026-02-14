@@ -311,16 +311,16 @@ Conventions used in this plan:
 **Deliverable:** A timed 60-second mode with freeze/frenzy/double-points.
 
 ### TODO
-- [ ] Implement arcade timer
-  - [ ] 60-second countdown
-  - [ ] End-of-round on timer expiry
-- [ ] Implement power-ups (bananas)
-  - [ ] Freeze: slow motion / time scaling for a few seconds
-  - [ ] Frenzy: high spawn rate, ideally no bombs during effect
-  - [ ] Double points: score multiplier for a few seconds
-- [ ] Balance and UI
-  - [ ] HUD shows timer and active power-up state
-  - [ ] Adjust spawn patterns for arcade feel
+- [x] Implement arcade timer
+  - [x] 60-second countdown
+  - [x] End-of-round on timer expiry
+- [x] Implement power-ups (bananas)
+  - [x] Freeze: slow motion / time scaling for a few seconds
+  - [x] Frenzy: high spawn rate, ideally no bombs during effect
+  - [x] Double points: score multiplier for a few seconds
+- [x] Balance and UI
+  - [x] HUD shows timer and active power-up state
+  - [x] Adjust spawn patterns for arcade feel
 
 ### Acceptance
 - Arcade mode feels meaningfully different from Classic.

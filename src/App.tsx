@@ -53,6 +53,16 @@ function formatDuration(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+function powerUpLabel(powerUp: 'freeze' | 'frenzy' | 'double-points'): string {
+  if (powerUp === 'freeze') {
+    return 'Freeze'
+  }
+  if (powerUp === 'frenzy') {
+    return 'Frenzy'
+  }
+  return 'Double'
+}
+
 function App() {
   const engine = useMemo(() => createGameEngine({ seed: 1, mode: 'classic' }), [])
   const uiSnapshot = useGameUiSnapshot(engine)
@@ -194,10 +204,22 @@ function App() {
             <div className="hud-bar" role="status" aria-live="polite">
               <p className="hud-pill">Score {uiSnapshot.score}</p>
               <p className="hud-pill">Combo x{Math.max(1, uiSnapshot.combo)}</p>
-              <p className="hud-pill">
-                Strikes {uiSnapshot.strikesRemaining}/{uiSnapshot.strikesMax}
-              </p>
+              <p className="hud-pill">Mode {uiSnapshot.mode}</p>
+              {uiSnapshot.mode === 'arcade' ? (
+                <p className="hud-pill">Time {formatDuration(uiSnapshot.arcadeRemainingMs)}</p>
+              ) : (
+                <p className="hud-pill">
+                  Strikes {uiSnapshot.strikesRemaining}/{uiSnapshot.strikesMax}
+                </p>
+              )}
               <p className="hud-pill">Starfruit {rewardProfile.starfruit}</p>
+              {uiSnapshot.mode === 'arcade'
+                ? uiSnapshot.activePowerUps.map((powerUp) => (
+                    <p key={powerUp} className="hud-pill power-up-pill">
+                      {powerUpLabel(powerUp)}
+                    </p>
+                  ))
+                : null}
               <button type="button" className="ghost-button" onClick={handlePause} disabled={uiSnapshot.view !== 'playing'}>
                 Pause
               </button>
@@ -307,6 +329,7 @@ function App() {
                   Main Menu
                 </button>
               </div>
+              {uiSnapshot.mode === 'arcade' ? <p>Time Left: {formatDuration(uiSnapshot.arcadeRemainingMs)}</p> : null}
             </section>
           ) : null}
 

@@ -1,12 +1,12 @@
-import type { BombEntity, FruitEntity, GameState, SliceTrail } from '../types'
+import type { BombEntity, FruitEntity, GameState, PowerUpEntity, SliceTrail } from '../types'
 import { segmentIntersectsCircle, segmentMayHitCircleByAabb } from './collision'
 
-type SliceCandidate = FruitEntity | BombEntity
+type SliceCandidate = FruitEntity | BombEntity | PowerUpEntity
 
 function getSliceCandidates(state: GameState): SliceCandidate[] {
   return Object.values(state.world.entities).filter(
     (entity): entity is SliceCandidate =>
-      (entity.kind === 'fruit' && !entity.sliced) || entity.kind === 'bomb',
+      (entity.kind === 'fruit' && !entity.sliced) || entity.kind === 'bomb' || entity.kind === 'power-up',
   )
 }
 

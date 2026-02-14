@@ -72,7 +72,7 @@ const OBJECTIVE_TEMPLATES: ObjectiveTemplate[] = [
   },
 ]
 
-export const REWARD_PROFILE_STORAGE_KEY = 'fruitninja.rewards.profile'
+export const REWARD_PROFILE_STORAGE_KEY = 'saftladen.rewards.profile'
 const XP_PER_LEVEL = 280
 const RANK_NAMES = ['Novice', 'Apprentice', 'Sensei', 'Master', 'Grandmaster'] as const
 
