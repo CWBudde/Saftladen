@@ -1,5 +1,5 @@
 import { resetEntityIds } from '../model'
-import { applyCoreSystems, createInitialArcadeState } from '../systems'
+import { applyCoreSystems, createInitialArcadeState, createInitialZenState } from '../systems'
 import type { EntityId, GameEntity, GameMode, GameState, SliceTrail, TimeScalePreset } from '../types'
 import { transitionGamePhase } from './phaseMachine'
 import { createSeededRng } from './rng'
@@ -139,6 +139,7 @@ function createBaseState(
     },
     modeState: {
       arcade: createInitialArcadeState(),
+      zen: createInitialZenState(),
     },
   }
 }

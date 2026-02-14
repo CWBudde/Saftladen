@@ -4,6 +4,7 @@ export { stepDespawnSystem } from './despawnSystem'
 export {
   activatePowerUp,
   createInitialArcadeState,
+  createInitialZenState,
   getActivePowerUps,
   isPowerUpActive,
   stepModeSystem,

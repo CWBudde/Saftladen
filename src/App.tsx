@@ -281,6 +281,8 @@ function App() {
               <p className="hud-pill">Mode {uiSnapshot.mode}</p>
               {uiSnapshot.mode === 'arcade' ? (
                 <p className="hud-pill">Time {formatDuration(uiSnapshot.arcadeRemainingMs)}</p>
+              ) : uiSnapshot.mode === 'zen' ? (
+                <p className="hud-pill">Time {formatDuration(uiSnapshot.zenRemainingMs)}</p>
               ) : (
                 <p className="hud-pill">
                   Strikes {uiSnapshot.strikesRemaining}/{uiSnapshot.strikesMax}
@@ -325,7 +327,11 @@ function App() {
                   </span>
                   <span className="ring-label">Arcade</span>
                 </button>
-                <button type="button" className="ring-mode ring-green locked" disabled>
+                <button
+                  type="button"
+                  className={`ring-mode ring-green ${selectedMode === 'zen' ? 'selected' : ''}`}
+                  onClick={() => startMode('zen')}
+                >
                   <span className="ring-fruit">
                     <img src={zenModeImage} alt="" className="ring-fruit-image" />
                   </span>
@@ -416,7 +422,11 @@ function App() {
                   Main Menu
                 </button>
               </div>
-              {uiSnapshot.mode === 'arcade' ? <p>Time Left: {formatDuration(uiSnapshot.arcadeRemainingMs)}</p> : null}
+              {uiSnapshot.mode === 'arcade' ? (
+                <p>Time Left: {formatDuration(uiSnapshot.arcadeRemainingMs)}</p>
+              ) : uiSnapshot.mode === 'zen' ? (
+                <p>Time Left: {formatDuration(uiSnapshot.zenRemainingMs)}</p>
+              ) : null}
             </section>
           ) : null}
 
