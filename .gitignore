@@ -41,7 +41,5 @@ dist-ssr/
 coverage/
 test-results/
 
-# Bun
-# bun.lock is usually committed, but if you want to ignore it:
-# bun.lock
-
+# imagegen
+output/imagegen/
