@@ -1,6 +1,13 @@
 import type { Renderer } from './renderer'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawPointerTrails, drawTrailStats } from './debugDraw'
 
+const backgroundImageModules = import.meta.glob('../../assets/background.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+const preferredBackgroundImageUrl = Object.values(backgroundImageModules)[0] ?? null
+
 function worldToCanvas(
   xWorld: number,
   yWorld: number,
@@ -155,8 +162,32 @@ function drawBackgroundLayer(
   widthCssPx: number,
   heightCssPx: number,
   cache: WoodTextureCache | null,
+  preferredBackgroundImage: HTMLImageElement | null,
+  preferredBackgroundReady: boolean,
 ): WoodTextureCache | null {
   ctx.clearRect(0, 0, widthCssPx, heightCssPx)
+
+  if (preferredBackgroundImage && preferredBackgroundReady) {
+    const sourceWidth = preferredBackgroundImage.naturalWidth || preferredBackgroundImage.width
+    const sourceHeight = preferredBackgroundImage.naturalHeight || preferredBackgroundImage.height
+    const sourceAspect = sourceWidth / Math.max(1, sourceHeight)
+    const targetAspect = widthCssPx / Math.max(1, heightCssPx)
+    let sx = 0
+    let sy = 0
+    let sw = sourceWidth
+    let sh = sourceHeight
+
+    if (sourceAspect > targetAspect) {
+      sw = sourceHeight * targetAspect
+      sx = (sourceWidth - sw) * 0.5
+    } else {
+      sh = sourceWidth / targetAspect
+      sy = (sourceHeight - sh) * 0.5
+    }
+
+    ctx.drawImage(preferredBackgroundImage, sx, sy, sw, sh, 0, 0, widthCssPx, heightCssPx)
+    return cache
+  }
 
   const width = Math.max(1, Math.floor(widthCssPx))
   const height = Math.max(1, Math.floor(heightCssPx))
@@ -406,11 +437,33 @@ function drawScreenFlashLayer(
 
 export function createPlaceholderRenderer(): Renderer {
   let woodTextureCache: WoodTextureCache | null = null
+  let preferredBackgroundImage: HTMLImageElement | null = null
+  let preferredBackgroundReady = false
+
+  if (preferredBackgroundImageUrl && typeof Image !== 'undefined') {
+    preferredBackgroundImage = new Image()
+    preferredBackgroundImage.decoding = 'async'
+    preferredBackgroundImage.src = preferredBackgroundImageUrl
+    preferredBackgroundImage.onload = () => {
+      preferredBackgroundReady = true
+    }
+    preferredBackgroundImage.onerror = () => {
+      preferredBackgroundImage = null
+      preferredBackgroundReady = false
+    }
+  }
 
   return {
     render: (ctx, state, frameInfo, context) => {
       const { widthCssPx, heightCssPx } = context.metrics
-      woodTextureCache = drawBackgroundLayer(ctx, widthCssPx, heightCssPx, woodTextureCache)
+      woodTextureCache = drawBackgroundLayer(
+        ctx,
+        widthCssPx,
+        heightCssPx,
+        woodTextureCache,
+        preferredBackgroundImage,
+        preferredBackgroundReady,
+      )
       drawDecalLayer(ctx, state, widthCssPx, heightCssPx)
       drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx)
       drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx)
