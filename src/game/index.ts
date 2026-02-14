@@ -1,4 +1,5 @@
 export * from './types'
+export * from './audio'
 export * from './assets'
 export * from './core'
 export * from './engine'

@@ -4,6 +4,7 @@ import appleModeImage from './assets/apple1.png'
 import arcadeModeImage from './assets/orange1.png'
 import zenModeImage from './assets/melon1.png'
 import './App.css'
+import { createAudioService } from './game/audio'
 import { GameCanvasLayer } from './game/core'
 import { isGameDebugEnabled } from './game/debug'
 import { createGameEngine } from './game/engine'
@@ -68,6 +69,7 @@ function powerUpLabel(powerUp: 'freeze' | 'frenzy' | 'double-points'): string {
 
 function App() {
   const engine = useMemo(() => createGameEngine({ seed: 1, mode: 'classic' }), [])
+  const audio = useMemo(() => createAudioService(), [])
   const uiSnapshot = useGameUiSnapshot(engine)
   const [debugEnabled, setDebugEnabled] = useState(() => isGameDebugEnabled())
   const [rewardProfile, setRewardProfile] = useState(() => loadRewardProfile())
@@ -92,7 +94,26 @@ function App() {
     unlocked: rewardProfile.starfruit >= blade.starfruit,
   }))
 
-  useEffect(() => () => engine.stop(), [engine])
+  useEffect(
+    () => () => {
+      audio.stopAll()
+      engine.stop()
+    },
+    [audio, engine],
+  )
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      audio.initOnUserGesture()
+    }
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true })
+    window.addEventListener('keydown', unlockAudio, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio)
+      window.removeEventListener('keydown', unlockAudio)
+    }
+  }, [audio])
 
   useEffect(() => {
     saveRewardProfile(rewardProfile)
@@ -135,6 +156,52 @@ function App() {
   }, [engine])
 
   useEffect(() => {
+    const initialState = engine.getState()
+    let previousScore = initialState.score.current
+    let previousMisses = initialState.world.misses.count
+    let previousBombHitAt = initialState.world.lastBombHitAtMs
+    let previousPhase = initialState.phase
+    let previousPowerUpKey = [
+      initialState.modeState.arcade.powerUpTimers.freezeMs > 0 ? '1' : '0',
+      initialState.modeState.arcade.powerUpTimers.frenzyMs > 0 ? '1' : '0',
+      initialState.modeState.arcade.powerUpTimers.doublePointsMs > 0 ? '1' : '0',
+    ].join('')
+
+    return engine.subscribe((state) => {
+      if (state.score.current > previousScore) {
+        audio.playSfx('slice')
+      }
+
+      if (state.world.misses.count > previousMisses) {
+        audio.playSfx('miss')
+      }
+
+      if (state.world.lastBombHitAtMs !== previousBombHitAt && state.world.lastBombHitAtMs !== null) {
+        audio.playSfx('bomb')
+      }
+
+      if (previousPhase !== 'game-over' && state.phase === 'game-over') {
+        audio.playSfx('game-over')
+      }
+
+      const currentPowerUpKey = [
+        state.modeState.arcade.powerUpTimers.freezeMs > 0 ? '1' : '0',
+        state.modeState.arcade.powerUpTimers.frenzyMs > 0 ? '1' : '0',
+        state.modeState.arcade.powerUpTimers.doublePointsMs > 0 ? '1' : '0',
+      ].join('')
+      if (currentPowerUpKey !== previousPowerUpKey && currentPowerUpKey.includes('1')) {
+        audio.playSfx('power-up')
+      }
+
+      previousScore = state.score.current
+      previousMisses = state.world.misses.count
+      previousBombHitAt = state.world.lastBombHitAtMs
+      previousPhase = state.phase
+      previousPowerUpKey = currentPowerUpKey
+    })
+  }, [audio, engine])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isFormTarget(event.target)) {
         return
@@ -167,6 +234,7 @@ function App() {
   }, [engine, uiSnapshot.phase])
 
   const startMode = (mode: GameMode) => {
+    audio.initOnUserGesture()
     setSelectedMode(mode)
     setLastRunRewards(null)
     engine.setMode(mode)
@@ -178,10 +246,12 @@ function App() {
   }
 
   const handleResume = () => {
+    audio.initOnUserGesture()
     engine.resume()
   }
 
   const handleRestart = () => {
+    audio.initOnUserGesture()
     setLastRunRewards(null)
     engine.reset()
     engine.start()
