@@ -39,6 +39,13 @@ const bombImageModules = import.meta.glob('../../assets/bomb.png', {
 }) as Record<string, string>
 const bombImageUrl = Object.values(bombImageModules)[0] ?? null
 
+const freezeGlyphModules = import.meta.glob('../../assets/freeze-glyph.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+const freezeGlyphUrl = Object.values(freezeGlyphModules)[0] ?? null
+
 type FruitImageSet = {
   whole: HTMLImageElement | null
   cut: HTMLImageElement | null
@@ -314,6 +321,8 @@ function drawFruitBombPowerLayer(
   fruitImages: FruitImages,
   bombImage: HTMLImageElement | null,
   bombImageReady: boolean,
+  freezeGlyphImage: HTMLImageElement | null,
+  freezeGlyphReady: boolean,
 ): void {
   const worldWidth = state.world.bounds.x
   const worldHeight = state.world.bounds.y
@@ -416,14 +425,42 @@ function drawFruitBombPowerLayer(
     } else if (entity.kind === 'power-up') {
       const baseSizeScale = 1.15
       const scaledRadius = radius * baseSizeScale
-      ctx.fillStyle = entity.color
-      ctx.beginPath()
-      ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = 'rgba(255,255,255,0.85)'
-      ctx.beginPath()
-      ctx.arc(0, 0, scaledRadius * 0.35, 0, Math.PI * 2)
-      ctx.fill()
+
+      if (entity.powerUpType === 'freeze' && freezeGlyphImage && freezeGlyphReady) {
+        // Use freeze glyph image
+        const img = freezeGlyphImage
+        const imgWidth = img.naturalWidth || img.width
+        const imgHeight = img.naturalHeight || img.height
+        const imgAspect = imgWidth / Math.max(1, imgHeight)
+
+        // Additional scale for non-squared images (20% larger)
+        const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
+        const totalScale = baseSizeScale * nonSquareBonus
+
+        // Calculate dimensions maintaining aspect ratio
+        let drawWidth = radius * 2 * totalScale
+        let drawHeight = radius * 2 * totalScale
+
+        if (imgAspect > 1) {
+          // Image is wider than tall
+          drawHeight = drawWidth / imgAspect
+        } else if (imgAspect < 1) {
+          // Image is taller than wide
+          drawWidth = drawHeight * imgAspect
+        }
+
+        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+      } else {
+        // Fallback to circle rendering
+        ctx.fillStyle = entity.color
+        ctx.beginPath()
+        ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = 'rgba(255,255,255,0.85)'
+        ctx.beginPath()
+        ctx.arc(0, 0, scaledRadius * 0.35, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
 
     ctx.restore()
@@ -698,6 +735,23 @@ export function createPlaceholderRenderer(): Renderer {
     }
   }
 
+  // Load freeze glyph image
+  let freezeGlyphImage: HTMLImageElement | null = null
+  let freezeGlyphReady = false
+
+  if (freezeGlyphUrl && typeof Image !== 'undefined') {
+    freezeGlyphImage = new Image()
+    freezeGlyphImage.decoding = 'async'
+    freezeGlyphImage.src = freezeGlyphUrl
+    freezeGlyphImage.onload = () => {
+      freezeGlyphReady = true
+    }
+    freezeGlyphImage.onerror = () => {
+      freezeGlyphImage = null
+      freezeGlyphReady = false
+    }
+  }
+
   // Initialize fruit images
   const fruitImages: FruitImages = {
     apple: createFruitImageSet(),
@@ -787,7 +841,7 @@ export function createPlaceholderRenderer(): Renderer {
         preferredBackgroundReady,
       )
       drawDecalLayer(ctx, state, widthCssPx, heightCssPx)
-      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, bombImage, bombImageReady)
+      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, bombImage, bombImageReady, freezeGlyphImage, freezeGlyphReady)
       drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx, fruitImages)
       drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
       drawPointerTrails(ctx, context)

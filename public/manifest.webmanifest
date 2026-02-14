@@ -4,10 +4,10 @@
   "description": "A Fruit Ninja-style browser game",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#3a2015",
-  "theme_color": "#3a2015",
+  "theme_color": "transparent",
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -20,6 +20,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/splash-screen.png",
+      "sizes": "1536x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
