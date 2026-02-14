@@ -303,7 +303,7 @@ function App() {
           ) : null}
 
           {uiSnapshot.view === 'menu' ? (
-            <section className="menu-home">
+            <section className={`menu-home ${profileOpen ? 'profile-active' : ''}`}>
               <img src={titleImage} className="menu-logo" alt="Saftladen" />
 
               <div className="ring-row">
@@ -351,59 +351,59 @@ function App() {
                   Profile & Rewards
                 </button>
               </div>
-
-              {profileOpen ? (
-                <aside className="profile-panel">
-                  <section className="profile-card">
-                    <p className="meta-label">
-                      {rankInfo.rankName} · Level {rankInfo.level}
-                    </p>
-                    <div className="progress-track" aria-hidden="true">
-                      <div className="progress-fill" style={{ width: `${Math.round(rankInfo.levelProgress * 100)}%` }} />
-                    </div>
-                    <p className="meta-subtle">
-                      XP {rewardProfile.xp} · Starfruit {rewardProfile.starfruit}
-                    </p>
-                  </section>
-
-                  <section className="profile-card">
-                    <p className="meta-label">Objectives</p>
-                    <ul className="objective-list">
-                      {rewardProfile.objectives.map((objective) => (
-                        <li key={objective.id} className={objective.completed ? 'done' : ''}>
-                          <div className="objective-row">
-                            <span>{objective.title}</span>
-                            <strong>
-                              {Math.min(objective.progress, objective.target)}/{objective.target}
-                            </strong>
-                          </div>
-                          <small>{objective.description}</small>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-
-                  <section className="profile-card unlock-panel">
-                    <div>
-                      <p className="meta-subheading">Dojos</p>
-                      <ul>
-                        {dojos.map((dojo) => (
-                          <li key={dojo.name}>{dojo.unlocked ? 'Unlocked' : dojo.requirement}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="meta-subheading">Blades</p>
-                      <ul>
-                        {blades.map((blade) => (
-                          <li key={blade.name}>{blade.unlocked ? 'Unlocked' : blade.requirement}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </section>
-                </aside>
-              ) : null}
             </section>
+          ) : null}
+
+          {uiSnapshot.view === 'menu' ? (
+            <aside className={`profile-panel ${profileOpen ? 'open' : ''}`}>
+              <section className="profile-card">
+                <p className="meta-label">
+                  {rankInfo.rankName} · Level {rankInfo.level}
+                </p>
+                <div className="progress-track" aria-hidden="true">
+                  <div className="progress-fill" style={{ width: `${Math.round(rankInfo.levelProgress * 100)}%` }} />
+                </div>
+                <p className="meta-subtle">
+                  XP {rewardProfile.xp} · Starfruit {rewardProfile.starfruit}
+                </p>
+              </section>
+
+              <section className="profile-card">
+                <p className="meta-label">Objectives</p>
+                <ul className="objective-list">
+                  {rewardProfile.objectives.map((objective) => (
+                    <li key={objective.id} className={objective.completed ? 'done' : ''}>
+                      <div className="objective-row">
+                        <span>{objective.title}</span>
+                        <strong>
+                          {Math.min(objective.progress, objective.target)}/{objective.target}
+                        </strong>
+                      </div>
+                      <small>{objective.description}</small>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="profile-card unlock-panel">
+                <div>
+                  <p className="meta-subheading">Dojos</p>
+                  <ul>
+                    {dojos.map((dojo) => (
+                      <li key={dojo.name}>{dojo.unlocked ? 'Unlocked' : dojo.requirement}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="meta-subheading">Blades</p>
+                  <ul>
+                    {blades.map((blade) => (
+                      <li key={blade.name}>{blade.unlocked ? 'Unlocked' : blade.requirement}</li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            </aside>
           ) : null}
 
           {uiSnapshot.view === 'paused' ? (
