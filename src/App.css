@@ -214,6 +214,34 @@
   transform: scale(1.05);
 }
 
+.music-toggle-button {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 213, 144, 0.4);
+  background: rgba(28, 18, 14, 0.85);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  pointer-events: auto;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.music-toggle-button:hover {
+  transform: scale(1.1);
+  background: rgba(28, 18, 14, 0.95);
+}
+
+.music-toggle-button:active {
+  transform: scale(0.95);
+}
+
 .profile-panel {
   position: fixed;
   bottom: 0;

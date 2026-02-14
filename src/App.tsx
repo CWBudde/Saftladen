@@ -77,6 +77,7 @@ function App() {
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic')
   const [profileOpen, setProfileOpen] = useState(false)
   const [currentRunPeakCombo, setCurrentRunPeakCombo] = useState(0)
+  const [musicPlaying, setMusicPlaying] = useState(false)
 
   const runPeakComboRef = useRef(0)
 
@@ -268,10 +269,19 @@ function App() {
 
   const nextObjective = rewardProfile.objectives.find((objective) => !objective.completed) ?? null
 
+  const handleToggleMusic = () => {
+    const playing = audio.toggleMusic()
+    setMusicPlaying(playing)
+  }
+
   return (
     <main className="game-root">
       <section className="stage-shell">
         <GameCanvasLayer engine={engine} debugEnabled={debugEnabled} />
+
+        <button type="button" className="music-toggle-button" onClick={handleToggleMusic} aria-label={musicPlaying ? 'Pause music' : 'Play music'}>
+          {musicPlaying ? '🔊' : '🔇'}
+        </button>
 
         <div className="overlay-root">
           {uiSnapshot.view !== 'menu' ? (

@@ -21,7 +21,7 @@ export type BaseEntity = {
   radius: number
 }
 
-export type FruitType = 'apple' | 'orange' | 'watermelon' | 'pineapple' | 'banana'
+export type FruitType = 'apple' | 'orange' | 'watermelon' | 'pineapple' | 'banana' | 'starfruit'
 
 export type FruitEntity = BaseEntity & {
   kind: 'fruit'

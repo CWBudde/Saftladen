@@ -14,6 +14,7 @@ const FRUIT_PALETTE: Array<{ fruitType: FruitType; color: string }> = [
   { fruitType: 'watermelon', color: '#22c55e' },
   { fruitType: 'pineapple', color: '#facc15' },
   { fruitType: 'banana', color: '#fde047' },
+  { fruitType: 'starfruit', color: '#eab308' },
 ]
 
 const POWER_UP_PALETTE: Array<{ powerUpType: PowerUpType; color: string }> = [

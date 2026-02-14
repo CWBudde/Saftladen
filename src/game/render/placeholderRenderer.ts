@@ -8,7 +8,13 @@ const backgroundImageModules = import.meta.glob('../../assets/background.png', {
 }) as Record<string, string>
 const preferredBackgroundImageUrl = Object.values(backgroundImageModules)[0] ?? null
 
-const fruitImageModules = import.meta.glob('../../assets/{apple,melon,orange,pineapple}{1,3}.png', {
+const fruitImageModules = import.meta.glob('../../assets/{apple,melon,pineapple,banana,starfruit}{1,3}.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+
+const orangeWholeModules = import.meta.glob('../../assets/orange1.png', {
   eager: true,
   import: 'default',
   query: '?url',
@@ -19,6 +25,19 @@ const pineappleHalfModules = import.meta.glob('../../assets/pineapple{4,5}.png',
   import: 'default',
   query: '?url',
 }) as Record<string, string>
+
+const orangeHalfModules = import.meta.glob('../../assets/orange{3,4}.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+
+const bombImageModules = import.meta.glob('../../assets/bomb.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+const bombImageUrl = Object.values(bombImageModules)[0] ?? null
 
 type FruitImageSet = {
   whole: HTMLImageElement | null
@@ -37,6 +56,7 @@ type FruitImages = {
   watermelon: FruitImageSet
   pineapple: FruitImageSet
   banana: FruitImageSet
+  starfruit: FruitImageSet
 }
 
 function worldToCanvas(
@@ -292,6 +312,8 @@ function drawFruitBombPowerLayer(
   widthCssPx: number,
   heightCssPx: number,
   fruitImages: FruitImages,
+  bombImage: HTMLImageElement | null,
+  bombImageReady: boolean,
 ): void {
   const worldWidth = state.world.bounds.x
   const worldHeight = state.world.bounds.y
@@ -313,37 +335,94 @@ function drawFruitBombPowerLayer(
 
       if (useImage) {
         const img = imageSet.whole!
-        const size = radius * 2
-        ctx.drawImage(img, -radius, -radius, size, size)
+        const imgWidth = img.naturalWidth || img.width
+        const imgHeight = img.naturalHeight || img.height
+        const imgAspect = imgWidth / Math.max(1, imgHeight)
+
+        // Base size increase: 15% for all items
+        const baseSizeScale = 1.15
+        // Additional scale for non-squared images (20% larger)
+        const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
+        const totalScale = baseSizeScale * nonSquareBonus
+
+        // Calculate dimensions maintaining aspect ratio
+        let drawWidth = radius * 2 * totalScale
+        let drawHeight = radius * 2 * totalScale
+
+        if (imgAspect > 1) {
+          // Image is wider than tall (e.g., banana)
+          drawHeight = drawWidth / imgAspect
+        } else if (imgAspect < 1) {
+          // Image is taller than wide (e.g., pineapple, starfruit)
+          drawWidth = drawHeight * imgAspect
+        }
+
+        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
       } else {
         // Fallback to circle rendering
+        const baseSizeScale = 1.15
+        const scaledRadius = radius * baseSizeScale
         ctx.fillStyle = entity.color
         ctx.beginPath()
-        ctx.arc(0, 0, radius, 0, Math.PI * 2)
+        ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
         ctx.fill()
         ctx.strokeStyle = 'rgba(17, 24, 39, 0.4)'
         ctx.lineWidth = 2
         ctx.stroke()
       }
     } else if (entity.kind === 'bomb') {
-      ctx.fillStyle = entity.color
-      ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = '#ef4444'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(-radius * 0.5, -radius * 0.8)
-      ctx.lineTo(radius * 0.5, -radius * 1.2)
-      ctx.stroke()
+      const useBombImage = bombImage && bombImageReady
+
+      if (useBombImage) {
+        const img = bombImage!
+        const imgWidth = img.naturalWidth || img.width
+        const imgHeight = img.naturalHeight || img.height
+        const imgAspect = imgWidth / Math.max(1, imgHeight)
+
+        // Base size increase: 15% for all items
+        const baseSizeScale = 1.15
+        // Additional scale for non-squared images (20% larger)
+        const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
+        const totalScale = baseSizeScale * nonSquareBonus
+
+        // Calculate dimensions maintaining aspect ratio
+        let drawWidth = radius * 2 * totalScale
+        let drawHeight = radius * 2 * totalScale
+
+        if (imgAspect > 1) {
+          // Image is wider than tall
+          drawHeight = drawWidth / imgAspect
+        } else if (imgAspect < 1) {
+          // Image is taller than wide (bomb: 294×367)
+          drawWidth = drawHeight * imgAspect
+        }
+
+        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+      } else {
+        // Fallback to circle rendering with fuse
+        const baseSizeScale = 1.15
+        const scaledRadius = radius * baseSizeScale
+        ctx.fillStyle = entity.color
+        ctx.beginPath()
+        ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.strokeStyle = '#ef4444'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(-scaledRadius * 0.5, -scaledRadius * 0.8)
+        ctx.lineTo(scaledRadius * 0.5, -scaledRadius * 1.2)
+        ctx.stroke()
+      }
     } else if (entity.kind === 'power-up') {
+      const baseSizeScale = 1.15
+      const scaledRadius = radius * baseSizeScale
       ctx.fillStyle = entity.color
       ctx.beginPath()
-      ctx.arc(0, 0, radius, 0, Math.PI * 2)
+      ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
       ctx.fill()
       ctx.fillStyle = 'rgba(255,255,255,0.85)'
       ctx.beginPath()
-      ctx.arc(0, 0, radius * 0.35, 0, Math.PI * 2)
+      ctx.arc(0, 0, scaledRadius * 0.35, 0, Math.PI * 2)
       ctx.fill()
     }
 
@@ -378,32 +457,85 @@ function drawFruitHalfLayer(
 
     const imageSet = fruitImages[entity.fruitType]
 
-    // For pineapple, use separate left/right images; for others, use single cut image
-    const isPineapple = entity.fruitType === 'pineapple'
-    const useLeftImage = isPineapple && entity.half === 'left' && imageSet?.cutLeft && imageSet.cutLeftReady
-    const useRightImage = isPineapple && entity.half === 'right' && imageSet?.cutRight && imageSet.cutRightReady
-    const useSingleCutImage = !isPineapple && imageSet?.cut && imageSet.cutReady
+    // For pineapple and orange, use separate left/right images; for others, use single cut image
+    const usesSeparateHalves = entity.fruitType === 'pineapple' || entity.fruitType === 'orange'
+    const useLeftImage = usesSeparateHalves && entity.half === 'left' && imageSet?.cutLeft && imageSet.cutLeftReady
+    const useRightImage = usesSeparateHalves && entity.half === 'right' && imageSet?.cutRight && imageSet.cutRightReady
+    const useSingleCutImage = !usesSeparateHalves && imageSet?.cut && imageSet.cutReady
 
     if (useLeftImage) {
       const img = imageSet.cutLeft!
-      const size = radius * 2
-      ctx.drawImage(img, -radius, -radius, size, size)
+      const imgWidth = img.naturalWidth || img.width
+      const imgHeight = img.naturalHeight || img.height
+      const imgAspect = imgWidth / Math.max(1, imgHeight)
+
+      // Base size increase: 15% for all items
+      const baseSizeScale = 1.15
+      // Additional scale for non-squared images (20% larger)
+      const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
+      const totalScale = baseSizeScale * nonSquareBonus
+
+      let drawWidth = radius * 2 * totalScale
+      let drawHeight = radius * 2 * totalScale
+      if (imgAspect > 1) {
+        drawHeight = drawWidth / imgAspect
+      } else if (imgAspect < 1) {
+        drawWidth = drawHeight * imgAspect
+      }
+
+      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
     } else if (useRightImage) {
       const img = imageSet.cutRight!
-      const size = radius * 2
-      ctx.drawImage(img, -radius, -radius, size, size)
+      const imgWidth = img.naturalWidth || img.width
+      const imgHeight = img.naturalHeight || img.height
+      const imgAspect = imgWidth / Math.max(1, imgHeight)
+
+      // Base size increase: 15% for all items
+      const baseSizeScale = 1.15
+      // Additional scale for non-squared images (20% larger)
+      const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
+      const totalScale = baseSizeScale * nonSquareBonus
+
+      let drawWidth = radius * 2 * totalScale
+      let drawHeight = radius * 2 * totalScale
+      if (imgAspect > 1) {
+        drawHeight = drawWidth / imgAspect
+      } else if (imgAspect < 1) {
+        drawWidth = drawHeight * imgAspect
+      }
+
+      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
     } else if (useSingleCutImage) {
       const img = imageSet.cut!
-      const size = radius * 2
-      ctx.drawImage(img, -radius, -radius, size, size)
+      const imgWidth = img.naturalWidth || img.width
+      const imgHeight = img.naturalHeight || img.height
+      const imgAspect = imgWidth / Math.max(1, imgHeight)
+
+      // Base size increase: 15% for all items
+      const baseSizeScale = 1.15
+      // Additional scale for non-squared images (20% larger)
+      const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
+      const totalScale = baseSizeScale * nonSquareBonus
+
+      let drawWidth = radius * 2 * totalScale
+      let drawHeight = radius * 2 * totalScale
+      if (imgAspect > 1) {
+        drawHeight = drawWidth / imgAspect
+      } else if (imgAspect < 1) {
+        drawWidth = drawHeight * imgAspect
+      }
+
+      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
     } else {
       // Fallback to half-circle rendering
+      const baseSizeScale = 1.15
+      const scaledRadius = radius * baseSizeScale
       ctx.fillStyle = entity.color
       ctx.beginPath()
       if (entity.half === 'left') {
-        ctx.arc(0, 0, radius, Math.PI * 0.5, Math.PI * 1.5)
+        ctx.arc(0, 0, scaledRadius, Math.PI * 0.5, Math.PI * 1.5)
       } else {
-        ctx.arc(0, 0, radius, -Math.PI * 0.5, Math.PI * 0.5)
+        ctx.arc(0, 0, scaledRadius, -Math.PI * 0.5, Math.PI * 0.5)
       }
       ctx.closePath()
       ctx.fill()
@@ -549,6 +681,23 @@ export function createPlaceholderRenderer(): Renderer {
     }
   }
 
+  // Load bomb image
+  let bombImage: HTMLImageElement | null = null
+  let bombImageReady = false
+
+  if (bombImageUrl && typeof Image !== 'undefined') {
+    bombImage = new Image()
+    bombImage.decoding = 'async'
+    bombImage.src = bombImageUrl
+    bombImage.onload = () => {
+      bombImageReady = true
+    }
+    bombImage.onerror = () => {
+      bombImage = null
+      bombImageReady = false
+    }
+  }
+
   // Initialize fruit images
   const fruitImages: FruitImages = {
     apple: createFruitImageSet(),
@@ -556,15 +705,16 @@ export function createPlaceholderRenderer(): Renderer {
     watermelon: createFruitImageSet(),
     pineapple: createFruitImageSet(),
     banana: createFruitImageSet(),
+    starfruit: createFruitImageSet(),
   }
 
   // Load fruit images from the glob imports
   Object.entries(fruitImageModules).forEach(([path, url]) => {
-    const match = path.match(/\/(apple|melon|orange|pineapple)([13])\.png$/)
+    const match = path.match(/\/(apple|melon|pineapple|banana|starfruit)([13])\.png$/)
     if (!match) return
 
     const [, fruitName, variant] = match
-    const fruitKey = fruitName === 'melon' ? 'watermelon' : (fruitName as 'apple' | 'orange' | 'pineapple')
+    const fruitKey = fruitName === 'melon' ? 'watermelon' : (fruitName as 'apple' | 'pineapple' | 'banana' | 'starfruit')
 
     if (variant === '1') {
       loadFruitImage(url, (img) => {
@@ -577,6 +727,14 @@ export function createPlaceholderRenderer(): Renderer {
         fruitImages[fruitKey].cutReady = true
       })
     }
+  })
+
+  // Load orange whole image
+  Object.entries(orangeWholeModules).forEach(([, url]) => {
+    loadFruitImage(url, (img) => {
+      fruitImages.orange.whole = img
+      fruitImages.orange.wholeReady = true
+    })
   })
 
   // Load pineapple half images (4=right, 5=left)
@@ -598,6 +756,25 @@ export function createPlaceholderRenderer(): Renderer {
     }
   })
 
+  // Load orange half images (3=left, 4=right)
+  Object.entries(orangeHalfModules).forEach(([path, url]) => {
+    const match = path.match(/\/orange([34])\.png$/)
+    if (!match) return
+
+    const [, variant] = match
+    if (variant === '3') {
+      loadFruitImage(url, (img) => {
+        fruitImages.orange.cutLeft = img
+        fruitImages.orange.cutLeftReady = true
+      })
+    } else if (variant === '4') {
+      loadFruitImage(url, (img) => {
+        fruitImages.orange.cutRight = img
+        fruitImages.orange.cutRightReady = true
+      })
+    }
+  })
+
   return {
     render: (ctx, state, frameInfo, context) => {
       const { widthCssPx, heightCssPx } = context.metrics
@@ -610,7 +787,7 @@ export function createPlaceholderRenderer(): Renderer {
         preferredBackgroundReady,
       )
       drawDecalLayer(ctx, state, widthCssPx, heightCssPx)
-      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages)
+      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, bombImage, bombImageReady)
       drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx, fruitImages)
       drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
       drawPointerTrails(ctx, context)
