@@ -86,10 +86,8 @@
 
 .menu-logo {
   width: min(460px, 88vw);
-  aspect-ratio: 460 / 170;
-  background-repeat: no-repeat;
-  background-size: min(920px, 176vw) auto;
-  background-position: center 8px;
+  height: auto;
+  display: block;
   filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.35));
 }
 
@@ -105,10 +103,11 @@
   aspect-ratio: 1;
   border-radius: 50%;
   border: 8px solid transparent;
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.2) 0 36%, rgba(19, 13, 11, 0.74) 37% 64%, transparent 65%);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 20, 12, 0.5) 0 60%, rgba(18, 10, 6, 0.84) 61% 100%);
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.36), inset 0 0 16px rgba(255, 255, 255, 0.1);
-  display: grid;
-  place-items: center;
+  position: relative;
+  overflow: hidden;
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -116,12 +115,32 @@
   cursor: pointer;
 }
 
+.ring-fruit {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.ring-fruit-image {
+  width: 64%;
+  height: 64%;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.34));
+}
+
 .ring-label {
-  display: inline-block;
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.45);
   border-radius: 999px;
   padding: 0.26rem 0.55rem;
   font-size: clamp(0.64rem, 1.4vw, 0.92rem);
+  white-space: nowrap;
 }
 
 .ring-red {
@@ -129,14 +148,14 @@
   box-shadow: 0 0 30px rgba(252, 64, 64, 0.46), 0 10px 18px rgba(0, 0, 0, 0.36);
 }
 
-.ring-blue {
-  border-color: #1d5fda;
-  box-shadow: 0 0 30px rgba(83, 142, 255, 0.48), 0 10px 18px rgba(0, 0, 0, 0.36);
+.ring-orange {
+  border-color: #f08c18;
+  box-shadow: 0 0 30px rgba(255, 165, 46, 0.5), 0 10px 18px rgba(0, 0, 0, 0.36);
 }
 
-.ring-gold {
-  border-color: #d98b0f;
-  box-shadow: 0 0 30px rgba(255, 191, 73, 0.48), 0 10px 18px rgba(0, 0, 0, 0.36);
+.ring-green {
+  border-color: #4ea230;
+  box-shadow: 0 0 30px rgba(121, 209, 84, 0.5), 0 10px 18px rgba(0, 0, 0, 0.36);
 }
 
 .ring-mode.selected {
