@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { isGameDebugEnabled } from '../debug'
-import { createGameEngine } from '../engine'
+import type { GameEngine } from '../engine'
 import { createTrailTracker, isPointInsideCanvas, mapCanvasPointToWorld, pointerEventToCanvasLocal } from '../input'
 import { createPlaceholderRenderer, type PointerTrailDebug } from '../render'
 import type { SliceTrail, Vec2 } from '../types'
@@ -11,12 +11,20 @@ function toVec2Points(points: Array<{ x: number; y: number }>): Vec2[] {
   return points.map((point) => ({ x: point.x, y: point.y }))
 }
 
-export function GameCanvasLayer() {
+type GameCanvasLayerProps = {
+  engine: GameEngine
+  debugEnabled?: boolean
+}
+
+export function GameCanvasLayer({ engine, debugEnabled = isGameDebugEnabled() }: GameCanvasLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const debugEnabledRef = useRef(debugEnabled)
 
   useEffect(() => {
-    let debugEnabled = isGameDebugEnabled()
-    const engine = createGameEngine({ seed: 1 })
+    debugEnabledRef.current = debugEnabled
+  }, [debugEnabled])
+
+  useEffect(() => {
     const renderer = createPlaceholderRenderer()
     const trailTracker = createTrailTracker()
     const canvas = canvasRef.current
@@ -97,32 +105,6 @@ export function GameCanvasLayer() {
 
     syncCanvasMetrics()
     window.addEventListener('resize', syncCanvasMetrics)
-    engine.start()
-
-    const handleKeyboardControl = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        event.preventDefault()
-        const phase = engine.getState().phase
-        if (phase === 'running') {
-          engine.pause()
-        } else if (phase === 'paused') {
-          engine.resume()
-        } else {
-          engine.start()
-        }
-      }
-
-      if (event.key.toLowerCase() === 'r') {
-        engine.reset()
-        engine.start()
-      }
-
-      if (event.key.toLowerCase() === 'd') {
-        debugEnabled = !debugEnabled
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyboardControl)
 
     const loop = createGameLoop({
       onFrame: (frameInfo) => {
@@ -159,7 +141,7 @@ export function GameCanvasLayer() {
         renderer.render(ctx, state, frameInfo, {
           metrics,
           debug: {
-            enabled: debugEnabled,
+            enabled: debugEnabledRef.current,
             diagnostics: engine.getDiagnostics(),
             trails,
             lastPointerCanvas,
@@ -175,14 +157,13 @@ export function GameCanvasLayer() {
       loop.stop()
       engine.stop()
       window.removeEventListener('resize', syncCanvasMetrics)
-      window.removeEventListener('keydown', handleKeyboardControl)
       window.removeEventListener('blur', handleWindowBlur)
       canvas.removeEventListener('pointerdown', handlePointerDown)
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('pointerup', handlePointerEnd)
       canvas.removeEventListener('pointercancel', handlePointerEnd)
     }
-  }, [])
+  }, [engine])
 
-  return <canvas ref={canvasRef} className="game-canvas" aria-label="Game canvas placeholder" />
+  return <canvas ref={canvasRef} className="game-canvas" aria-label="Fruit slicing game canvas" />
 }

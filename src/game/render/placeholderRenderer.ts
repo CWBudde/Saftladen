@@ -225,7 +225,12 @@ function drawScoreFeedbackLayer(
   })
 }
 
-function drawHudLayer(ctx: CanvasRenderingContext2D, state: Parameters<Renderer['render']>[1], widthCssPx: number, heightCssPx: number): void {
+function drawScreenFlashLayer(
+  ctx: CanvasRenderingContext2D,
+  state: Parameters<Renderer['render']>[1],
+  widthCssPx: number,
+  heightCssPx: number,
+): void {
   if (
     state.world.lastBombHitAtMs !== null &&
     state.world.elapsedMs - state.world.lastBombHitAtMs <= 220
@@ -234,38 +239,6 @@ function drawHudLayer(ctx: CanvasRenderingContext2D, state: Parameters<Renderer[
     ctx.fillStyle = `rgba(239, 68, 68, ${Math.max(0, Math.min(0.35, alpha * 0.35)).toFixed(3)})`
     ctx.fillRect(0, 0, widthCssPx, heightCssPx)
   }
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
-  ctx.font = "600 20px 'Segoe UI', Tahoma, sans-serif"
-  ctx.fillText('Canvas layer active', 24, 36)
-
-  ctx.fillStyle = 'rgba(229, 231, 235, 0.95)'
-  ctx.font = "400 14px 'Segoe UI', Tahoma, sans-serif"
-  ctx.fillText('Layered renderer active (procedural placeholder style).', 24, 58)
-  ctx.fillText(`Phase: ${state.phase}`, 24, 80)
-  ctx.fillText(`Sim tick: ${state.world.tick} | Sim time: ${state.world.elapsedMs.toFixed(0)}ms`, 24, 102)
-  ctx.fillText(`Time scale: ${state.settings.timeScale.preset}`, 24, 124)
-  ctx.fillText(
-    `entities: ${Object.keys(state.world.entities).length} | waves: ${state.world.spawn.wavesSpawned} | misses: ${state.world.misses.count} | score: ${state.score.current}`,
-    24,
-    146,
-  )
-  ctx.fillText(`strikes: ${state.strikes.remaining}/${state.strikes.max} | best: ${state.score.best}`, 24, 168)
-}
-
-function drawGameOverLayer(ctx: CanvasRenderingContext2D, state: Parameters<Renderer['render']>[1], widthCssPx: number, heightCssPx: number): void {
-  if (state.phase !== 'game-over') {
-    return
-  }
-
-  ctx.fillStyle = 'rgba(17, 24, 39, 0.62)'
-  ctx.fillRect(0, 0, widthCssPx, heightCssPx)
-  ctx.fillStyle = '#fef2f2'
-  ctx.font = "700 36px 'Segoe UI', Tahoma, sans-serif"
-  ctx.fillText('Game Over', widthCssPx * 0.38, heightCssPx * 0.44)
-  ctx.font = "500 16px 'Segoe UI', Tahoma, sans-serif"
-  ctx.fillText(`Score ${state.score.current} | Best ${state.score.best}`, widthCssPx * 0.37, heightCssPx * 0.5)
-  ctx.fillText('Press R to restart', widthCssPx * 0.39, heightCssPx * 0.55)
 }
 
 export function createPlaceholderRenderer(): Renderer {
@@ -279,8 +252,7 @@ export function createPlaceholderRenderer(): Renderer {
       drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
       drawPointerTrails(ctx, context)
       drawScoreFeedbackLayer(ctx, state, widthCssPx, heightCssPx)
-      drawHudLayer(ctx, state, widthCssPx, heightCssPx)
-      drawGameOverLayer(ctx, state, widthCssPx, heightCssPx)
+      drawScreenFlashLayer(ctx, state, widthCssPx, heightCssPx)
 
       if (context.debug.enabled) {
         drawBoundingCircle(

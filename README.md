@@ -1,6 +1,7 @@
 # Saftladen
 
 A Fruit Ninja-style browser game built with React + TypeScript + Vite.
+Current state: playable prototype with engine-driven canvas simulation and React UI overlays.
 
 ## Stack
 
@@ -52,6 +53,7 @@ The shared flag check lives in `src/game/debug.ts`.
 - `Space`: pause/resume run
 - `R`: reset run
 - `D`: toggle debug overlay at runtime
+- `Esc`: pause run
 
 ## Input Notes
 
@@ -96,6 +98,8 @@ src/
       physicsSystem.ts
       despawnSystem.ts
     ui/
+      viewModel.ts
+      useGameUiState.ts
     debug.ts
     index.ts
     types.ts
@@ -107,7 +111,7 @@ Architecture and React/game boundary notes are documented in `src/game/README.md
 
 ## Next Implementation Milestones
 
-1. Build React HUD/menus around live engine state (Phase 8)
-2. Add audio service + SFX/music controls (Phase 9)
+1. Add audio service + SFX/music controls (Phase 9)
+2. Add sprite atlas rendering path for fruit/bomb entities (Phase 7 follow-up)
 3. Add tests for collision, scoring, and spawn constraints (Phase 12)
 4. Add deployment/release wiring and feature flags (Phase 13)
