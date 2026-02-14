@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import spritesSheet from './assets/sprites.png'
+import titleImage from './assets/title.png'
+import appleModeImage from './assets/apple1.png'
+import arcadeModeImage from './assets/orange1.png'
+import zenModeImage from './assets/melon1.png'
 import './App.css'
 import { GameCanvasLayer } from './game/core'
 import { isGameDebugEnabled } from './game/debug'
@@ -170,10 +173,6 @@ function App() {
     engine.start()
   }
 
-  const handleStartSelected = () => {
-    startMode(selectedMode)
-  }
-
   const handlePause = () => {
     engine.pause()
   }
@@ -228,32 +227,38 @@ function App() {
 
           {uiSnapshot.view === 'menu' ? (
             <section className="menu-home">
-              <div className="menu-logo" style={{ backgroundImage: `url(${spritesSheet})` }} aria-label="Saftladen logo" />
+              <img src={titleImage} className="menu-logo" alt="Saftladen" />
 
               <div className="ring-row">
                 <button
                   type="button"
                   className={`ring-mode ring-red ${selectedMode === 'classic' ? 'selected' : ''}`}
-                  onClick={() => setSelectedMode('classic')}
+                  onClick={() => startMode('classic')}
                 >
+                  <span className="ring-fruit">
+                    <img src={appleModeImage} alt="" className="ring-fruit-image" />
+                  </span>
                   <span className="ring-label">Classic</span>
                 </button>
                 <button
                   type="button"
-                  className={`ring-mode ring-blue ${selectedMode === 'arcade' ? 'selected' : ''}`}
-                  onClick={() => setSelectedMode('arcade')}
+                  className={`ring-mode ring-orange ${selectedMode === 'arcade' ? 'selected' : ''}`}
+                  onClick={() => startMode('arcade')}
                 >
+                  <span className="ring-fruit">
+                    <img src={arcadeModeImage} alt="" className="ring-fruit-image" />
+                  </span>
                   <span className="ring-label">Arcade</span>
                 </button>
-                <button type="button" className="ring-mode ring-gold locked" disabled>
+                <button type="button" className="ring-mode ring-green locked" disabled>
+                  <span className="ring-fruit">
+                    <img src={zenModeImage} alt="" className="ring-fruit-image" />
+                  </span>
                   <span className="ring-label">Zen</span>
                 </button>
               </div>
 
               <div className="menu-actions">
-                <button type="button" className="primary-button" onClick={handleStartSelected}>
-                  Start {selectedMode}
-                </button>
                 <button type="button" className="profile-button" onClick={() => setProfileOpen((open) => !open)}>
                   Profile & Rewards
                 </button>

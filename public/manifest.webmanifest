@@ -1,0 +1,25 @@
+{
+  "name": "Saftladen",
+  "short_name": "Saftladen",
+  "description": "A Fruit Ninja-style browser game",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#3a2015",
+  "theme_color": "#3a2015",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
