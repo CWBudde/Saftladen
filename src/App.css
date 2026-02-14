@@ -1,0 +1,64 @@
+.app-shell {
+  width: min(900px, 100%);
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.hero {
+  padding: 2rem;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #111827, #1f2937);
+  color: #f9fafb;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+h1 {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+
+.subtitle {
+  margin: 0.75rem 0 0;
+  color: #d1d5db;
+}
+
+.panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 1.5rem;
+  background: #ffffff;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.hint {
+  margin: 0.75rem 0 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.game-canvas {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: #111827;
+  touch-action: none;
+}
