@@ -26,7 +26,7 @@ export const IMAGE_ASSET_MANIFEST: ImageAssetEntry[] = [
   { key: 'fruitAtlas', src: '/assets/images/fruit-atlas.png' },
   { key: 'bombSprite', src: '/assets/images/bomb.png' },
   { key: 'powerUpAtlas', src: '/assets/images/powerups.png' },
-  { key: 'backgroundTexture', src: '/assets/images/background.png' },
+  { key: 'backgroundTexture', src: '/assets/images/background.jpg' },
   { key: 'uiHud', src: '/assets/images/hud.png' },
 ]
 

@@ -35,7 +35,7 @@ export type Renderer = {
   ) => void
 }
 
-const backgroundImageModules = import.meta.glob('../../assets/background.png', {
+const backgroundImageModules = import.meta.glob('../../assets/background.jpg', {
   eager: true,
   import: 'default',
   query: '?url',
