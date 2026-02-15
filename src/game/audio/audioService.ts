@@ -9,6 +9,8 @@ type AudioService = {
   playSfx: (name: AudioSfxName) => void
   setMusicVolume: (volume: number) => void
   setSfxVolume: (volume: number) => void
+  getMusicVolume: () => number
+  getSfxVolume: () => number
   stopAll: () => void
   toggleMusic: () => boolean
   isMusicPlaying: () => boolean
@@ -25,7 +27,7 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
     createToneObjectUrl({ frequencyHz: 760, durationMs: 90, volume: 0.55, shape: 'triangle' }),
     createToneObjectUrl({ frequencyHz: 320, durationMs: 140, volume: 0.5, shape: 'sine' }),
     createToneObjectUrl({ frequencyHz: 130, durationMs: 210, volume: 0.58, shape: 'square' }),
-    createToneObjectUrl({ frequencyHz: 180, durationMs: 420, volume: 0.45, shape: 'triangle' }),
+    createToneObjectUrl({ frequencyHz: 440, endFrequencyHz: 110, durationMs: 620, volume: 0.65, shape: 'triangle' }),
     createToneObjectUrl({ frequencyHz: 980, durationMs: 160, volume: 0.5, shape: 'sine' }),
     createToneObjectUrl({ frequencyHz: 660, durationMs: 60, volume: 0.35, shape: 'sine' }),
   ]
@@ -36,7 +38,7 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
       slice: new Howl({ src: [urls[0]], format: ['wav'], volume: sfxVolume }),
       miss: new Howl({ src: [urls[1]], format: ['wav'], volume: sfxVolume }),
       bomb: new Howl({ src: [urls[2]], format: ['wav'], volume: Math.min(1, sfxVolume + 0.05) }),
-      'game-over': new Howl({ src: [urls[3]], format: ['wav'], volume: sfxVolume }),
+      'game-over': new Howl({ src: [urls[3]], format: ['wav'], volume: Math.min(1, sfxVolume + 0.1) }),
       'power-up': new Howl({ src: [urls[4]], format: ['wav'], volume: sfxVolume }),
       'ui-click': new Howl({ src: [urls[5]], format: ['wav'], volume: Math.max(0.2, sfxVolume * 0.7) }),
     },
@@ -138,6 +140,8 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     playSfx,
     setMusicVolume,
     setSfxVolume,
+    getMusicVolume: () => musicVolume,
+    getSfxVolume: () => sfxVolume,
     stopAll,
     toggleMusic,
     isMusicPlaying,

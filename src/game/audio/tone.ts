@@ -2,6 +2,7 @@ type WaveShape = 'sine' | 'square' | 'triangle'
 
 type ToneOptions = {
   frequencyHz: number
+  endFrequencyHz?: number
   durationMs: number
   volume?: number
   sampleRate?: number
@@ -60,8 +61,12 @@ export function createToneObjectUrl(options: ToneOptions): string {
   const releaseSamples = Math.floor(sampleCount * 0.22)
   const bodySamples = Math.max(0, sampleCount - attackSamples - releaseSamples)
 
+  const startFreq = options.frequencyHz
+  const endFreq = options.endFrequencyHz ?? options.frequencyHz
+  const hasSweep = startFreq !== endFreq
+
   const pcm = new Int16Array(sampleCount)
-  const twoPiF = (2 * Math.PI * options.frequencyHz) / sampleRate
+  let phase = 0
 
   for (let i = 0; i < sampleCount; i += 1) {
     let envelope = 1
@@ -72,7 +77,9 @@ export function createToneObjectUrl(options: ToneOptions): string {
       envelope = 1 - releaseIndex / Math.max(1, releaseSamples)
     }
 
-    const phase = twoPiF * i
+    const t = i / sampleCount
+    const freq = hasSweep ? startFreq + (endFreq - startFreq) * t : startFreq
+    phase += (2 * Math.PI * freq) / sampleRate
     const signal = toWaveSample(shape, phase)
     const sample = signal * envelope * volume
     pcm[i] = Math.max(-1, Math.min(1, sample)) * 32_767
