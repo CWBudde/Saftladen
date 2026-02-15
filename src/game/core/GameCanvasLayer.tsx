@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { isGameDebugEnabled } from '../debug'
 import type { GameEngine } from '../engine'
 import { createTrailTracker, isPointInsideCanvas, mapCanvasPointToWorld, pointerEventToCanvasLocal } from '../input'
-import { createPlaceholderRenderer, type PointerTrailDebug } from '../render'
+import { createRenderer, type PointerTrailDebug } from '../render'
 import type { SliceTrail, Vec2 } from '../types'
 import { resizeCanvasToDisplaySize, type CanvasMetrics } from './canvasStage'
 import { createGameLoop } from './gameLoop'
@@ -25,7 +25,7 @@ export function GameCanvasLayer({ engine, debugEnabled = isGameDebugEnabled() }:
   }, [debugEnabled])
 
   useEffect(() => {
-    const renderer = createPlaceholderRenderer()
+    const renderer = createRenderer()
     const trailTracker = createTrailTracker()
     const canvas = canvasRef.current
     if (!canvas) {
