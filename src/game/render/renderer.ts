@@ -1,5 +1,39 @@
-import type { Renderer } from './renderer'
+import type { CanvasMetrics } from '../core/canvasStage'
+import type { FrameInfo } from '../core/gameLoop'
+import type { EngineDiagnostics } from '../engine'
+import type { GameState, Vec2 } from '../types'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawPointerTrails, drawTrailStats } from './debugDraw'
+
+export type PointerTrailDebug = {
+  pointerId: number
+  rawCanvasPoints: Vec2[]
+  canvasPoints: Vec2[]
+  worldPoints: Vec2[]
+  velocityPxPerS: number
+  isSliceActive: boolean
+}
+
+export type RendererDebugData = {
+  enabled: boolean
+  diagnostics: EngineDiagnostics
+  trails: PointerTrailDebug[]
+  lastPointerCanvas: Vec2 | null
+  lastPointerWorld: Vec2 | null
+}
+
+export type RenderContext = {
+  metrics: CanvasMetrics
+  debug: RendererDebugData
+}
+
+export type Renderer = {
+  render: (
+    ctx: CanvasRenderingContext2D,
+    state: Readonly<GameState>,
+    frameInfo: FrameInfo,
+    context: RenderContext,
+  ) => void
+}
 
 const backgroundImageModules = import.meta.glob('../../assets/background.png', {
   eager: true,
@@ -279,7 +313,7 @@ function drawBackgroundLayer(
 
 function drawDecalLayer(
   ctx: CanvasRenderingContext2D,
-  state: Parameters<Renderer['render']>[1],
+  state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
 ): void {
@@ -315,7 +349,7 @@ function drawDecalLayer(
 
 function drawFruitBombPowerLayer(
   ctx: CanvasRenderingContext2D,
-  state: Parameters<Renderer['render']>[1],
+  state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
   fruitImages: FruitImages,
@@ -469,7 +503,7 @@ function drawFruitBombPowerLayer(
 
 function drawFruitHalfLayer(
   ctx: CanvasRenderingContext2D,
-  state: Parameters<Renderer['render']>[1],
+  state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
   fruitImages: FruitImages,
@@ -587,7 +621,7 @@ function drawFruitHalfLayer(
 
 function drawParticleLayer(
   ctx: CanvasRenderingContext2D,
-  state: Parameters<Renderer['render']>[1],
+  state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
 ): void {
@@ -612,7 +646,7 @@ function drawParticleLayer(
 
 function drawScoreFeedbackLayer(
   ctx: CanvasRenderingContext2D,
-  state: Parameters<Renderer['render']>[1],
+  state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
 ): void {
@@ -658,7 +692,7 @@ function drawScoreFeedbackLayer(
 
 function drawScreenFlashLayer(
   ctx: CanvasRenderingContext2D,
-  state: Parameters<Renderer['render']>[1],
+  state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
 ): void {

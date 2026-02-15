@@ -136,13 +136,14 @@ export function resolveSliceEvents(
     if (entity.kind === 'bomb') {
       delete state.world.entities[entity.id]
       if (state.mode === 'arcade') {
-        state.score.current = Math.max(0, state.score.current - BOMB_ARCADE_SCORE_PENALTY)
+        const penalty = Math.floor(state.score.current / 2)
+        state.score.current = Math.max(0, state.score.current - penalty)
         state.score.combo = 0
         state.score.lastSliceAtMs = event.atMs
         state.world.lastBombHitAtMs = state.world.elapsedMs
         state.world.scoreFeedbackEvents.push({
           id: state.world.nextScoreFeedbackId,
-          amount: -BOMB_ARCADE_SCORE_PENALTY,
+          amount: -penalty,
           combo: 1,
           position: { ...event.hitPosition },
           createdAtMs: state.world.elapsedMs,
