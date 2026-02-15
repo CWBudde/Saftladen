@@ -13,8 +13,10 @@ import {
   applyRunRewards,
   getRankInfo,
   loadRewardProfile,
+  loadUiSettings,
   saveRewardProfile,
   useGameUiSnapshot,
+  useUiSettings,
   type RunRewards,
   type RunSummary,
 } from './game/ui'
@@ -69,7 +71,10 @@ function powerUpLabel(powerUp: 'freeze' | 'frenzy' | 'double-points'): string {
 
 function App() {
   const engine = useMemo(() => createGameEngine({ seed: 1, mode: 'classic' }), [])
-  const audio = useMemo(() => createAudioService(), [])
+  const audio = useMemo(() => {
+    const saved = loadUiSettings()
+    return createAudioService(saved.musicVolume, saved.sfxVolume)
+  }, [])
   const uiSnapshot = useGameUiSnapshot(engine)
   const [debugEnabled, setDebugEnabled] = useState(() => isGameDebugEnabled())
   const [rewardProfile, setRewardProfile] = useState(() => loadRewardProfile())
@@ -78,6 +83,7 @@ function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [currentRunPeakCombo, setCurrentRunPeakCombo] = useState(0)
   const [musicPlaying, setMusicPlaying] = useState(false)
+  const [uiSettings, updateUiSettings] = useUiSettings()
 
   const runPeakComboRef = useRef(0)
 
@@ -115,6 +121,11 @@ function App() {
       window.removeEventListener('keydown', unlockAudio)
     }
   }, [audio])
+
+  useEffect(() => {
+    audio.setMusicVolume(uiSettings.musicVolume)
+    audio.setSfxVolume(uiSettings.sfxVolume)
+  }, [audio, uiSettings.musicVolume, uiSettings.sfxVolume])
 
   useEffect(() => {
     saveRewardProfile(rewardProfile)
@@ -437,6 +448,34 @@ function App() {
               ) : uiSnapshot.mode === 'zen' ? (
                 <p>Time Left: {formatDuration(uiSnapshot.zenRemainingMs)}</p>
               ) : null}
+              <div className="volume-controls">
+                <label className="volume-row">
+                  <span className="volume-label">Music</span>
+                  <input
+                    type="range"
+                    className="volume-slider"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={uiSettings.musicVolume}
+                    onChange={(e) => updateUiSettings({ musicVolume: Number(e.target.value) })}
+                  />
+                  <span className="volume-value">{Math.round(uiSettings.musicVolume * 100)}%</span>
+                </label>
+                <label className="volume-row">
+                  <span className="volume-label">SFX</span>
+                  <input
+                    type="range"
+                    className="volume-slider"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={uiSettings.sfxVolume}
+                    onChange={(e) => updateUiSettings({ sfxVolume: Number(e.target.value) })}
+                  />
+                  <span className="volume-value">{Math.round(uiSettings.sfxVolume * 100)}%</span>
+                </label>
+              </div>
             </section>
           ) : null}
 

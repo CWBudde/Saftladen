@@ -384,6 +384,63 @@
   font-size: 0.9rem;
 }
 
+.volume-controls {
+  margin-top: 0.72rem;
+  display: grid;
+  gap: 0.48rem;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.52rem;
+}
+
+.volume-label {
+  width: 3.4rem;
+  font-size: 0.84rem;
+  color: #ffe9c7;
+  flex-shrink: 0;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f8c05d, #d4922a);
+  border: 2px solid rgba(255, 240, 200, 0.6);
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f8c05d, #d4922a);
+  border: 2px solid rgba(255, 240, 200, 0.6);
+  cursor: pointer;
+}
+
+.volume-value {
+  width: 2.8rem;
+  text-align: right;
+  font-size: 0.78rem;
+  color: #f5d8aa;
+  flex-shrink: 0;
+}
+
 button:focus-visible {
   outline: 3px solid #f8c05d;
   outline-offset: 2px;
