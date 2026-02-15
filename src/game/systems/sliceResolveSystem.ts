@@ -2,7 +2,6 @@ import { createDecalEntity, createFruitHalfEntity, createParticleEntity } from '
 import type { FruitEntity, GameState } from '../types'
 import {
   BASE_FRUIT_POINTS,
-  BOMB_ARCADE_SCORE_PENALTY,
   JUICE_PARTICLE_COUNT,
   JUICE_SPLAT_DECAL_COUNT,
   SCORE_FEEDBACK_LIFETIME_MS,
