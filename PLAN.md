@@ -15,7 +15,7 @@ Guiding principles:
 
 **Partially done:**
 
-- Phase 7 (Rendering): procedural art + pipeline done; sprite/atlas draw missing.
+- Phase 7 (Rendering): all game entities use PNG sprites; blade trail, particles, decals still procedural. Code cleanup pending.
 
 **Not started:** Phases 11–13.
 
@@ -25,7 +25,29 @@ Guiding principles:
 
 ### Phase 7 — Rendering (assets)
 
-- [ ] Migrate from procedural art to sprites: draw using atlas frames
+**Done:**
+- [x] Whole fruit sprites for all 6 types (apple, orange, melon, pineapple, banana, starfruit)
+- [x] Directional cut-half sprites for orange (orange3/4) and pineapple (pineapple4/5)
+- [x] Single cut sprite for apple, melon, banana, starfruit (*3.png)
+- [x] Bomb sprite (bomb.png)
+- [x] Freeze power-up glyph (freeze-glyph.png)
+- [x] Background image (background.png)
+- [x] Title screen image (title.png)
+
+**Remaining — asset loading gaps:**
+- [ ] Load starfruit directional halves (starfruit4.png / starfruit5.png already exist but aren't loaded)
+- [ ] Decide on `*2.png` variants (apple2, banana2, melon2, orange2, pineapple2/3, starfruit2) — use as visual variety on spawn, or ignore
+
+**Remaining — still fully procedural (decide per item: keep procedural or replace with sprite):**
+- [ ] Blade/swipe trail — currently not rendered in production at all (debug only); add a visible trail effect (glow sprite, gradient mesh, or procedural is fine)
+- [ ] Particles (juice splatter) — white fading circles; could use a small soft-circle sprite for GPU batching later, or keep procedural
+- [ ] Decals (slice splash marks) — fading ellipses on background; keep procedural or use a splat sprite
+- [ ] Score feedback — floating "+10" text + expanding yellow ring; likely fine as procedural (text rendering)
+- [ ] Screen flash (bomb hit) — red overlay; keep procedural (just a fillRect)
+
+**Remaining — code cleanup:**
+- [x] Rename `placeholderRenderer.ts` → `renderer.ts` (it's no longer a placeholder)
+- [ ] Extract duplicated draw-size logic in `drawFruitHalfLayer` (left/right/single share identical scaling code)
 
 ### Phase 11 — Performance & Polish
 
