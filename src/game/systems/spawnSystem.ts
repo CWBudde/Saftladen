@@ -1,5 +1,5 @@
 import { createBombEntity, createFruitEntity, createPowerUpEntity } from '../model'
-import type { FruitType, GameState, PowerUpType, Vec2 } from '../types'
+import type { FruitType, GameEntity, GameState, PendingSpawnEntry, PowerUpType, Vec2 } from '../types'
 import { WORLD_GRAVITY_PX_PER_S2 } from './constants'
 import type { ModeSystemModifiers } from './modeSystem'
 
@@ -82,8 +82,38 @@ function createLaunchVelocity(
   return { x: vx, y: -vyAbs }
 }
 
+// Compact trajectory fingerprint used for within-wave similarity checks.
+type WaveTraj = { x: number; spd: number; ang: number; tMs: number }
+
+// Two trajectories are "similar" when ALL four normalised deltas fall below
+// the 4 % threshold simultaneously. Rejecting similar pairs prevents the
+// player from seeing effectively identical arcs in the same wave.
+const SIMILARITY_THRESHOLD = 0.04
+
+function areSimilarTrajectories(a: WaveTraj, b: WaveTraj, boundsX: number, tWindowMs: number): boolean {
+  if (Math.abs(a.x - b.x) / boundsX >= SIMILARITY_THRESHOLD) return false
+  const spdRef = Math.max(a.spd, b.spd)
+  if (spdRef > 0 && Math.abs(a.spd - b.spd) / spdRef >= SIMILARITY_THRESHOLD) return false
+  // 4 % of π ≈ 7.2 ° — enough to visually distinguish two arcs.
+  if (Math.abs(a.ang - b.ang) >= SIMILARITY_THRESHOLD * Math.PI) return false
+  if (tWindowMs > 0 && Math.abs(a.tMs - b.tMs) / tWindowMs >= SIMILARITY_THRESHOLD) return false
+  return true
+}
+
 export function stepSpawnSystem(state: GameState, random: RandomSource, modifiers: ModeSystemModifiers): void {
   const { world } = state
+
+  // Drain pending entities whose scheduled spawn time has arrived.
+  const stillPending: PendingSpawnEntry[] = []
+  for (const entry of world.spawn.pending) {
+    if (entry.spawnAtMs <= world.elapsedMs) {
+      world.entities[entry.entity.id] = entry.entity
+    } else {
+      stillPending.push(entry)
+    }
+  }
+  world.spawn.pending = stillPending
+
   if (world.elapsedMs < world.spawn.nextWaveAtMs) {
     return
   }
@@ -114,20 +144,51 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
   const powerUpStartMs = state.mode === 'arcade' ? 8000 : 20000
   const powerUpChance = world.elapsedMs >= powerUpStartMs ? lerp(0.05, 0.12, difficulty) : 0
 
+  // Time window over which entities in this wave are staggered.
+  // Solo waves always spawn immediately; each additional slot adds 100 ms.
+  const tWindowMs = (waveSize - 1) * 100
+
+  const accepted: WaveTraj[] = []
+  const MAX_RETRIES = 5
+
   for (let i = 0; i < waveSize; i += 1) {
+    // Sample trajectory params, retrying up to MAX_RETRIES times when the
+    // result would be too similar to an already-accepted trajectory.
+    let radius = 30, x = 0, startY = 0, velocity: Vec2 = { x: 0, y: 0 }, offsetMs = 0
+
+    for (let retry = 0; ; retry++) {
+      radius = randomRange(random, 22, 40)
+      const sigma = world.bounds.x * 0.22
+      x = clamp(
+        world.bounds.x * 0.5 + gaussianSample(random) * sigma,
+        radius + 12,
+        world.bounds.x - radius - 12,
+      )
+      startY = world.bounds.y + radius + randomRange(random, 6, 28)
+      velocity = createLaunchVelocity(random, world.bounds, x, startY, i, waveSize)
+      offsetMs = tWindowMs > 0 ? randomRange(random, 0, tWindowMs) : 0
+
+      const traj: WaveTraj = {
+        x,
+        spd: Math.hypot(velocity.x, velocity.y),
+        ang: Math.atan2(velocity.y, velocity.x),
+        tMs: offsetMs,
+      }
+
+      if (retry >= MAX_RETRIES || !accepted.some(a => areSimilarTrajectories(a, traj, world.bounds.x, tWindowMs))) {
+        accepted.push(traj)
+        break
+      }
+    }
+
+    // Sample appearance params (don't affect trajectory similarity) once accepted.
     const roll = random.nextFloat()
-    const radius = randomRange(random, 22, 40)
+    const spawnAtMs = world.elapsedMs + offsetMs
 
-    // Gaussian x centred on the screen midpoint; σ = 22% of width so
-    // most items emerge near the middle while edges remain reachable.
-    const sigma = world.bounds.x * 0.22
-    const x = clamp(world.bounds.x * 0.5 + gaussianSample(random) * sigma, radius + 12, world.bounds.x - radius - 12)
-    const startY = world.bounds.y + radius + randomRange(random, 6, 28)
-    const velocity = createLaunchVelocity(random, world.bounds, x, startY, i, waveSize)
-
+    let entity: GameEntity
     if (roll < powerUpChance) {
       const powerUpPick = POWER_UP_PALETTE[random.nextInt(0, POWER_UP_PALETTE.length - 1)]
-      const powerUp = createPowerUpEntity({
+      entity = createPowerUpEntity({
         powerUpType: powerUpPick.powerUpType,
         color: powerUpPick.color,
         position: { x, y: startY },
@@ -136,34 +197,29 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
         angularVelocityRadPerS: randomRange(random, -2.4, 2.4),
         radius,
       })
-      world.entities[powerUp.id] = powerUp
-      continue
-    }
-
-    if (roll < powerUpChance + bombChance) {
-      const bomb = createBombEntity({
+    } else if (roll < powerUpChance + bombChance) {
+      entity = createBombEntity({
         color: '#111827',
         position: { x, y: startY },
         velocity,
         rotationRad: randomRange(random, 0, Math.PI * 2),
         angularVelocityRadPerS: randomRange(random, -3, 3),
-        radius: randomRange(random, 24, 34),
+        radius,
       })
-      world.entities[bomb.id] = bomb
-      continue
+    } else {
+      const fruitPick = FRUIT_PALETTE[random.nextInt(0, FRUIT_PALETTE.length - 1)]
+      entity = createFruitEntity({
+        fruitType: fruitPick.fruitType,
+        color: fruitPick.color,
+        position: { x, y: startY },
+        velocity,
+        rotationRad: randomRange(random, 0, Math.PI * 2),
+        angularVelocityRadPerS: randomRange(random, -3.8, 3.8),
+        radius,
+      })
     }
 
-    const fruitPick = FRUIT_PALETTE[random.nextInt(0, FRUIT_PALETTE.length - 1)]
-    const fruit = createFruitEntity({
-      fruitType: fruitPick.fruitType,
-      color: fruitPick.color,
-      position: { x, y: startY },
-      velocity,
-      rotationRad: randomRange(random, 0, Math.PI * 2),
-      angularVelocityRadPerS: randomRange(random, -3.8, 3.8),
-      radius,
-    })
-    world.entities[fruit.id] = fruit
+    world.spawn.pending.push({ spawnAtMs, entity })
   }
 
   world.spawn.wavesSpawned += 1
