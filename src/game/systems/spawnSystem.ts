@@ -58,15 +58,26 @@ function getArcadeProgress(state: GameState): number {
 function createLaunchVelocity(
   random: RandomSource,
   worldBounds: Vec2,
+  startX: number,
   startY: number,
   waveIndex: number,
   waveSize: number,
 ): Vec2 {
-  const spread = (waveIndex - (waveSize - 1) / 2) * 36
-  const vx = randomRange(random, -220, 220) + spread
-  const targetApexY = randomRange(random, worldBounds.y * 0.24, worldBounds.y * 0.5)
-  const requiredVyAbs = Math.sqrt(Math.max(0, 2 * WORLD_GRAVITY_PX_PER_S2 * (startY - targetApexY)))
-  const vyAbs = clamp(requiredVyAbs + randomRange(random, 25, 170), 760, 1500)
+  // Apex between 50 % and 75 % up from the bottom (y=0 is screen top).
+  const apexY = randomRange(random, worldBounds.y * 0.25, worldBounds.y * 0.5)
+  const vyAbs = Math.sqrt(2 * WORLD_GRAVITY_PX_PER_S2 * (startY - apexY))
+
+  // Approximate symmetric flight time back to the screen bottom.
+  const tTotal = (2 * vyAbs) / WORLD_GRAVITY_PX_PER_S2
+
+  // vx bounds that guarantee the entity lands within the screen horizontally.
+  const margin = 20
+  const vxMin = (margin - startX) / tTotal
+  const vxMax = (worldBounds.x - margin - startX) / tTotal
+
+  // Sample a desired vx around the wave-spread bias, then clamp to valid range.
+  const spreadBias = (waveIndex - (waveSize - 1) / 2) * 36
+  const vx = clamp(randomRange(random, -200, 200) + spreadBias, vxMin, vxMax)
 
   return { x: vx, y: -vyAbs }
 }
@@ -112,7 +123,7 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
     const sigma = world.bounds.x * 0.22
     const x = clamp(world.bounds.x * 0.5 + gaussianSample(random) * sigma, radius + 12, world.bounds.x - radius - 12)
     const startY = world.bounds.y + radius + randomRange(random, 6, 28)
-    const velocity = createLaunchVelocity(random, world.bounds, startY, i, waveSize)
+    const velocity = createLaunchVelocity(random, world.bounds, x, startY, i, waveSize)
 
     if (roll < powerUpChance) {
       const powerUpPick = POWER_UP_PALETTE[random.nextInt(0, POWER_UP_PALETTE.length - 1)]
