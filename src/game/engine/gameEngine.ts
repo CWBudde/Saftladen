@@ -149,7 +149,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   const fixedDtMs = options.fixedDtMs ?? DEFAULT_FIXED_DT_MS
   const maxFrameDeltaMs = options.maxFrameDeltaMs ?? DEFAULT_MAX_FRAME_DELTA_MS
   const mode = options.mode ?? 'classic'
-  const initialSeed = options.seed ?? 1
+  const initialSeed = options.seed ?? Date.now()
   const rng = createSeededRng(initialSeed)
   const persistedBestScore = loadBestScore(mode)
 
@@ -294,7 +294,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   }
 
   const reset = (resetOptions: ResetOptions = {}) => {
-    const seed = resetOptions.seed ?? state.run.seed
+    const seed = resetOptions.seed ?? Date.now()
     reseedRun(seed)
     resetRunState(seed)
     transition('reset')
