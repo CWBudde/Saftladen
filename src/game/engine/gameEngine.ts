@@ -121,6 +121,7 @@ function createBaseState(
       spawn: {
         nextWaveAtMs: 0,
         wavesSpawned: 0,
+        pending: [],
       },
       misses: {
         count: 0,
