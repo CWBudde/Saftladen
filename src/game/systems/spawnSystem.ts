@@ -77,7 +77,7 @@ function createLaunchVelocity(
 
   // Sample a desired vx around the wave-spread bias, then clamp to valid range.
   const spreadBias = (waveIndex - (waveSize - 1) / 2) * 36
-  const vx = clamp(randomRange(random, -200, 200) + spreadBias, vxMin, vxMax)
+  const vx = clamp(randomRange(random, -400, 400) + spreadBias, vxMin, vxMax)
 
   return { x: vx, y: -vyAbs }
 }
@@ -158,7 +158,7 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
 
     for (let retry = 0; ; retry++) {
       radius = randomRange(random, 22, 40)
-      const sigma = world.bounds.x * 0.22
+      const sigma = world.bounds.x * 0.11
       x = clamp(
         world.bounds.x * 0.5 + gaussianSample(random) * sigma,
         radius + 12,
