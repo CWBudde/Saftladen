@@ -35,6 +35,13 @@ function lerp(min: number, max: number, t: number): number {
   return min + (max - min) * t
 }
 
+// Box-Muller transform: maps two uniform samples to a standard normal N(0,1).
+function gaussianSample(random: RandomSource): number {
+  const u1 = Math.max(1e-10, random.nextFloat()) // guard against log(0)
+  const u2 = random.nextFloat()
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
+}
+
 function getDifficultyProgress(elapsedMs: number): number {
   return clamp(elapsedMs / 90000, 0, 1)
 }
@@ -100,8 +107,10 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
     const roll = random.nextFloat()
     const radius = randomRange(random, 22, 40)
 
-    const baseX = (world.bounds.x * (i + 1)) / (waveSize + 1)
-    const x = clamp(baseX + randomRange(random, -80, 80), radius + 12, world.bounds.x - radius - 12)
+    // Gaussian x centred on the screen midpoint; σ = 22% of width so
+    // most items emerge near the middle while edges remain reachable.
+    const sigma = world.bounds.x * 0.22
+    const x = clamp(world.bounds.x * 0.5 + gaussianSample(random) * sigma, radius + 12, world.bounds.x - radius - 12)
     const startY = world.bounds.y + radius + randomRange(random, 6, 28)
     const velocity = createLaunchVelocity(random, world.bounds, startY, i, waveSize)
 
