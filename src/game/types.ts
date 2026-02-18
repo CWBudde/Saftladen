@@ -122,9 +122,15 @@ export type StrikeState = {
   lastStrikeAtMs: number | null
 }
 
+export type PendingSpawnEntry = {
+  spawnAtMs: number
+  entity: GameEntity
+}
+
 export type SpawnState = {
   nextWaveAtMs: number
   wavesSpawned: number
+  pending: PendingSpawnEntry[]
 }
 
 export type MissInfo = {
