@@ -71,9 +71,23 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
   }
 
   const difficulty = state.mode === 'arcade' ? getArcadeProgress(state) : getDifficultyProgress(world.elapsedMs)
-  const minWaveSize = state.mode === 'arcade' ? 2 : 1
-  const maxWaveSize = state.mode === 'arcade' ? clamp(3 + Math.floor(difficulty * 3), 3, 7) : clamp(1 + Math.floor(difficulty * 5), 1, 6)
-  const waveSize = random.nextInt(minWaveSize, maxWaveSize)
+
+  // Wave size cadence: first 3 waves are always solo to ease players in.
+  // After that, group size ramps from 1–2 up to the full difficulty-based max
+  // over roughly 22 subsequent waves. Bombs and fruits share the same cadence.
+  const SOLO_WAVE_COUNT = 3
+  const wavesSpawned = world.spawn.wavesSpawned
+  let waveSize: number
+  if (wavesSpawned < SOLO_WAVE_COUNT) {
+    waveSize = 1
+  } else {
+    const groupProgress = clamp((wavesSpawned - SOLO_WAVE_COUNT) / 22, 0, 1)
+    const fullMax = state.mode === 'arcade'
+      ? clamp(3 + Math.floor(difficulty * 3), 3, 7)
+      : clamp(1 + Math.floor(difficulty * 5), 1, 6)
+    const effectiveMax = Math.max(2, Math.round(lerp(2, fullMax, groupProgress)))
+    waveSize = random.nextInt(1, effectiveMax)
+  }
 
   let bombChance = state.mode === 'arcade' ? lerp(0.04, 0.12, difficulty) : lerp(0.08, 0.2, difficulty)
   if (modifiers.suppressBombSpawns) {
