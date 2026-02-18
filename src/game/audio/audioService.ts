@@ -6,6 +6,10 @@ export type AudioSfxName = 'slice' | 'miss' | 'bomb' | 'game-over' | 'power-up' 
 
 type AudioService = {
   initOnUserGesture: () => void
+  /** Unlock audio context and SFX without starting music playback. */
+  initMuted: () => void
+  /** Attempt to autoplay music immediately (for PWA / installed app context). */
+  tryAutoPlay: () => void
   playSfx: (name: AudioSfxName) => void
   setMusicVolume: (volume: number) => void
   setSfxVolume: (volume: number) => void
@@ -60,12 +64,7 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     preload: true,
   })
 
-  const ensureUnlocked = () => {
-    if (unlocked) {
-      return
-    }
-
-    unlocked = true
+  const ensureSfxReady = () => {
     Howler.autoUnlock = true
 
     if (!sfxPack) {
@@ -78,6 +77,35 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     if (ctx && typeof ctx.resume === 'function' && ctx.state === 'suspended') {
       void ctx.resume()
     }
+  }
+
+  const ensureUnlocked = () => {
+    if (unlocked) {
+      return
+    }
+
+    unlocked = true
+    ensureSfxReady()
+
+    if (!music.playing()) {
+      music.play()
+    }
+  }
+
+  /** Unlock audio context and SFX but do NOT start music. */
+  const initMuted = () => {
+    if (unlocked) {
+      return
+    }
+
+    unlocked = true
+    ensureSfxReady()
+  }
+
+  /** Try to autoplay music immediately (PWA context). */
+  const tryAutoPlay = () => {
+    unlocked = true
+    ensureSfxReady()
 
     if (!music.playing()) {
       music.play()
@@ -137,6 +165,8 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
 
   return {
     initOnUserGesture: ensureUnlocked,
+    initMuted,
+    tryAutoPlay,
     playSfx,
     setMusicVolume,
     setSfxVolume,

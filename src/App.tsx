@@ -39,6 +39,14 @@ const BLADE_UNLOCKS = [
   { name: 'Dragon Fang', starfruit: 110 },
 ]
 
+function isPwaMode(): boolean {
+  if (typeof window === 'undefined') return false
+  if (window.matchMedia('(display-mode: standalone)').matches) return true
+  if (window.matchMedia('(display-mode: fullscreen)').matches) return true
+  if ('standalone' in navigator && (navigator as Record<string, unknown>).standalone === true) return true
+  return false
+}
+
 function isFormTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false
@@ -109,9 +117,18 @@ function App() {
     [audio, engine],
   )
 
+  // PWA (installed app): try to autoplay music immediately
+  useEffect(() => {
+    if (!isPwaMode()) return
+    audio.tryAutoPlay()
+    const id = setTimeout(() => setMusicPlaying(audio.isMusicPlaying()), 300)
+    return () => clearTimeout(id)
+  }, [audio])
+
+  // Unlock SFX on first user gesture (no music auto-start in normal web mode)
   useEffect(() => {
     const unlockAudio = () => {
-      audio.initOnUserGesture()
+      audio.initMuted()
     }
 
     window.addEventListener('pointerdown', unlockAudio, { once: true })
@@ -246,7 +263,7 @@ function App() {
   }, [engine, uiSnapshot.phase])
 
   const startMode = (mode: GameMode) => {
-    audio.initOnUserGesture()
+    audio.initMuted()
     audio.playSfx('ui-click')
     setSelectedMode(mode)
     setLastRunRewards(null)
@@ -260,13 +277,13 @@ function App() {
   }
 
   const handleResume = () => {
-    audio.initOnUserGesture()
+    audio.initMuted()
     audio.playSfx('ui-click')
     engine.resume()
   }
 
   const handleRestart = () => {
-    audio.initOnUserGesture()
+    audio.initMuted()
     audio.playSfx('ui-click')
     setLastRunRewards(null)
     engine.reset()
