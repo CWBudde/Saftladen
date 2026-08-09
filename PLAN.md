@@ -105,20 +105,15 @@ features.
 
 ### 14.1 Correctness bugs
 
-- [ ] **Combo idle-reset is broken (clock mismatch).** `sliceResolveSystem.ts:205`
-      compares `state.world.elapsedMs` (sim clock, starts at 0) against
-      `lastSliceAtMs`, which is stamped from `event.atMs` = pointer
-      `event.timeStamp` (`GameCanvasLayer.tsx:53` → `sliceDetectSystem.ts:50`).
-      The subtraction is always negative, so the "combo expired" branch never
-      fires and the combo stays lit until the next slice. Fix: stamp
-      `lastSliceAtMs` with sim time (`elapsedMs`) and compare in one clock.
-- [ ] **PWA manifest icons 404 in production.** `public/manifest.webmanifest`
-      uses root-absolute paths (`/pwa-192x192.png`, `/splash-screen.png`); under
-      the `/Saftladen/` base these resolve to the domain root and 404. Make icon
-      `src` values relative (matching the `./` scope) or let VitePWA generate the
-      manifest so `base` is applied.
-- [ ] **`theme_color: "transparent"` is invalid** in `manifest.webmanifest:10`.
-      Use the solid color already in `index.html` (`#3a2015`).
+- [x] **Combo idle-reset is broken (clock mismatch).** Fixed: `lastSliceAtMs` is
+      now stamped with sim time (`state.world.elapsedMs`) and both the
+      within-window and idle-expiry checks compare in that one clock
+      (`sliceResolveSystem.ts`).
+- [x] **PWA manifest icons 404 in production.** Fixed: icon `src` values are now
+      relative (`./pwa-192x192.png` etc.), so they resolve under the `/Saftladen/`
+      base instead of the domain root (`public/manifest.webmanifest`).
+- [x] **`theme_color: "transparent"` is invalid.** Fixed: set to `#3a2015` to
+      match `background_color` and `index.html`.
 - [ ] **SFX relative mix is destroyed on volume change.** `audioService.ts` bakes
       per-effect volume offsets at creation, but `setSfxVolume` flattens every
       Howl to the same value, so the mix is lost the first time the slider moves.

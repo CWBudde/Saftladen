@@ -138,7 +138,7 @@ export function resolveSliceEvents(
         const penalty = Math.floor(state.score.current / 2)
         state.score.current = Math.max(0, state.score.current - penalty)
         state.score.combo = 0
-        state.score.lastSliceAtMs = event.atMs
+        state.score.lastSliceAtMs = state.world.elapsedMs
         state.world.lastBombHitAtMs = state.world.elapsedMs
         state.world.scoreFeedbackEvents.push({
           id: state.world.nextScoreFeedbackId,
@@ -177,12 +177,13 @@ export function resolveSliceEvents(
     }
 
     const withinComboWindow =
-      state.score.lastSliceAtMs !== null && event.atMs - state.score.lastSliceAtMs <= state.score.comboWindowMs
+      state.score.lastSliceAtMs !== null &&
+      state.world.elapsedMs - state.score.lastSliceAtMs <= state.score.comboWindowMs
     const nextCombo = withinComboWindow ? state.score.combo + 1 : 1
     const points = BASE_FRUIT_POINTS * nextCombo * modifiers.scoreMultiplier
 
     state.score.combo = nextCombo
-    state.score.lastSliceAtMs = event.atMs
+    state.score.lastSliceAtMs = state.world.elapsedMs
     delete state.world.entities[entity.id]
     state.score.current += points
     fruitSlices += 1
