@@ -224,10 +224,16 @@ features.
 
 - [ ] **`git rm --cached output/imagegen/freeze_glyph_gen.png`** (2.2 MB, already
       `.gitignore`d but committed before the rule).
-- [ ] **Delete ~6.6 MB of orphaned/duplicate binaries:** `src/assets/background.png`
-      (3 MB, byte-identical to `public/splash-screen.png`), `src/assets/icon-saft.png`
-      (identical to `public/favicon.png`), unused `*2.png` variants,
-      `starfruit4/5.png`. (None ship — build tree-shakes them — but they bloat git.)
+- [ ] **Delete confirmed orphaned/duplicate binaries:** `src/assets/background.png`
+      (3 MB, byte-identical to `public/splash-screen.png`) and `src/assets/icon-saft.png`
+      (identical to `public/favicon.png`). Neither ships (build tree-shakes them) but
+      they bloat git.
+- [ ] **Resolve the disposition of the unused image variants** in one place so it
+      stays consistent with Phase 7 (7.1 above): `starfruit4.png`/`starfruit5.png`
+      are directional cut-half assets Phase 7 intends to **load** (line 38) — keep
+      them, don't delete. The `*2.png` variants (`apple2`, `banana2`, …) are the
+      still-undecided "spawn variety vs. ignore" call (line 39) — only remove the
+      ones Phase 7 confirms it won't use. (These don't ship today either way.)
 - [ ] **Optimize shipped assets** (WebP/AVIF for the 100–300 KB fruit PNGs;
       lower `music.mp3` bitrate). `dist` is currently ~8.8 MB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
