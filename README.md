@@ -3,6 +3,8 @@
 A Fruit Ninja-style browser game built with React + TypeScript + Vite.
 Current state: playable prototype with engine-driven canvas simulation and React UI overlays.
 
+**[Play online](https://cwbudde.github.io/Saftladen/)**
+
 ## Stack
 
 - Bun (package manager and scripts)
