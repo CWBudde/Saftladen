@@ -36,6 +36,15 @@ export function segmentIntersectsCircle(start: Vec2, end: Vec2, center: Vec2, ra
   return squaredDistance(closest, center) <= radiusSq
 }
 
+/** A point on the blade segment inside the struck fruit, rather than the swipe endpoint. */
+export function closestPointOnSegment(start: Vec2, end: Vec2, point: Vec2): Vec2 {
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const lengthSq = dx * dx + dy * dy
+  const t = lengthSq > 0 ? Math.max(0, Math.min(1, dot(point.x - start.x, point.y - start.y, dx, dy) / lengthSq)) : 0
+  return { x: start.x + dx * t, y: start.y + dy * t }
+}
+
 export function segmentMayHitCircleByAabb(start: Vec2, end: Vec2, center: Vec2, radius: number): boolean {
   const minX = Math.min(start.x, end.x) - radius
   const maxX = Math.max(start.x, end.x) + radius

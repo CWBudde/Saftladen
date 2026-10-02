@@ -1,0 +1,175 @@
+import type { GameEngine } from '../engine'
+import { createTrailTracker, isPointInsideCanvas, mapCanvasPointToWorld } from '../input'
+import { createRenderer, type PointerTrailDebug } from '../render'
+import type { Vec2 } from '../types'
+import { resizeCanvasToDisplaySize } from './canvasStage'
+import { createGameLoop } from './gameLoop'
+
+export type CanvasPreferences = {
+  debugEnabled: boolean
+  sliceSensitivity: number
+  reducedMotion: boolean
+}
+
+/** Owns input, simulation and rendering; React only mounts this controller. */
+export function mountGameCanvas(
+  canvas: HTMLCanvasElement,
+  engine: GameEngine,
+  getPreferences: () => CanvasPreferences,
+): () => void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return () => {}
+
+  const renderer = createRenderer()
+  const tracker = createTrailTracker()
+  let metrics = resizeCanvasToDisplaySize(canvas, ctx)
+  let rect = canvas.getBoundingClientRect()
+  let lastPointerCanvas: Vec2 | null = null
+  let lastPointerWorld: Vec2 | null = null
+  let previousPhase = engine.getState().phase
+  let previousWorld = engine.getState().world
+
+  const clearInput = () => {
+    tracker.clear()
+    engine.clearInputTrails()
+    lastPointerCanvas = null
+    lastPointerWorld = null
+  }
+
+  const syncMetrics = () => {
+    metrics = resizeCanvasToDisplaySize(canvas, ctx)
+    rect = canvas.getBoundingClientRect()
+    tracker.setViewportScale(metrics.widthCssPx / 1280)
+    clearInput()
+  }
+  tracker.setViewportScale(metrics.widthCssPx / 1280)
+
+  const pointFromEvent = (event: PointerEvent) => ({
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+    tMs: event.timeStamp,
+  })
+
+  const updateProbe = (point: Vec2) => {
+    if (!isPointInsideCanvas(point, metrics)) return
+    lastPointerCanvas = point
+    lastPointerWorld = mapCanvasPointToWorld(point, metrics, engine.getState().world.bounds)
+  }
+
+  const handlePointerDown = (event: PointerEvent) => {
+    if (engine.getState().phase !== 'running' || (event.pointerType === 'mouse' && event.button !== 0)) return
+    // Refresh the cached origin at gesture start, never on each move.
+    rect = canvas.getBoundingClientRect()
+    tracker.setSliceSensitivity(getPreferences().sliceSensitivity)
+    const point = pointFromEvent(event)
+    tracker.beginTrail(event.pointerId, point)
+    updateProbe(point)
+    try {
+      canvas.setPointerCapture(event.pointerId)
+    } catch {
+      // Capture can fail if a pointer is no longer active.
+    }
+  }
+
+  const handlePointerMove = (event: PointerEvent) => {
+    if (!tracker.hasTrail(event.pointerId)) return
+    const samples = event.getCoalescedEvents?.() ?? []
+    for (const sample of samples.length ? samples : [event]) {
+      const point = pointFromEvent(sample)
+      tracker.appendPoint(event.pointerId, point)
+      updateProbe(point)
+    }
+  }
+
+  const handlePointerUp = (event: PointerEvent) => {
+    if (!tracker.hasTrail(event.pointerId)) return
+    const point = pointFromEvent(event)
+    tracker.endTrail(event.pointerId, point)
+    updateProbe(point)
+  }
+
+  const handlePointerCancel = (event: PointerEvent) => {
+    if (tracker.hasTrail(event.pointerId)) {
+      tracker.cancelTrail(event.pointerId)
+      engine.clearInputTrails(event.pointerId)
+    }
+  }
+
+  const pauseForBackground = () => {
+    clearInput()
+    if (engine.getState().phase === 'running') engine.pause()
+  }
+  const handleVisibility = () => {
+    if (document.hidden) pauseForBackground()
+  }
+
+  const unsubscribe = engine.subscribe((state) => {
+    if (state.phase !== previousPhase || state.world !== previousWorld) clearInput()
+    previousPhase = state.phase
+    previousWorld = state.world
+  })
+
+  const loop = createGameLoop({
+    onFrame: (frameInfo) => {
+      const preferences = getPreferences()
+      tracker.setSliceSensitivity(preferences.sliceSensitivity)
+      const bounds = engine.getState().world.bounds
+      // Queue raw motion before stepping. Visual history never cuts.
+      engine.setInputTrails(tracker.drainSliceTrails(frameInfo.timestampMs).map((trail) => ({
+        pointerId: trail.pointerId,
+        points: trail.points.map((point) => ({
+          ...mapCanvasPointToWorld(point, metrics, bounds),
+          tMs: point.tMs,
+        })),
+      })))
+      engine.advanceBy(frameInfo.deltaMs)
+
+      const trails: PointerTrailDebug[] = tracker.getActiveTrails(frameInfo.timestampMs).map((trail) => ({
+        pointerId: trail.pointerId,
+        rawCanvasPoints: trail.points,
+        canvasPoints: trail.points,
+        worldPoints: trail.points.map((point) => mapCanvasPointToWorld(point, metrics, bounds)),
+        velocityPxPerS: trail.velocityPxPerS,
+        isSliceActive: trail.isSliceActive,
+      }))
+      renderer.render(ctx, engine.getState(), frameInfo, {
+        metrics,
+        reducedMotion: preferences.reducedMotion,
+        debug: {
+          enabled: preferences.debugEnabled,
+          diagnostics: engine.getDiagnostics(),
+          trails,
+          lastPointerCanvas,
+          lastPointerWorld,
+        },
+      })
+    },
+  })
+
+  canvas.addEventListener('pointerdown', handlePointerDown)
+  canvas.addEventListener('pointermove', handlePointerMove)
+  canvas.addEventListener('pointerup', handlePointerUp)
+  canvas.addEventListener('pointercancel', handlePointerCancel)
+  canvas.addEventListener('lostpointercapture', handlePointerCancel)
+  window.addEventListener('blur', pauseForBackground)
+  document.addEventListener('visibilitychange', handleVisibility)
+  window.addEventListener('resize', syncMetrics)
+  const resizeObserver = new ResizeObserver(syncMetrics)
+  resizeObserver.observe(canvas)
+  loop.start()
+
+  return () => {
+    loop.stop()
+    unsubscribe()
+    clearInput()
+    resizeObserver.disconnect()
+    window.removeEventListener('resize', syncMetrics)
+    window.removeEventListener('blur', pauseForBackground)
+    document.removeEventListener('visibilitychange', handleVisibility)
+    canvas.removeEventListener('pointerdown', handlePointerDown)
+    canvas.removeEventListener('pointermove', handlePointerMove)
+    canvas.removeEventListener('pointerup', handlePointerUp)
+    canvas.removeEventListener('pointercancel', handlePointerCancel)
+    canvas.removeEventListener('lostpointercapture', handlePointerCancel)
+  }
+}

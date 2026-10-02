@@ -17,13 +17,13 @@ function randomRange(random: RandomSource, min: number, max: number): number {
   return min + (max - min) * random.nextFloat()
 }
 
-function spawnFruitHalves(state: GameState, fruit: FruitEntity, hitPosition: { x: number; y: number }, random: RandomSource): void {
+function spawnFruitHalves(state: GameState, fruit: FruitEntity, random: RandomSource): void {
   const leftHalf = createFruitHalfEntity({
     fruitType: fruit.fruitType,
     color: fruit.color,
     half: 'left',
     sourceFruitId: fruit.id,
-    position: { ...hitPosition },
+    position: { ...fruit.position },
     velocity: {
       x: fruit.velocity.x - randomRange(random, 80, 220),
       y: fruit.velocity.y - randomRange(random, 80, 180),
@@ -39,7 +39,7 @@ function spawnFruitHalves(state: GameState, fruit: FruitEntity, hitPosition: { x
     color: fruit.color,
     half: 'right',
     sourceFruitId: fruit.id,
-    position: { ...hitPosition },
+    position: { ...fruit.position },
     velocity: {
       x: fruit.velocity.x + randomRange(random, 80, 220),
       y: fruit.velocity.y - randomRange(random, 80, 180),
@@ -151,6 +151,9 @@ export function resolveSliceEvents(
         state.world.nextScoreFeedbackId += 1
       } else {
         bombHit = true
+        // A Classic bomb ends this run immediately; later hits in the same batch cannot score.
+        state.world.sliceEvents.length = 0
+        break
       }
       continue
     }
@@ -198,7 +201,7 @@ export function resolveSliceEvents(
     })
     state.world.nextScoreFeedbackId += 1
 
-    spawnFruitHalves(state, entity, event.hitPosition, random)
+    spawnFruitHalves(state, entity, random)
     spawnJuiceParticles(state, entity, event.hitPosition, random)
     spawnJuiceSplats(state, entity, event.hitPosition, random)
   }

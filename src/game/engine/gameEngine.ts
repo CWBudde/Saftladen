@@ -41,6 +41,7 @@ export type GameEngine = {
   getState: () => Readonly<GameState>
   getDiagnostics: () => EngineDiagnostics
   setInputTrails: (trails: SliceTrail[]) => void
+  clearInputTrails: (pointerId?: number) => void
   setMode: (mode: GameMode) => void
   start: (options?: StartOptions) => void
   pause: () => void
@@ -152,6 +153,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   const initialSeed = options.seed ?? Date.now()
   const rng = createSeededRng(initialSeed)
   const persistedBestScore = loadBestScore(mode)
+  let lastSavedBestScore = persistedBestScore
 
   let state = createBaseState(mode, rng.getSeed(), fixedDtMs, maxFrameDeltaMs, persistedBestScore)
   let accumulatorMs = 0
@@ -161,6 +163,13 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const emit = () => {
     listeners.forEach((listener) => listener(state))
+  }
+
+  const persistBestScore = () => {
+    if (state.score.best > lastSavedBestScore) {
+      saveBestScore(state.mode, state.score.best)
+      lastSavedBestScore = state.score.best
+    }
   }
 
   const reseedRun = (seed: number) => {
@@ -187,13 +196,21 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const transition = (event: 'start' | 'pause' | 'resume' | 'stop' | 'reset' | 'game-over') => {
     const nextPhase = transitionGamePhase(state.phase, event)
+    if (nextPhase !== state.phase) {
+      inputTrails = []
+      accumulatorMs = 0
+    }
     state.phase = nextPhase
   }
 
   const runSimulationStep = (dtMs: number) => {
+    if (state.mode === 'arcade') dtMs = Math.min(dtMs, state.modeState.arcade.remainingMs)
+    if (state.mode === 'zen') dtMs = Math.min(dtMs, state.modeState.zen.remainingMs)
     state.world.tick += 1
     state.world.elapsedMs += dtMs
     state.run.simulationSteps += 1
+    const stepTrails = inputTrails
+    inputTrails = []
     const outcome = applyCoreSystems(
       state,
       dtMs,
@@ -201,7 +218,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
         nextFloat: rng.nextFloat,
         nextInt: rng.nextInt,
       },
-      inputTrails,
+      stepTrails,
     )
 
     if (outcome.missedFruits > 0 && state.mode === 'classic') {
@@ -217,28 +234,28 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
         transition('game-over')
       }
 
-      if (state.mode === 'arcade' && outcome.roundEnded) {
+      if (state.mode !== 'classic' && outcome.roundEnded) {
         transition('game-over')
       }
     }
 
     if (state.score.current > state.score.best) {
       state.score.best = state.score.current
-      saveBestScore(state.mode, state.score.best)
     }
 
     state.run.rngCalls = rng.getCalls()
   }
 
   const setInputTrails = (trails: SliceTrail[]) => {
-    inputTrails = trails.map((trail) => ({
+    if (state.phase !== 'running' || state.settings.timeScale.factor === 0) return
+    inputTrails.push(...trails.map((trail) => ({
       pointerId: trail.pointerId,
       points: trail.points.map((point) => ({
         x: point.x,
         y: point.y,
         tMs: point.tMs,
       })),
-    }))
+    })))
   }
 
   const setMode = (nextMode: GameMode) => {
@@ -248,6 +265,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
     const seed = state.run.seed
     const bestScore = loadBestScore(nextMode)
+    lastSavedBestScore = bestScore
     state = createBaseState(
       nextMode,
       seed,
@@ -307,6 +325,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   }
 
   const setTimeScalePreset = (preset: TimeScalePreset) => {
+    inputTrails = []
     state.settings.timeScale = {
       preset,
       factor: TIME_SCALE_FACTORS[preset],
@@ -315,11 +334,12 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   }
 
   const stepOnce = (dtMs = state.settings.fixedDtMs) => {
-    if (state.phase !== 'running') {
+    if (state.phase !== 'running' || !Number.isFinite(dtMs) || dtMs <= 0) {
       return
     }
 
     runSimulationStep(dtMs)
+    persistBestScore()
     emit()
   }
 
@@ -339,9 +359,9 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     accumulatorMs += scaledDeltaMs
 
     let steps = 0
-    while (accumulatorMs >= state.settings.fixedDtMs && steps < MAX_FIXED_STEPS_PER_ADVANCE) {
-      runSimulationStep(state.settings.fixedDtMs)
+    while (state.phase === 'running' && accumulatorMs >= state.settings.fixedDtMs && steps < MAX_FIXED_STEPS_PER_ADVANCE) {
       accumulatorMs -= state.settings.fixedDtMs
+      runSimulationStep(state.settings.fixedDtMs)
       steps += 1
     }
 
@@ -351,6 +371,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }
 
     lastAdvanceSteps = steps
+    persistBestScore()
     emit()
     return steps
   }
@@ -369,6 +390,9 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       lastAdvanceSteps,
     }),
     setInputTrails,
+    clearInputTrails: (pointerId) => {
+      inputTrails = pointerId === undefined ? [] : inputTrails.filter((trail) => trail.pointerId !== pointerId)
+    },
     setMode,
     start,
     pause,

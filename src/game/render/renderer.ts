@@ -2,12 +2,12 @@ import type { CanvasMetrics } from '../core/canvasStage'
 import type { FrameInfo } from '../core/gameLoop'
 import type { EngineDiagnostics } from '../engine'
 import type { GameState, Vec2 } from '../types'
-import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawPointerTrails, drawTrailStats } from './debugDraw'
+import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawTrailStats } from './debugDraw'
 
 export type PointerTrailDebug = {
   pointerId: number
   rawCanvasPoints: Vec2[]
-  canvasPoints: Vec2[]
+  canvasPoints: (Vec2 & { tMs?: number })[]
   worldPoints: Vec2[]
   velocityPxPerS: number
   isSliceActive: boolean
@@ -24,6 +24,7 @@ export type RendererDebugData = {
 export type RenderContext = {
   metrics: CanvasMetrics
   debug: RendererDebugData
+  reducedMotion?: boolean
 }
 
 export type Renderer = {
@@ -42,7 +43,10 @@ const backgroundImageModules = import.meta.glob('../../assets/background.jpg', {
 }) as Record<string, string>
 const preferredBackgroundImageUrl = Object.values(backgroundImageModules)[0] ?? null
 
-const fruitImageModules = import.meta.glob('../../assets/{apple,melon,pineapple,banana,starfruit}{1,3}.png', {
+const fruitImageModules = import.meta.glob([
+  '../../assets/{apple,melon,banana}{1,3}.png',
+  '../../assets/{pineapple,starfruit}1.png',
+], {
   eager: true,
   import: 'default',
   query: '?url',
@@ -61,6 +65,12 @@ const pineappleHalfModules = import.meta.glob('../../assets/pineapple{4,5}.png',
 }) as Record<string, string>
 
 const orangeHalfModules = import.meta.glob('../../assets/orange{3,4}.png', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+}) as Record<string, string>
+
+const starfruitHalfModules = import.meta.glob('../../assets/starfruit{4,5}.png', {
   eager: true,
   import: 'default',
   query: '?url',
@@ -335,10 +345,20 @@ function drawDecalLayer(
     ctx.save()
     ctx.translate(center.x, center.y)
     ctx.rotate(entity.rotationRad)
-    ctx.fillStyle = `rgba(254, 242, 242, ${(alpha * 0.22).toFixed(3)})`
+    ctx.globalAlpha = alpha * 0.38
+    ctx.fillStyle = entity.color
     ctx.beginPath()
     ctx.ellipse(0, 0, radius, radius * 0.72, 0, 0, Math.PI * 2)
     ctx.fill()
+    // Small asymmetric droplets make a splat read as juice, without extra entities.
+    for (let i = 0; i < 5; i += 1) {
+      const angle = i * 2.4 + entity.rotationRad
+      const distance = radius * (0.7 + (i % 3) * 0.24)
+      ctx.beginPath()
+      ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance * 0.7, radius * 0.15, radius * 0.1, angle, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
     ctx.fillStyle = `rgba(17, 24, 39, ${(alpha * 0.07).toFixed(3)})`
     ctx.beginPath()
     ctx.ellipse(0, radius * 0.1, radius * 0.8, radius * 0.52, 0, 0, Math.PI * 2)
@@ -507,6 +527,7 @@ function drawFruitHalfLayer(
   widthCssPx: number,
   heightCssPx: number,
   fruitImages: FruitImages,
+  reducedMotion: boolean,
 ): void {
   const worldWidth = state.world.bounds.x
   const worldHeight = state.world.bounds.y
@@ -519,17 +540,17 @@ function drawFruitHalfLayer(
     const center = worldToCanvas(entity.position.x, entity.position.y, worldWidth, worldHeight, widthCssPx, heightCssPx)
     const radius = worldRadiusToCanvas(entity.radius, worldWidth, widthCssPx)
     const lifeProgress = entity.lifetimeMs > 0 ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs)) : 1
-    const popScale = 1 + (1 - lifeProgress) * 0.08
+    const popScale = reducedMotion ? 1 : 1 + (1 - lifeProgress) * 0.08
 
     ctx.save()
     ctx.translate(center.x, center.y)
     ctx.rotate(entity.rotationRad)
     ctx.scale(popScale, popScale)
+    ctx.globalAlpha = Math.min(1, (1 - lifeProgress) * 3)
 
     const imageSet = fruitImages[entity.fruitType]
 
-    // For pineapple and orange, use separate left/right images; for others, use single cut image
-    const usesSeparateHalves = entity.fruitType === 'pineapple' || entity.fruitType === 'orange'
+    const usesSeparateHalves = entity.fruitType === 'pineapple' || entity.fruitType === 'orange' || entity.fruitType === 'starfruit'
     const useLeftImage = usesSeparateHalves && entity.half === 'left' && imageSet?.cutLeft && imageSet.cutLeftReady
     const useRightImage = usesSeparateHalves && entity.half === 'right' && imageSet?.cutRight && imageSet.cutRightReady
     const useSingleCutImage = !usesSeparateHalves && imageSet?.cut && imageSet.cutReady
@@ -596,6 +617,11 @@ function drawFruitHalfLayer(
         drawWidth = drawHeight * imgAspect
       }
 
+      // The existing cut sprites show a full cross-section. Clip complementary
+      // sections so the two departing pieces reconstruct one fruit at impact.
+      ctx.beginPath()
+      ctx.rect(entity.half === 'left' ? -drawWidth / 2 : 0, -drawHeight / 2, drawWidth / 2, drawHeight)
+      ctx.clip()
       ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
     } else {
       // Fallback to half-circle rendering
@@ -637,10 +663,14 @@ function drawParticleLayer(
     const radius = worldRadiusToCanvas(entity.radius, worldWidth, widthCssPx)
     const alpha = Math.max(0, 1 - entity.ageMs / entity.lifetimeMs)
 
-    ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = entity.color
     ctx.beginPath()
-    ctx.arc(center.x, center.y, Math.max(1, radius), 0, Math.PI * 2)
+    const direction = Math.atan2(entity.velocity.y, entity.velocity.x)
+    ctx.ellipse(center.x, center.y, Math.max(1.5, radius * 1.4), Math.max(1, radius * 0.7), direction, 0, Math.PI * 2)
     ctx.fill()
+    ctx.restore()
   })
 }
 
@@ -649,6 +679,7 @@ function drawScoreFeedbackLayer(
   state: Readonly<GameState>,
   widthCssPx: number,
   heightCssPx: number,
+  reducedMotion: boolean,
 ): void {
   const worldWidth = state.world.bounds.x
   const worldHeight = state.world.bounds.y
@@ -657,7 +688,7 @@ function drawScoreFeedbackLayer(
     const ageMs = state.world.elapsedMs - event.createdAtMs
     const lifeProgress = Math.max(0, Math.min(1, ageMs / event.lifetimeMs))
     const alpha = 1 - lifeProgress
-    const floatOffsetY = lifeProgress * 36
+    const floatOffsetY = reducedMotion ? 0 : lifeProgress * 36
     const anchor = worldToCanvas(
       event.position.x,
       event.position.y,
@@ -667,43 +698,81 @@ function drawScoreFeedbackLayer(
       heightCssPx,
     )
 
-    // Subtle hit flash around the slice point for immediate feedback.
-    ctx.strokeStyle = `rgba(253, 224, 71, ${(alpha * 0.45).toFixed(3)})`
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(anchor.x, anchor.y, 10 + lifeProgress * 26, 0, Math.PI * 2)
-    ctx.stroke()
+    ctx.save()
+    if (!reducedMotion) {
+      ctx.strokeStyle = `rgba(253, 224, 71, ${(alpha * 0.45).toFixed(3)})`
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(anchor.x, anchor.y, 10 + lifeProgress * 26, 0, Math.PI * 2)
+      ctx.stroke()
+    }
 
     const isPenalty = event.amount < 0
     ctx.fillStyle = isPenalty
       ? `rgba(254, 202, 202, ${alpha.toFixed(3)})`
       : `rgba(236, 253, 245, ${alpha.toFixed(3)})`
-    ctx.font = "700 16px 'Segoe UI', Tahoma, sans-serif"
+    const size = event.combo > 1 ? 22 : 19
+    ctx.font = `800 ${size}px 'Segoe UI', Tahoma, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.strokeStyle = `rgba(30, 15, 10, ${alpha.toFixed(3)})`
+    ctx.lineWidth = 3.5
     const scoreLabel = event.amount >= 0 ? `+${event.amount}` : `${event.amount}`
+    ctx.strokeText(scoreLabel, anchor.x, anchor.y - floatOffsetY)
     ctx.fillText(scoreLabel, anchor.x, anchor.y - floatOffsetY)
 
     if (event.combo > 1) {
-      ctx.font = "600 11px 'Segoe UI', Tahoma, sans-serif"
-      ctx.fillStyle = `rgba(167, 243, 208, ${alpha.toFixed(3)})`
-      ctx.fillText(`combo x${event.combo}`, anchor.x, anchor.y - floatOffsetY - 12)
+      ctx.font = "800 13px 'Segoe UI', Tahoma, sans-serif"
+      ctx.fillStyle = `rgba(253, 224, 71, ${alpha.toFixed(3)})`
+      const label = `COMBO ×${event.combo}`
+      ctx.strokeText(label, anchor.x, anchor.y - floatOffsetY - 22)
+      ctx.fillText(label, anchor.x, anchor.y - floatOffsetY - 22)
     }
+    ctx.restore()
   })
 }
 
 function drawScreenFlashLayer(
   ctx: CanvasRenderingContext2D,
-  state: Readonly<GameState>,
+  flashAgeMs: number,
   widthCssPx: number,
   heightCssPx: number,
 ): void {
-  if (
-    state.world.lastBombHitAtMs !== null &&
-    state.world.elapsedMs - state.world.lastBombHitAtMs <= 220
-  ) {
-    const alpha = 1 - (state.world.elapsedMs - state.world.lastBombHitAtMs) / 220
+  if (flashAgeMs >= 0 && flashAgeMs < 220) {
+    const alpha = 1 - flashAgeMs / 220
     ctx.fillStyle = `rgba(239, 68, 68, ${Math.max(0, Math.min(0.35, alpha * 0.35)).toFixed(3)})`
     ctx.fillRect(0, 0, widthCssPx, heightCssPx)
   }
+}
+
+function drawBladeTrails(ctx: CanvasRenderingContext2D, context: RenderContext, nowMs: number): void {
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  // TrailTracker bounds the trail history; cap work here as a second guard.
+  for (const trail of context.debug.trails.slice(0, 10)) {
+    const points = trail.canvasPoints
+    const firstIndex = Math.max(1, points.length - 24)
+    for (let i = firstIndex; i < points.length; i += 1) {
+      const from = points[i - 1]
+      const to = points[i]
+      const freshness = Math.max(0, 1 - Math.max(0, nowMs - (to.tMs ?? nowMs)) / 150)
+      if (freshness <= 0 || (from.x === to.x && from.y === to.y)) continue
+      const taper = (i - firstIndex + 1) / Math.max(1, points.length - firstIndex)
+      const width = (1.5 + taper * 4.5) * freshness
+      ctx.globalAlpha = freshness * 0.24
+      ctx.strokeStyle = '#38d8ee'
+      ctx.lineWidth = width * 2.5
+      ctx.beginPath()
+      ctx.moveTo(from.x, from.y)
+      ctx.lineTo(to.x, to.y)
+      ctx.stroke()
+      ctx.globalAlpha = freshness * 0.95
+      ctx.strokeStyle = '#e6fdff'
+      ctx.lineWidth = width
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
 }
 
 function createFruitImageSet(): FruitImageSet {
@@ -736,6 +805,8 @@ function loadFruitImage(url: string, onReady: (img: HTMLImageElement) => void): 
 
 export function createRenderer(): Renderer {
   let woodTextureCache: WoodTextureCache | null = null
+  let observedBombHitAtMs: number | null = null
+  let bombFlashStartedAtMs = -Infinity
   let preferredBackgroundImage: HTMLImageElement | null = null
   let preferredBackgroundReady = false
 
@@ -863,9 +934,29 @@ export function createRenderer(): Renderer {
     }
   })
 
+  Object.entries(starfruitHalfModules).forEach(([path, url]) => {
+    const isLeft = path.endsWith('starfruit4.png')
+    loadFruitImage(url, (img) => {
+      if (isLeft) {
+        fruitImages.starfruit.cutLeft = img
+        fruitImages.starfruit.cutLeftReady = true
+      } else {
+        fruitImages.starfruit.cutRight = img
+        fruitImages.starfruit.cutRightReady = true
+      }
+    })
+  })
+
   return {
     render: (ctx, state, frameInfo, context) => {
       const { widthCssPx, heightCssPx } = context.metrics
+      const bombHitAtMs = state.world.lastBombHitAtMs
+      if (bombHitAtMs !== observedBombHitAtMs) {
+        observedBombHitAtMs = bombHitAtMs
+        bombFlashStartedAtMs = bombHitAtMs === null
+          ? -Infinity
+          : frameInfo.timestampMs - Math.max(0, state.world.elapsedMs - bombHitAtMs)
+      }
       woodTextureCache = drawBackgroundLayer(
         ctx,
         widthCssPx,
@@ -876,11 +967,15 @@ export function createRenderer(): Renderer {
       )
       drawDecalLayer(ctx, state, widthCssPx, heightCssPx)
       drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, bombImage, bombImageReady, freezeGlyphImage, freezeGlyphReady)
-      drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx, fruitImages)
-      drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
-      drawPointerTrails(ctx, context)
-      drawScoreFeedbackLayer(ctx, state, widthCssPx, heightCssPx)
-      drawScreenFlashLayer(ctx, state, widthCssPx, heightCssPx)
+      drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, context.reducedMotion ?? false)
+      if (!context.reducedMotion) {
+        drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
+      }
+      drawBladeTrails(ctx, context, frameInfo.timestampMs)
+      drawScoreFeedbackLayer(ctx, state, widthCssPx, heightCssPx, context.reducedMotion ?? false)
+      if (!context.reducedMotion) {
+        drawScreenFlashLayer(ctx, frameInfo.timestampMs - bombFlashStartedAtMs, widthCssPx, heightCssPx)
+      }
 
       if (context.debug.enabled) {
         drawBoundingCircle(

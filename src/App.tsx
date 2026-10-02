@@ -7,6 +7,8 @@ import './App.css'
 import { createAudioService } from './game/audio'
 import { GameCanvasLayer } from './game/core'
 import { isGameDebugEnabled } from './game/debug'
+import { GameDialog } from './game/ui/GameDialog'
+import { SettingsControls } from './game/ui/SettingsControls'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
 import {
@@ -47,12 +49,14 @@ function isPwaMode(): boolean {
   return false
 }
 
-function isFormTarget(target: EventTarget | null): boolean {
+function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false
   }
 
   return (
+    target.tagName === 'BUTTON' ||
+    target.tagName === 'A' ||
     target.tagName === 'INPUT' ||
     target.tagName === 'SELECT' ||
     target.tagName === 'TEXTAREA' ||
@@ -152,7 +156,7 @@ function App() {
     let previousPhase = engine.getState().phase
 
     return engine.subscribe((state) => {
-      if (previousPhase !== 'running' && state.phase === 'running') {
+      if ((previousPhase === 'idle' || previousPhase === 'game-over') && state.phase === 'running') {
         runPeakComboRef.current = state.score.combo
         setLastRunRewards(null)
       }
@@ -232,7 +236,13 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isFormTarget(event.target)) {
+      if (event.key === 'Escape' && uiSnapshot.phase === 'running') {
+        event.preventDefault()
+        engine.pause()
+        return
+      }
+
+      if (isInteractiveTarget(event.target)) {
         return
       }
 
@@ -250,10 +260,6 @@ function App() {
         setDebugEnabled((previous) => !previous)
       }
 
-      if (event.key === 'Escape' && uiSnapshot.phase === 'running') {
-        event.preventDefault()
-        engine.pause()
-      }
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -303,9 +309,10 @@ function App() {
   }
 
   return (
-    <main className="game-root">
+    <main className="game-root" data-reduced-motion={uiSettings.reducedMotion}>
       <section className="stage-shell">
-        <GameCanvasLayer engine={engine} debugEnabled={debugEnabled} />
+        <GameCanvasLayer engine={engine} debugEnabled={debugEnabled}
+          sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion} />
 
         <button type="button" className="music-toggle-button" onClick={handleToggleMusic} aria-label={musicPlaying ? 'Pause music' : 'Play music'}>
           {musicPlaying ? '🔊' : '🔇'}
@@ -313,7 +320,7 @@ function App() {
 
         <div className="overlay-root">
           {uiSnapshot.view !== 'menu' ? (
-            <div className="hud-bar" role="status" aria-live="polite">
+            <div className="hud-bar" role="group" aria-label="Run statistics">
               <p className="hud-pill">Score {uiSnapshot.score}</p>
               <p className="hud-pill">Combo x{Math.max(1, uiSnapshot.combo)}</p>
               <p className="hud-pill">Mode {uiSnapshot.mode}</p>
@@ -334,14 +341,14 @@ function App() {
                     </p>
                   ))
                 : null}
-              <button type="button" className="ghost-button" onClick={handlePause} disabled={uiSnapshot.view !== 'playing'}>
+              <button type="button" className="ghost-button" data-focus-anchor onClick={handlePause} disabled={uiSnapshot.view !== 'playing'}>
                 Pause
               </button>
             </div>
           ) : null}
 
           {uiSnapshot.view === 'menu' ? (
-            <section className={`menu-home ${profileOpen ? 'profile-active' : ''}`}>
+            <section className="menu-home">
               <img src={titleImage} className="menu-logo" alt="Saftladen" />
 
               <div className="ring-row">
@@ -349,6 +356,8 @@ function App() {
                   type="button"
                   className={`ring-mode ring-red ${selectedMode === 'classic' ? 'selected' : ''}`}
                   onClick={() => startMode('classic')}
+                  aria-describedby="classic-help"
+                  data-focus-anchor
                 >
                   <span className="ring-fruit">
                     <img src={appleModeImage} alt="" className="ring-fruit-image" />
@@ -359,6 +368,7 @@ function App() {
                   type="button"
                   className={`ring-mode ring-orange ${selectedMode === 'arcade' ? 'selected' : ''}`}
                   onClick={() => startMode('arcade')}
+                  aria-describedby="arcade-help"
                 >
                   <span className="ring-fruit">
                     <img src={arcadeModeImage} alt="" className="ring-fruit-image" />
@@ -369,6 +379,7 @@ function App() {
                   type="button"
                   className={`ring-mode ring-green ${selectedMode === 'zen' ? 'selected' : ''}`}
                   onClick={() => startMode('zen')}
+                  aria-describedby="zen-help"
                 >
                   <span className="ring-fruit">
                     <img src={zenModeImage} alt="" className="ring-fruit-image" />
@@ -377,10 +388,19 @@ function App() {
                 </button>
               </div>
 
+              <div className="mode-guide" aria-label="Choose a mode">
+                <p id="classic-help"><strong>Classic</strong> · Three misses end the run. Avoid every bomb.</p>
+                <p id="arcade-help"><strong>Arcade</strong> · 60 seconds, power-ups and score-chasing. Bombs cost points.</p>
+                <p id="zen-help"><strong>Zen</strong> · 90 seconds of fruit. No bombs, no strikes.</p>
+                <p className="slice-guide">Swipe across fruit with your mouse or finger. Use Space or Escape to pause.</p>
+              </div>
+
               <div className="menu-actions">
                 <button
                   type="button"
                   className="profile-button"
+                  aria-haspopup="dialog"
+                  aria-expanded={profileOpen}
                   onClick={() => {
                     audio.playSfx('ui-click')
                     setProfileOpen((open) => !open)
@@ -392,8 +412,13 @@ function App() {
             </section>
           ) : null}
 
-          {uiSnapshot.view === 'menu' ? (
-            <aside className={`profile-panel ${profileOpen ? 'open' : ''}`}>
+          {uiSnapshot.view === 'menu' && profileOpen ? (
+            <GameDialog className="profile-panel" labelledBy="profile-heading" onDismiss={() => setProfileOpen(false)}
+              returnFocusSelector=".profile-button">
+              <div className="profile-heading-row">
+                <h2 id="profile-heading">Profile & Rewards</h2>
+                <button type="button" className="ghost-button" onClick={() => setProfileOpen(false)}>Close</button>
+              </div>
               <section className="profile-card">
                 <p className="meta-label">
                   {rankInfo.rankName} · Level {rankInfo.level}
@@ -428,7 +453,7 @@ function App() {
                   <p className="meta-subheading">Dojos</p>
                   <ul>
                     {dojos.map((dojo) => (
-                      <li key={dojo.name}>{dojo.unlocked ? 'Unlocked' : dojo.requirement}</li>
+                      <li key={dojo.name}><strong>{dojo.name}</strong><span>{dojo.unlocked ? 'Unlocked' : dojo.requirement}</span></li>
                     ))}
                   </ul>
                 </div>
@@ -436,16 +461,20 @@ function App() {
                   <p className="meta-subheading">Blades</p>
                   <ul>
                     {blades.map((blade) => (
-                      <li key={blade.name}>{blade.unlocked ? 'Unlocked' : blade.requirement}</li>
+                      <li key={blade.name}><strong>{blade.name}</strong><span>{blade.unlocked ? 'Unlocked' : blade.requirement}</span></li>
                     ))}
                   </ul>
                 </div>
               </section>
-            </aside>
+              <section className="profile-card">
+                <SettingsControls settings={uiSettings} onChange={updateUiSettings} />
+              </section>
+            </GameDialog>
           ) : null}
 
           {uiSnapshot.view === 'paused' ? (
-            <section className="overlay-card" aria-labelledby="pause-heading">
+            <GameDialog className="overlay-card" labelledBy="pause-heading" onDismiss={handleResume}
+              returnFocusSelector="[data-focus-anchor]:not(:disabled)">
               <h2 id="pause-heading">Run Paused</h2>
               <p>Mode: {uiSnapshot.mode}</p>
               <p>Score: {uiSnapshot.score}</p>
@@ -465,39 +494,13 @@ function App() {
               ) : uiSnapshot.mode === 'zen' ? (
                 <p>Time Left: {formatDuration(uiSnapshot.zenRemainingMs)}</p>
               ) : null}
-              <div className="volume-controls">
-                <label className="volume-row">
-                  <span className="volume-label">Music</span>
-                  <input
-                    type="range"
-                    className="volume-slider"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={uiSettings.musicVolume}
-                    onChange={(e) => updateUiSettings({ musicVolume: Number(e.target.value) })}
-                  />
-                  <span className="volume-value">{Math.round(uiSettings.musicVolume * 100)}%</span>
-                </label>
-                <label className="volume-row">
-                  <span className="volume-label">SFX</span>
-                  <input
-                    type="range"
-                    className="volume-slider"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={uiSettings.sfxVolume}
-                    onChange={(e) => updateUiSettings({ sfxVolume: Number(e.target.value) })}
-                  />
-                  <span className="volume-value">{Math.round(uiSettings.sfxVolume * 100)}%</span>
-                </label>
-              </div>
-            </section>
+              <SettingsControls settings={uiSettings} onChange={updateUiSettings} />
+            </GameDialog>
           ) : null}
 
           {uiSnapshot.view === 'game-over' ? (
-            <section className="overlay-card" aria-labelledby="game-over-heading">
+            <GameDialog className="overlay-card" labelledBy="game-over-heading" onDismiss={handleReturnToMenu}
+              returnFocusSelector="[data-focus-anchor]:not(:disabled)">
               <h2 id="game-over-heading">Run Complete</h2>
               <p>
                 Score {uiSnapshot.score} · Best {uiSnapshot.bestScore}
@@ -530,7 +533,7 @@ function App() {
                   Main Menu
                 </button>
               </div>
-            </section>
+            </GameDialog>
           ) : null}
         </div>
       </section>

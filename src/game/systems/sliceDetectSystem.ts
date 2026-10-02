@@ -1,5 +1,5 @@
 import type { BombEntity, FruitEntity, GameState, PowerUpEntity, SliceTrail } from '../types'
-import { segmentIntersectsCircle, segmentMayHitCircleByAabb } from './collision'
+import { closestPointOnSegment, segmentIntersectsCircle, segmentMayHitCircleByAabb } from './collision'
 
 type SliceCandidate = FruitEntity | BombEntity | PowerUpEntity
 
@@ -29,6 +29,7 @@ export function detectSliceEvents(state: GameState, trails: SliceTrail[]): void 
     for (let pointIndex = 1; pointIndex < trail.points.length; pointIndex += 1) {
       const start = trail.points[pointIndex - 1]
       const end = trail.points[pointIndex]
+      if (start.x === end.x && start.y === end.y) continue
 
       for (const fruit of fruits) {
         if (queuedFruitIds.has(fruit.id)) {
@@ -48,10 +49,7 @@ export function detectSliceEvents(state: GameState, trails: SliceTrail[]): void 
           entityId: fruit.id,
           pointerId: trail.pointerId,
           atMs: end.tMs,
-          hitPosition: {
-            x: end.x,
-            y: end.y,
-          },
+          hitPosition: closestPointOnSegment(start, end, fruit.position),
         })
 
         // One fruit can only be scored once. If multiple pointers overlap on the same step,

@@ -86,18 +86,24 @@ export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnaps
       left.bestScore === right.bestScore &&
       left.strikesRemaining === right.strikesRemaining &&
       left.strikesMax === right.strikesMax &&
-      left.elapsedMs === right.elapsedMs &&
-      left.arcadeRemainingMs === right.arcadeRemainingMs &&
-      left.zenRemainingMs === right.zenRemainingMs &&
-      left.activePowerUps.join('|') === right.activePowerUps.join('|')
+      // The HUD displays whole seconds. Phase changes still publish exact run times.
+      Math.floor(left.elapsedMs / 1000) === Math.floor(right.elapsedMs / 1000) &&
+      Math.floor(left.arcadeRemainingMs / 1000) === Math.floor(right.arcadeRemainingMs / 1000) &&
+      Math.floor(left.zenRemainingMs / 1000) === Math.floor(right.zenRemainingMs / 1000) &&
+      left.activePowerUps.length === right.activePowerUps.length &&
+      left.activePowerUps.every((powerUp, index) => powerUp === right.activePowerUps[index])
   )
 }
 
 export function loadUiSettings(): UiSettings {
+  const defaults = {
+    ...DEFAULT_UI_SETTINGS,
+    reducedMotion: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+  }
   try {
     const raw = globalThis.localStorage?.getItem(UI_SETTINGS_STORAGE_KEY)
     if (!raw) {
-      return DEFAULT_UI_SETTINGS
+      return defaults
     }
 
     const parsed = JSON.parse(raw) as Partial<UiSettings>
@@ -110,10 +116,10 @@ export function loadUiSettings(): UiSettings {
         typeof parsed.sliceSensitivity === 'number'
           ? Math.min(2, Math.max(0.5, parsed.sliceSensitivity))
           : DEFAULT_UI_SETTINGS.sliceSensitivity,
-      reducedMotion: typeof parsed.reducedMotion === 'boolean' ? parsed.reducedMotion : DEFAULT_UI_SETTINGS.reducedMotion,
+      reducedMotion: typeof parsed.reducedMotion === 'boolean' ? parsed.reducedMotion : defaults.reducedMotion,
     }
   } catch {
-    return DEFAULT_UI_SETTINGS
+    return defaults
   }
 }
 

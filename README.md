@@ -13,12 +13,13 @@ Current state: playable prototype with engine-driven canvas simulation and React
 
 ## Requirements
 
-- Bun `>= 1.0`
+- Bun `>= 1.3.10` (CI version is pinned in `.bun-version`)
+- Node.js `20.19+` or `22.12+` for Vite (Node 18 is unsupported)
 
 ## Quick Start
 
 ```bash
-bun install
+bun install --frozen-lockfile
 bun dev
 ```
 
@@ -36,6 +37,7 @@ We are not switching to `bunx --bun vite` right now because the direct script fo
 - `bun run build` - type-check and create a production build
 - `bun run preview` - preview the production build locally
 - `bun run lint` - run ESLint
+- `bun run test` - run the deterministic input/gameplay and audio regressions
 
 ## Debug Mode Toggle
 
@@ -49,11 +51,11 @@ The shared flag check lives in `src/game/debug.ts`.
 
 ## Dev Controls
 
-- Drag on canvas: draw pointer trails (multi-touch supported on touch devices)
+- Drag on canvas: slice fruit (multi-touch supported on touch devices)
 - `Space`: pause/resume run
-- `R`: reset run
 - `D`: toggle debug overlay at runtime
-- `Esc`: pause run
+- `Esc`: pause/resume run or close the current dialog
+- Backgrounding the page pauses automatically; resume explicitly
 
 ## Input Notes
 
@@ -73,6 +75,7 @@ src/
     core/
       gameLoop.ts
       GameCanvasLayer.tsx
+      gameCanvasController.ts
       canvasStage.ts
     engine/
       gameEngine.ts
@@ -86,7 +89,6 @@ src/
       entities.ts
     render/
       renderer.ts
-      placeholderRenderer.ts
       debugDraw.ts
     systems/
       applySystems.ts
@@ -97,9 +99,16 @@ src/
       spawnSystem.ts
       physicsSystem.ts
       despawnSystem.ts
+      modeSystem.ts
+    audio/
+      audioService.ts
+      tone.ts
     ui/
       viewModel.ts
       useGameUiState.ts
+      rewards.ts
+      GameDialog.tsx
+      SettingsControls.tsx
     debug.ts
     index.ts
     types.ts
@@ -109,9 +118,18 @@ src/
 
 Architecture and React/game boundary notes are documented in `src/game/README.md`.
 
-## Next Implementation Milestones
+## Modes and Settings
 
-1. Add audio service + SFX/music controls (Phase 9)
-2. Add sprite atlas rendering path for fruit/bomb entities (Phase 7 follow-up)
-3. Add tests for collision, scoring, and spawn constraints (Phase 12)
-4. Add deployment/release wiring and feature flags (Phase 13)
+Classic ends on a bomb or three missed fruit. Arcade lasts 60 seconds with
+power-ups and bomb score penalties. Zen is a bomb-free 90-second session.
+Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
+Cosmetics are currently unlock previews; equipping them remains on the roadmap.
+
+## Release Checks
+
+Pull requests run lint, regression tests, and a production build. Passing builds
+on `main` deploy to GitHub Pages under `/Saftladen/`. Gameplay artwork is
+precached for offline reload; music is cached after its first requested playback.
+Run `bun run preview` to check the production build locally.
+
+See `PLAN.md` for the remaining gameplay, presentation, progression, and QA work.

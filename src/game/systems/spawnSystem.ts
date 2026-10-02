@@ -141,8 +141,9 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
   if (modifiers.suppressBombSpawns) {
     bombChance = 0
   }
-  const powerUpStartMs = state.mode === 'arcade' ? 8000 : 20000
-  const powerUpChance = world.elapsedMs >= powerUpStartMs ? lerp(0.05, 0.12, difficulty) : 0
+  // Opening throws teach slicing safely before introducing hazards.
+  if (wavesSpawned < SOLO_WAVE_COUNT) bombChance = 0
+  const powerUpChance = state.mode === 'arcade' && world.elapsedMs >= 8000 ? lerp(0.05, 0.12, difficulty) : 0
 
   // Time window over which entities in this wave are staggered.
   // Solo waves always spawn immediately; each additional slot adds 100 ms.

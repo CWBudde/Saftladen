@@ -1,8 +1,9 @@
 import { Howl, Howler } from 'howler'
 import musicTrack from '../../assets/music.mp3'
 import { createToneObjectUrl } from './tone'
+import { sfxGain, type AudioSfxName } from './sfxMix'
 
-export type AudioSfxName = 'slice' | 'miss' | 'bomb' | 'game-over' | 'power-up' | 'ui-click'
+export type { AudioSfxName } from './sfxMix'
 
 type AudioService = {
   initOnUserGesture: () => void
@@ -23,14 +24,14 @@ type AudioService = {
 type SfxPack = Record<AudioSfxName, Howl>
 
 function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value))
+  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
 }
 
 function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
   const urls = [
-    createToneObjectUrl({ frequencyHz: 760, durationMs: 90, volume: 0.55, shape: 'triangle' }),
+    createToneObjectUrl({ frequencyHz: 1250, endFrequencyHz: 340, durationMs: 105, volume: 0.55, shape: 'triangle', noiseMix: 0.55 }),
     createToneObjectUrl({ frequencyHz: 320, durationMs: 140, volume: 0.5, shape: 'sine' }),
-    createToneObjectUrl({ frequencyHz: 130, durationMs: 210, volume: 0.58, shape: 'square' }),
+    createToneObjectUrl({ frequencyHz: 130, endFrequencyHz: 35, durationMs: 290, volume: 0.58, shape: 'triangle', noiseMix: 0.68 }),
     createToneObjectUrl({ frequencyHz: 440, endFrequencyHz: 110, durationMs: 620, volume: 0.65, shape: 'triangle' }),
     createToneObjectUrl({ frequencyHz: 980, durationMs: 160, volume: 0.5, shape: 'sine' }),
     createToneObjectUrl({ frequencyHz: 660, durationMs: 60, volume: 0.35, shape: 'sine' }),
@@ -39,12 +40,12 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
   return {
     urls,
     pack: {
-      slice: new Howl({ src: [urls[0]], format: ['wav'], volume: sfxVolume }),
-      miss: new Howl({ src: [urls[1]], format: ['wav'], volume: sfxVolume }),
-      bomb: new Howl({ src: [urls[2]], format: ['wav'], volume: Math.min(1, sfxVolume + 0.05) }),
-      'game-over': new Howl({ src: [urls[3]], format: ['wav'], volume: Math.min(1, sfxVolume + 0.1) }),
-      'power-up': new Howl({ src: [urls[4]], format: ['wav'], volume: sfxVolume }),
-      'ui-click': new Howl({ src: [urls[5]], format: ['wav'], volume: Math.max(0.2, sfxVolume * 0.7) }),
+      slice: new Howl({ src: [urls[0]], format: ['wav'], volume: sfxGain('slice', sfxVolume) }),
+      miss: new Howl({ src: [urls[1]], format: ['wav'], volume: sfxGain('miss', sfxVolume) }),
+      bomb: new Howl({ src: [urls[2]], format: ['wav'], volume: sfxGain('bomb', sfxVolume) }),
+      'game-over': new Howl({ src: [urls[3]], format: ['wav'], volume: sfxGain('game-over', sfxVolume) }),
+      'power-up': new Howl({ src: [urls[4]], format: ['wav'], volume: sfxGain('power-up', sfxVolume) }),
+      'ui-click': new Howl({ src: [urls[5]], format: ['wav'], volume: sfxGain('ui-click', sfxVolume) }),
     },
   }
 }
@@ -61,7 +62,7 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     html5: true,
     loop: true,
     volume: musicVolume,
-    preload: true,
+    preload: false,
   })
 
   const ensureSfxReady = () => {
@@ -113,7 +114,7 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
   }
 
   const playSfx = (name: AudioSfxName) => {
-    if (!unlocked || !sfxPack) {
+    if (!unlocked || !sfxPack || sfxVolume === 0) {
       return
     }
 
@@ -135,11 +136,14 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     if (!sfxPack) {
       return
     }
-    Object.values(sfxPack).forEach((howl) => howl.volume(sfxVolume))
+    for (const name of Object.keys(sfxPack) as AudioSfxName[]) {
+      sfxPack[name].volume(sfxGain(name, sfxVolume))
+    }
   }
 
   const stopAll = () => {
     music.stop()
+    unlocked = false
     if (sfxPack) {
       Object.values(sfxPack).forEach((howl) => howl.unload())
     }
@@ -149,7 +153,7 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
   }
 
   const toggleMusic = (): boolean => {
-    ensureUnlocked()
+    initMuted()
     if (music.playing()) {
       music.pause()
       return false

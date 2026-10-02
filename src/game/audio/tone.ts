@@ -7,6 +7,8 @@ type ToneOptions = {
   volume?: number
   sampleRate?: number
   shape?: WaveShape
+  /** Blend a short noise transient into the tone for swishes and impacts. */
+  noiseMix?: number
 }
 
 function encodeWavPcm16(samples: Int16Array, sampleRate: number): ArrayBuffer {
@@ -57,6 +59,7 @@ export function createToneObjectUrl(options: ToneOptions): string {
   const sampleCount = Math.max(1, Math.floor((sampleRate * durationMs) / 1000))
   const volume = Math.min(1, Math.max(0, options.volume ?? 0.6))
   const shape = options.shape ?? 'sine'
+  const noiseMix = Math.min(1, Math.max(0, options.noiseMix ?? 0))
   const attackSamples = Math.floor(sampleCount * 0.04)
   const releaseSamples = Math.floor(sampleCount * 0.22)
   const bodySamples = Math.max(0, sampleCount - attackSamples - releaseSamples)
@@ -67,6 +70,8 @@ export function createToneObjectUrl(options: ToneOptions): string {
 
   const pcm = new Int16Array(sampleCount)
   let phase = 0
+  let noiseSeed = 0x6d2b79f5
+  let previousNoise = 0
 
   for (let i = 0; i < sampleCount; i += 1) {
     let envelope = 1
@@ -80,7 +85,16 @@ export function createToneObjectUrl(options: ToneOptions): string {
     const t = i / sampleCount
     const freq = hasSweep ? startFreq + (endFreq - startFreq) * t : startFreq
     phase += (2 * Math.PI * freq) / sampleRate
-    const signal = toWaveSample(shape, phase)
+    // A local seeded noise stream makes each generated asset repeatable and
+    // independent of gameplay randomness. The transient decays into the tone.
+    noiseSeed ^= noiseSeed << 13
+    noiseSeed ^= noiseSeed >>> 17
+    noiseSeed ^= noiseSeed << 5
+    const whiteNoise = (noiseSeed >>> 0) / 0xffffffff * 2 - 1
+    const filteredNoise = whiteNoise * 0.65 + previousNoise * 0.35
+    previousNoise = filteredNoise
+    const transient = noiseMix * (1 - t) ** 1.5
+    const signal = toWaveSample(shape, phase) * (1 - transient) + filteredNoise * transient
     const sample = signal * envelope * volume
     pcm[i] = Math.max(-1, Math.min(1, sample)) * 32_767
   }

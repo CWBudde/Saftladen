@@ -12,7 +12,18 @@ export default defineConfig({
       manifest: false,
       includeAssets: ['favicon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.webmanifest'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,mp3,wav}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest,wav}'],
+        globIgnores: ['**/splash-screen.png'],
+        runtimeCaching: [{
+          urlPattern: /\/assets\/music-[^/]+\.mp3$/,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'saftladen-music',
+            expiration: { maxEntries: 2, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            cacheableResponse: { statuses: [0, 200] },
+            rangeRequests: true,
+          },
+        }],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
