@@ -1,4 +1,4 @@
-import type { ActivePowerUp, GameMode, GamePhase, GameState } from '../types'
+import type { ActivePowerUp, GameMode, GamePhase, GameState, RunStats } from '../types'
 
 export type UiView = 'menu' | 'playing' | 'paused' | 'game-over'
 
@@ -22,9 +22,13 @@ export type GameUiSnapshot = {
   arcadeRemainingMs: number
   zenRemainingMs: number
   activePowerUps: ActivePowerUp[]
+  powerUpRemainingMs: Record<ActivePowerUp, number>
+  runId: string
+  stats: RunStats
 }
 
 export const UI_SETTINGS_STORAGE_KEY = 'saftladen.ui.settings'
+export const UI_SETTINGS_SCHEMA_VERSION = 1
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
   musicVolume: 0.6,
@@ -73,12 +77,23 @@ export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot
     arcadeRemainingMs: state.modeState.arcade.remainingMs,
     zenRemainingMs: state.modeState.zen.remainingMs,
     activePowerUps,
+    powerUpRemainingMs: { freeze: timers.freezeMs, frenzy: timers.frenzyMs, 'double-points': timers.doublePointsMs },
+    runId: state.run.id,
+    stats: { ...state.run.stats },
   }
 }
 
 export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnapshot): boolean {
   return (
     left.view === right.view &&
+      left.runId === right.runId &&
+      left.stats.fruitSliced === right.stats.fruitSliced &&
+      left.stats.missedFruits === right.stats.missedFruits &&
+      left.stats.bombHits === right.stats.bombHits &&
+      left.stats.peakCombo === right.stats.peakCombo &&
+      Math.ceil(left.powerUpRemainingMs.freeze / 1000) === Math.ceil(right.powerUpRemainingMs.freeze / 1000) &&
+      Math.ceil(left.powerUpRemainingMs.frenzy / 1000) === Math.ceil(right.powerUpRemainingMs.frenzy / 1000) &&
+      Math.ceil(left.powerUpRemainingMs['double-points'] / 1000) === Math.ceil(right.powerUpRemainingMs['double-points'] / 1000) &&
       left.phase === right.phase &&
       left.mode === right.mode &&
       left.score === right.score &&
@@ -86,46 +101,56 @@ export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnaps
       left.bestScore === right.bestScore &&
       left.strikesRemaining === right.strikesRemaining &&
       left.strikesMax === right.strikesMax &&
-      // The HUD displays whole seconds. Phase changes still publish exact run times.
+      // Elapsed time rounds down; countdowns round up. Phase changes publish exact run times.
       Math.floor(left.elapsedMs / 1000) === Math.floor(right.elapsedMs / 1000) &&
-      Math.floor(left.arcadeRemainingMs / 1000) === Math.floor(right.arcadeRemainingMs / 1000) &&
-      Math.floor(left.zenRemainingMs / 1000) === Math.floor(right.zenRemainingMs / 1000) &&
+      Math.ceil(left.arcadeRemainingMs / 1000) === Math.ceil(right.arcadeRemainingMs / 1000) &&
+      Math.ceil(left.zenRemainingMs / 1000) === Math.ceil(right.zenRemainingMs / 1000) &&
       left.activePowerUps.length === right.activePowerUps.length &&
       left.activePowerUps.every((powerUp, index) => powerUp === right.activePowerUps[index])
   )
 }
 
-export function loadUiSettings(): UiSettings {
-  const defaults = {
-    ...DEFAULT_UI_SETTINGS,
-    reducedMotion: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+function defaultUiSettings(): UiSettings {
+  let reducedMotion = DEFAULT_UI_SETTINGS.reducedMotion
+  try {
+    reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? reducedMotion
+  } catch {
+    // Use the default when the host does not provide media queries.
   }
+  return { ...DEFAULT_UI_SETTINGS, reducedMotion }
+}
+
+function normalizeUiSettings(value: unknown): UiSettings {
+  const defaults = defaultUiSettings()
+  const parsed = value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown> : {}
+  const ranged = (value: unknown, minimum: number, maximum: number, fallback: number) =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? Math.min(maximum, Math.max(minimum, value)) : fallback
+  return {
+    musicVolume: ranged(parsed.musicVolume, 0, 1, defaults.musicVolume),
+    sfxVolume: ranged(parsed.sfxVolume, 0, 1, defaults.sfxVolume),
+    sliceSensitivity: ranged(parsed.sliceSensitivity, 0.5, 2, defaults.sliceSensitivity),
+    reducedMotion: typeof parsed.reducedMotion === 'boolean' ? parsed.reducedMotion : defaults.reducedMotion,
+  }
+}
+
+/** Version 1 keeps the original field names, preserving unversioned preferences. */
+export function loadUiSettings(): UiSettings {
   try {
     const raw = globalThis.localStorage?.getItem(UI_SETTINGS_STORAGE_KEY)
-    if (!raw) {
-      return defaults
-    }
-
-    const parsed = JSON.parse(raw) as Partial<UiSettings>
-    return {
-      musicVolume:
-        typeof parsed.musicVolume === 'number' ? Math.min(1, Math.max(0, parsed.musicVolume)) : DEFAULT_UI_SETTINGS.musicVolume,
-      sfxVolume:
-        typeof parsed.sfxVolume === 'number' ? Math.min(1, Math.max(0, parsed.sfxVolume)) : DEFAULT_UI_SETTINGS.sfxVolume,
-      sliceSensitivity:
-        typeof parsed.sliceSensitivity === 'number'
-          ? Math.min(2, Math.max(0.5, parsed.sliceSensitivity))
-          : DEFAULT_UI_SETTINGS.sliceSensitivity,
-      reducedMotion: typeof parsed.reducedMotion === 'boolean' ? parsed.reducedMotion : defaults.reducedMotion,
-    }
+    return raw ? normalizeUiSettings(JSON.parse(raw)) : defaultUiSettings()
   } catch {
-    return defaults
+    return defaultUiSettings()
   }
 }
 
 export function saveUiSettings(settings: UiSettings): void {
   try {
-    globalThis.localStorage?.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+    globalThis.localStorage?.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify({
+      schemaVersion: UI_SETTINGS_SCHEMA_VERSION,
+      ...normalizeUiSettings(settings),
+    }))
   } catch {
     // Ignore persistence failures in restricted runtimes.
   }

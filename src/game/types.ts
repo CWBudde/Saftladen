@@ -38,6 +38,8 @@ export type FruitHalfEntity = BaseEntity & {
   sourceFruitId: EntityId
   lifetimeMs: number
   ageMs: number
+  /** Slice normal angle in the fruit's local coordinates at impact. */
+  cutAngleRad: number
 }
 
 export type BombEntity = BaseEntity & {
@@ -82,6 +84,7 @@ export type SliceEvent = {
   pointerId: number
   atMs: number
   hitPosition: Vec2
+  direction: Vec2
 }
 
 export type ScoreFeedbackEvent = {
@@ -155,10 +158,32 @@ export type WorldState = {
 }
 
 export type RunState = {
+  id: string
   seed: number
   rngCalls: number
   simulationSteps: number
+  cosmeticRngCalls: number
+  stats: RunStats
 }
+
+export type RunStats = {
+  fruitSliced: number
+  missedFruits: number
+  bombHits: number
+  peakCombo: number
+}
+
+export type PresentationEventPayload = { atMs: number } & (
+  | { type: 'run-start'; mode: GameMode; seed: number }
+  | { type: 'fruit-slice'; entityId: EntityId; fruitType: FruitType; position: Readonly<Vec2>; direction: Readonly<Vec2>; points: number; combo: number }
+  | { type: 'fruit-miss'; entityId: EntityId; position: Readonly<Vec2> }
+  | { type: 'bomb-hit'; entityId: EntityId; position: Readonly<Vec2>; penalty: number }
+  | { type: 'power-up-activated'; powerUp: PowerUpType; position: Readonly<Vec2>; durationMs: number }
+  | { type: 'power-up-expired'; powerUp: PowerUpType }
+  | { type: 'run-end'; mode: GameMode; score: number; durationMs: number; peakCombo: number; stats: Readonly<RunStats> }
+)
+
+export type GamePresentationEvent = Readonly<PresentationEventPayload & { id: number; runId: string }>
 
 export type ArcadePowerUpTimers = {
   freezeMs: number

@@ -1,4 +1,4 @@
-export { createEntityId, resetEntityIds } from './entityId'
+export { createEntityId, createEntityIdAllocator, resetEntityIds } from './entityId'
 export {
   createBombEntity,
   createDecalEntity,

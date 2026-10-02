@@ -17,10 +17,8 @@ Guiding principles:
 
 - Phase 7 (Rendering): all game entities use PNG sprites; blade trail, particles, decals still procedural. Code cleanup pending.
 
-**Not started:** Phases 17–18.
-
-**In progress:** Phases 11–12, 15–16, and 19. Phase 15 correctness fixes are
-implemented; remaining acceptance work includes physical touch and run-reward QA.
+**In progress:** Phases 11–12 and 15–19. Phase 15 correctness fixes and
+run-reward regressions are implemented; physical input calibration remains.
 
 **Partially done:** Phase 13 — GitHub Pages deployment, production base path,
 PWA manifest, and service worker exist; release verification remains.
@@ -67,7 +65,7 @@ Phase 17 skill/mode depth → Phase 18 real progression. Start Phase 19 regressi
 coverage with Phase 15, and mobile/performance checks with Phase 16. Existing
 Phase 14 remains the engineering backlog; references below avoid duplicating it.
 
-**Improvement batch (2026-10-03):** three implementation subagents delivered
+**First improvement batch (2026-10-03):** three implementation subagents delivered
 gameplay reliability, slicing/audio feedback, and mobile/accessibility changes.
 The canvas controller now owns the runtime outside React and caches layout;
 UI snapshots publish timer changes once per visible second. Regression tests
@@ -81,6 +79,25 @@ focus cycling/restoration, settings persistence, Escape flows, first-click music
 and offline reload of background and all gameplay sprites. Physical touch tuning,
 listening, device performance, and full reward settlement still need dedicated
 playtests. The ratings above describe the original reviewed build.
+
+**Second improvement batch (2026-10-03):** three implementation subagents
+completed ordered presentation events/run statistics, cosmetic RNG and engine-local
+ID separation, directional fragment/spray effects, renderer allocation reduction,
+and versioned validated rewards/settings. Audio consumes every event, distinguishes
+power-up activation/expiry, celebrates streak milestones, caps active SFX voices
+at eight, and briefly ducks music for bombs/end cues. A compact HUD emphasizes
+score, lives/time, streak and power-up meters; results show real run counters.
+Flawless requires zero bombs/misses; empty, scoreless or <5-second runs pay nothing.
+Settlement rejects duplicate IDs across reloads using a bounded 128-run history.
+Headless Chrome verified 320×568 HUD/results, played-run payout once, replay,
+instant-run rejection, Arcade countdown, and 844×390 HUD; 390×844 profile/dialog
+focus/settings and 844×390 pause scrolling also passed without runtime exceptions.
+These browser probes injected controlled engine state through the mounted React
+hook to accelerate terminal/reward cases; they do not replace physical playtesting.
+The suite now has 76 tests; lint/typecheck/production build pass. Device frame time,
+physical swipe calibration, uniform viewport geometry, same-stroke scoring and
+real equippable cosmetics remain priorities. No new numeric rating has been
+assigned; the table above remains the original assessment.
 
 ---
 
@@ -111,7 +128,7 @@ playtests. The ratings above describe the original reviewed build.
 
 **Remaining — code cleanup:**
 - [x] Rename `placeholderRenderer.ts` → `renderer.ts` (it's no longer a placeholder)
-- [ ] Extract duplicated draw-size logic in `drawFruitHalfLayer` (left/right/single share identical scaling code)
+- [x] Extract duplicated draw-size logic in `drawFruitHalfLayer` (left/right/single share identical scaling code)
 
 ### Phase 11 — Performance & Polish
 
@@ -133,9 +150,10 @@ playtests. The ratings above describe the original reviewed build.
 
 ### Phase 12 — Testing / QA
 
-- [x] Bun regression suite: 27 tests / 814 assertions covering fresh input,
-      terminal steps, timed modes, contact geometry, cancellation/multitouch,
-      opening waves, persistence, controller lifecycle, UI cadence and audio mix
+- [x] Bun regression suite: 76 tests covering fresh input, terminal/timed modes,
+      collision, cancellation/multitouch, opening waves, controller lifecycle,
+      event catch-up, audio mix/voice limits, renderer buckets, directional cuts,
+      RNG/ID independence, profile migration and exactly-once reward settlement
 - [ ] Unit tests (Vitest)
   - [ ] Segment-vs-circle intersection edge cases
   - [ ] Combo scoring tests
@@ -195,11 +213,12 @@ features.
       mount/unmount the canvas.
       Implemented in `gameCanvasController.ts`; the React component only mounts
       it and publishes preference changes.
-- [ ] **Stop reading raw world state from `App.tsx`.** The audio/reward effects
+- [x] **Stop reading raw world state from `App.tsx`.** The audio/reward effects
       (`App.tsx:151-231`) reach into `state.world.misses`, `lastBombHitAtMs`,
       `modeState.arcade.powerUpTimers`, etc. Route everything through the
       `viewModel` snapshot (extend it with the event/transition signals audio
       needs) so `App` never couples to simulation shape.
+      Done via snapshot statistics and `subscribeEvents` immutable payloads.
 - [x] **Reconcile the "pure systems" claim in game architecture documentation.** AGENTS.md calls `systems/*` "pure,"
       but every system mutates `state` in place (a deliberate perf choice).
       Update the docs to say "in-place mutation for hot-path perf."
@@ -215,10 +234,11 @@ features.
       on `resize` and `pointerdown`.
       Controller caches metrics; ResizeObserver/resize refresh size, pointerdown
       refreshes origin, pointermove/frame reads do not measure layout.
-- [ ] **Collapse the 4 per-frame entity passes into 1.** `renderer.ts` calls
+- [x] **Collapse the 4 per-frame entity passes into 1.** `renderer.ts` calls
       `Object.values(state.world.entities)` four times per frame (decals, fruit,
       halves, particles), each allocating an array; `worldToCanvas` allocates a
       `{x,y}` per entity. Single bucketed pass + inlined/scratch math.
+      Done with reused layer buffers and scalar coordinates; device timing remains unmeasured.
 - [x] **Stop the whole `App` re-rendering ~60×/sec.** `elapsedMs` is in the UI
       snapshot and compared in `areGameUiSnapshotsEqual`, so `setSnapshot` fires
       every frame and re-runs all menu-derived work. Isolate the live HUD into a
@@ -231,9 +251,10 @@ features.
       `setInputTrails` deep-copy (`gameEngine.ts:233-242`). Reuse scratch arrays;
       rebuild the entity map only when a removal occurs. (Overlaps Phase 11
       pooling.)
-- [ ] **Cache hot-path style strings.** `renderer.ts` builds
+- [x] **Cache hot-path style strings.** `renderer.ts` builds
       `` `rgba(...,${a.toFixed(3)})` `` per particle/decal/feedback each frame.
       Quantize alpha / use `globalAlpha` with a fixed fillStyle.
+      Done: scalar `globalAlpha` and cached/fixed colors in entity draw paths.
 
 ### 14.4 Dead code / cleanup
 
@@ -242,11 +263,11 @@ features.
       `preloadImageAssets` is never called, and the barrel re-exports it as if it
       were live. Delete (real loading is `import.meta.glob` in `renderer.ts`) or
       rewrite to reference the real assets and actually use it.
-- [ ] **De-duplicate the draw-size logic.** The ~15-line `imgAspect /
+- [x] **De-duplicate the draw-size logic.** The ~15-line `imgAspect /
       baseSizeScale / nonSquareBonus / drawWidth / drawHeight` block is copied 6×
       in `renderer.ts` (3 in `drawFruitBombPowerLayer`, 3 in `drawFruitHalfLayer`).
       Extract `computeDrawSize(img, radius)`. (Supersedes the existing Phase 7
-      cleanup item.)
+      cleanup item.) Cached sprite-size factors now serve every sprite draw.
 - [ ] **Split `renderer.ts` (897 lines).** Extract `assetLoader.ts`,
       `woodTexture.ts` (the ~120-line procedural generator that only paints
       pre-decode), and `drawHelpers.ts`.
@@ -274,7 +295,7 @@ features.
 
 - [x] Remove `aria-live="polite"` from the running HUD (`App.tsx:316`) — it spams
       every score tick. The HUD is now a labelled group.
-- [ ] Add dedicated live announcements for discrete gameplay events.
+- [x] Add dedicated live announcements for discrete gameplay events.
 - [x] Make the profile panel `inert`/`aria-hidden` when closed (currently just
       slid off-screen but still exposed to assistive technology) and manage focus
       on open. Enable pointer events when open; it currently inherits
@@ -359,7 +380,7 @@ ticks. These are correctness fixes; the later phases are product improvements.
 - [ ] **P1: Calibrate movement on physical mouse, stylus and touch devices.**
 - [x] **P1: Anchor cuts to the fruit/contact point.** Detection uses the
       closest point on the slash; halves spawn at the fruit's actual center.
-- [ ] Carry stroke direction into half separation and directional spray (Phase 16).
+- [x] Carry stroke direction into half separation and directional spray (Phase 16).
 - [x] **P1: Resolve inert power-ups** using Phase 14.5; no mode should spawn a
       pickup whose advertised effect cannot activate.
 - [x] **P1: Clear input on phase/visibility changes.** Auto-pause on background
@@ -382,12 +403,12 @@ stuck bomb flash. Verify input at 30/60/120Hz frame schedules.
       multitouch trails. Keep the visible blade aligned with collision samples.
 - [x] **Use fruit-specific juice.** Honor entity colors for droplets/splats,
       bounded droplet sizes and asymmetric splats. Procedural rendering is acceptable.
-- [ ] Tie spray direction to stroke direction while keeping hazards readable.
-- [ ] **Make cuts convincing.** Load existing starfruit directional halves;
+- [x] Tie spray direction to stroke direction while keeping hazards readable.
+- [x] **Make cuts convincing.** Load existing starfruit directional halves;
       produce complementary halves for apple/melon/banana; preserve fruit pose
       and launch fragments along the slash normal with readable spin.
       Starfruit assets, complementary clipped apple/melon/banana halves and pose
-      preservation are implemented; slash-normal separation remains.
+      preservation, local cut-plane clipping and slash-normal separation are implemented.
 - [ ] **Celebrate meaningful hits.** Larger same-stroke combo labels, distinct
       critical/bonus feedback if introduced, tiny optional hit-stop or shake,
       and strong bomb punctuation. Effects must preserve mode timer rules and
@@ -398,13 +419,16 @@ stuck bomb flash. Verify input at 30/60/120Hz frame schedules.
       variations; add combo escalation, bomb explosion, music ducking, and
       separate power-up activation/expiry cues. Cap simultaneous voices.
       Slice and bomb use richer swept/noise synthesis, with pitch variation;
-      layering, ducking, event precision and voice limits remain.
-- [ ] **Drive presentation from explicit events.** Emit slice, miss, bomb,
-      combo, power-up, and run-end events rather than infer sounds from score
-      differences. Preserve every catch-up event without duplicate playback.
-- [ ] **Give the HUD a game hierarchy.** Dominant score, readable life icons,
+      event precision, expiry cues, streak milestones, music ducking and eight-voice
+      limits are implemented; richer layered samples/variations and listening QA remain.
+- [x] **Drive presentation from explicit events.** Ordered immutable slice, miss,
+      bomb, power-up activation/expiry and run-start/end batches preserve every
+      catch-up event. Slice payloads include the current streak for milestone cues;
+      audio and rewards no longer infer events from score/world changes.
+- [x] **Give the HUD a game hierarchy.** Dominant score, readable life icons,
       timer urgency, transient combo celebrations, and power-up icons with
       duration meters. Remove low-value dashboard pills from the play space.
+      Done: compact score/lives/countdown HUD, timed streak label and duration meters.
 - [ ] **Add concise onboarding.** Mode descriptions, a safe practice swipe,
       bomb/miss rules, and a short ready countdown; repeatable/skippable help.
       Menu mode descriptions and swipe/pause instructions are implemented;
@@ -440,10 +464,14 @@ and mode goal. Reduced-motion play retains clear feedback without shake/flash.
 - [ ] **Balance with run statistics.** Record fruit sliced/missed, bomb hits,
       stroke accuracy, peak same-stroke combo, streak, and per-mode scores;
       use measured playtests to tune wave pressure, duration, and reward rates.
-- [ ] **Decouple gameplay and cosmetic RNG before seeded challenges.** Slice
+      Authoritative fruit/miss/bomb/peak-streak counters and results are implemented;
+      stroke accuracy and measured balancing remain.
+- [x] **Decouple gameplay and cosmetic RNG before seeded challenges.** Slice
       particles/halves currently consume the spawning RNG. Separate streams and
       make entity IDs engine-local so quality tiers and concurrent replay/test
       engines cannot affect gameplay (builds on Phase 14.2).
+      Done: independent seeded streams and positive gameplay/negative effect IDs,
+      tested with FX enabled/disabled, interleaved engines and same-seed restart.
 
 **Acceptance:** same seed/mode gives the intended repeatable spawn schedule
 independent of cosmetic random calls and FX quality. Separate swipes cannot
@@ -460,17 +488,23 @@ tests show fruit before bombs, and every mode has documented pressure budgets.
 - [ ] **Extend goals beyond the three static objectives.** Add mode-specific
       achievements, a rotating small challenge set, and useful next-goal prompts
       without punishing missed days.
-- [ ] **Correct reward eligibility.** “Flawless” currently means unchanged
+- [x] **Correct reward eligibility.** “Flawless” currently means unchanged
       strikes, so Arcade bomb hits can still qualify. Base it on real run stats;
       prevent empty/instant-loss farming and keep settlement idempotent.
+      Done with authoritative counters, >=5s/fruit/score eligibility and bounded
+      persisted settlement IDs; Arcade bombs disqualify flawless bonuses.
 - [ ] **Improve results.** Show per-mode personal best, fruit/miss/bomb counts,
       best stroke combo, objective progress, and a clear replay/equip next action.
+      Fruit/miss/bomb counts, peak timed streak, per-mode best and reward status
+      are implemented; same-stroke statistics and equip actions remain.
 - [ ] **Optional: daily seeded challenges and local replays.** Depend on Phase
       17 RNG separation and timestamped inputs; start with local personal bests.
       Online leaderboards require a separate integrity/backend design.
-- [ ] **Version profile/settings storage.** Validate finite/ranged values,
+- [x] **Version profile/settings storage.** Validate finite/ranged values,
       migrate older profiles, and recover from malformed or blocked storage
       without losing valid earned progress.
+      Done: reward schema v2/settings v1 migrate flat legacy data and independently
+      repair invalid fields; canonical objective metadata prevents inflated payouts.
 
 **Acceptance:** earning/equipping a cosmetic visibly changes play and survives
 reload. Bomb-hit runs cannot receive a flawless bonus; rewards are applied once.
@@ -487,7 +521,8 @@ Players still have attainable meaningful goals after the initial three finish.
       dialogs, preserve safe areas, and prevent pointer fall-through. Exercise
       390×844 and 844×390 viewports.
       Browser checks passed at 390×844 and 844×390.
-- [ ] Verify 320px-wide layout and physical touch scrolling.
+- [x] Verify 320px-wide HUD/results layout in Chrome.
+- [ ] Verify physical touch scrolling.
 - [ ] **Complete accessible settings/flows** using Phase 14.6: dialog focus
       move/restore, inert closed panels, discrete live announcements, menu/pause
       settings, functioning sensitivity, OS reduced-motion defaults, and
@@ -500,8 +535,9 @@ Players still have attainable meaningful goals after the initial three finish.
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
       migration, exactly-once rewards, and presentation RNG independence.
       Implemented input/lifecycle/contact/persistence/audio/controller regressions
-      with Bun's built-in runner; scoring/stacking, migrations, reward settlement
-      and cosmetic RNG tests remain. Vitest/RTL are optional later tooling.
+      with Bun's built-in runner, including migrations, reward settlement,
+      cosmetic RNG/ID independence, event delivery and renderer regressions.
+      Same-stroke scoring/stacking tests remain. Vitest/RTL are optional later tooling.
 - [ ] **Add browser smoke coverage.** Menu → each mode → pause/resume → timed
       completion/results/replay; profile equip/scroll; fresh muted launch; short
       viewport controls. Keep physical iOS/Android multitouch QA in Phase 12.

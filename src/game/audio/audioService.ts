@@ -2,6 +2,7 @@ import { Howl, Howler } from 'howler'
 import musicTrack from '../../assets/music.mp3'
 import { createToneObjectUrl } from './tone'
 import { sfxGain, type AudioSfxName } from './sfxMix'
+import { createVoicePool } from './voicePool'
 
 export type { AudioSfxName } from './sfxMix'
 
@@ -35,6 +36,8 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
     createToneObjectUrl({ frequencyHz: 440, endFrequencyHz: 110, durationMs: 620, volume: 0.65, shape: 'triangle' }),
     createToneObjectUrl({ frequencyHz: 980, durationMs: 160, volume: 0.5, shape: 'sine' }),
     createToneObjectUrl({ frequencyHz: 660, durationMs: 60, volume: 0.35, shape: 'sine' }),
+    createToneObjectUrl({ frequencyHz: 720, endFrequencyHz: 320, durationMs: 180, volume: 0.4, shape: 'sine' }),
+    createToneObjectUrl({ frequencyHz: 680, endFrequencyHz: 1420, durationMs: 180, volume: 0.45, shape: 'triangle' }),
   ]
 
   return {
@@ -46,6 +49,8 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
       'game-over': new Howl({ src: [urls[3]], format: ['wav'], volume: sfxGain('game-over', sfxVolume) }),
       'power-up': new Howl({ src: [urls[4]], format: ['wav'], volume: sfxGain('power-up', sfxVolume) }),
       'ui-click': new Howl({ src: [urls[5]], format: ['wav'], volume: sfxGain('ui-click', sfxVolume) }),
+      'power-up-expired': new Howl({ src: [urls[6]], format: ['wav'], volume: sfxGain('power-up-expired', sfxVolume) }),
+      combo: new Howl({ src: [urls[7]], format: ['wav'], volume: sfxGain('combo', sfxVolume) }),
     },
   }
 }
@@ -56,6 +61,8 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
   let sfxVolume = clamp01(initialSfxVolume)
   let sfxObjectUrls: string[] = []
   let sfxPack: SfxPack | null = null
+  const voices = createVoicePool(8)
+  let duckTimer: ReturnType<typeof setTimeout> | undefined
 
   const music = new Howl({
     src: [musicTrack],
@@ -119,16 +126,27 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     }
 
     const howl = sfxPack[name]
+    voices.prepare()
     const id = howl.play()
+    // A Howl waiting for decode already owns a slot for its queued playback.
+    voices.add({ playing: () => howl.state() !== 'loaded' || howl.playing(id), stop: () => howl.stop(id) })
     if (name === 'slice') {
       const jitter = 0.92 + Math.random() * 0.18
       howl.rate(jitter, id)
+    }
+    if (name === 'bomb' || name === 'game-over') {
+      clearTimeout(duckTimer)
+      music.volume(musicVolume * 0.35)
+      duckTimer = setTimeout(() => {
+        duckTimer = undefined
+        music.volume(musicVolume)
+      }, 650)
     }
   }
 
   const setMusicVolume = (volume: number) => {
     musicVolume = clamp01(volume)
-    music.volume(musicVolume)
+    music.volume(musicVolume * (duckTimer === undefined ? 1 : 0.35))
   }
 
   const setSfxVolume = (volume: number) => {
@@ -142,7 +160,11 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
   }
 
   const stopAll = () => {
+    clearTimeout(duckTimer)
+    duckTimer = undefined
+    voices.clear()
     music.stop()
+    music.volume(musicVolume)
     unlocked = false
     if (sfxPack) {
       Object.values(sfxPack).forEach((howl) => howl.unload())

@@ -37,7 +37,7 @@ We are not switching to `bunx --bun vite` right now because the direct script fo
 - `bun run build` - type-check and create a production build
 - `bun run preview` - preview the production build locally
 - `bun run lint` - run ESLint
-- `bun run test` - run the deterministic input/gameplay and audio regressions
+- `bun run test` - run input/gameplay, event, rendering, reward/storage, and audio regressions
 
 ## Debug Mode Toggle
 
@@ -90,8 +90,10 @@ src/
     render/
       renderer.ts
       debugDraw.ts
+      renderHelpers.ts
     systems/
       applySystems.ts
+      systemContext.ts
       collision.ts
       constants.ts
       sliceDetectSystem.ts
@@ -103,12 +105,16 @@ src/
     audio/
       audioService.ts
       tone.ts
+      sfxMix.ts
+      voicePool.ts
     ui/
       viewModel.ts
       useGameUiState.ts
       rewards.ts
       GameDialog.tsx
       SettingsControls.tsx
+      GameHud.tsx
+      eventFeedback.ts
     debug.ts
     index.ts
     types.ts
@@ -123,6 +129,15 @@ Architecture and React/game boundary notes are documented in `src/game/README.md
 Classic ends on a bomb or three missed fruit. Arcade lasts 60 seconds with
 power-ups and bomb score penalties. Zen is a bomb-free 90-second session.
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
+The HUD displays score, lives or time, the current timed streak, and power-up
+remaining durations. Results include fruit sliced, misses, bomb hits, and peak
+streak. A streak is a chain of cuts within 320ms; same-gesture combos remain on
+the roadmap.
+
+Rewards require a completed run lasting at least five seconds, at least one
+fruit sliced, and a positive score. Flawless bonuses require zero misses and zero
+bomb hits in every mode. Recent run IDs prevent duplicate payouts; versioned
+storage migrates existing profiles/preferences and validates fields independently.
 Cosmetics are currently unlock previews; equipping them remains on the roadmap.
 
 ## Release Checks

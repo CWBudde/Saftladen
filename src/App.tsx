@@ -8,7 +8,9 @@ import { createAudioService } from './game/audio'
 import { GameCanvasLayer } from './game/core'
 import { isGameDebugEnabled } from './game/debug'
 import { GameDialog } from './game/ui/GameDialog'
+import { GameHud } from './game/ui/GameHud'
 import { SettingsControls } from './game/ui/SettingsControls'
+import { eventAnnouncement, eventSounds } from './game/ui/eventFeedback'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
 import {
@@ -71,16 +73,6 @@ function formatDuration(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-function powerUpLabel(powerUp: 'freeze' | 'frenzy' | 'double-points'): string {
-  if (powerUp === 'freeze') {
-    return 'Freeze'
-  }
-  if (powerUp === 'frenzy') {
-    return 'Frenzy'
-  }
-  return 'Double'
-}
-
 function App() {
   const engine = useMemo(() => createGameEngine({ seed: 1, mode: 'classic' }), [])
   const audio = useMemo(() => {
@@ -93,11 +85,11 @@ function App() {
   const [lastRunRewards, setLastRunRewards] = useState<RunRewards | null>(null)
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic')
   const [profileOpen, setProfileOpen] = useState(false)
-  const [currentRunPeakCombo, setCurrentRunPeakCombo] = useState(0)
+  const [announcement, setAnnouncement] = useState({ id: 0, text: '' })
   const [musicPlaying, setMusicPlaying] = useState(false)
   const [uiSettings, updateUiSettings] = useUiSettings()
 
-  const runPeakComboRef = useRef(0)
+  const rewardProfileRef = useRef(rewardProfile)
 
   const rankInfo = getRankInfo(rewardProfile.xp)
 
@@ -152,87 +144,27 @@ function App() {
     saveRewardProfile(rewardProfile)
   }, [rewardProfile])
 
-  useEffect(() => {
-    let previousPhase = engine.getState().phase
-
-    return engine.subscribe((state) => {
-      if ((previousPhase === 'idle' || previousPhase === 'game-over') && state.phase === 'running') {
-        runPeakComboRef.current = state.score.combo
-        setLastRunRewards(null)
-      }
-
-      if (state.phase === 'running') {
-        runPeakComboRef.current = Math.max(runPeakComboRef.current, state.score.combo)
-      }
-
-      if (previousPhase === 'running' && state.phase === 'game-over') {
-        const runPeakCombo = Math.max(runPeakComboRef.current, state.score.combo)
-        setCurrentRunPeakCombo(runPeakCombo)
+  useEffect(() => engine.subscribeEvents((events) => {
+    eventSounds(events).forEach((sound) => audio.playSfx(sound))
+    const message = eventAnnouncement(events)
+    if (message) setAnnouncement((previous) => ({ id: previous.id + 1, text: message }))
+    for (const event of events) {
+      if (event.type === 'run-start') setLastRunRewards(null)
+      if (event.type === 'run-end') {
         const summary: RunSummary = {
-          mode: state.mode,
-          score: state.score.current,
-          maxCombo: runPeakCombo,
-          durationMs: state.world.elapsedMs,
-          strikesRemaining: state.strikes.remaining,
-          strikesMax: state.strikes.max,
+          runId: event.runId,
+          mode: event.mode,
+          score: event.score,
+          durationMs: event.durationMs,
+          stats: event.stats,
         }
-
-        setRewardProfile((previousProfile) => {
-          const applied = applyRunRewards(previousProfile, summary)
-          setLastRunRewards(applied.rewards)
-          return applied.profile
-        })
+        const applied = applyRunRewards(rewardProfileRef.current, summary)
+        rewardProfileRef.current = applied.profile
+        setRewardProfile(applied.profile)
+        setLastRunRewards(applied.rewards)
       }
-
-      previousPhase = state.phase
-    })
-  }, [engine])
-
-  useEffect(() => {
-    const initialState = engine.getState()
-    let previousScore = initialState.score.current
-    let previousMisses = initialState.world.misses.count
-    let previousBombHitAt = initialState.world.lastBombHitAtMs
-    let previousPhase = initialState.phase
-    let previousPowerUpKey = [
-      initialState.modeState.arcade.powerUpTimers.freezeMs > 0 ? '1' : '0',
-      initialState.modeState.arcade.powerUpTimers.frenzyMs > 0 ? '1' : '0',
-      initialState.modeState.arcade.powerUpTimers.doublePointsMs > 0 ? '1' : '0',
-    ].join('')
-
-    return engine.subscribe((state) => {
-      if (state.score.current > previousScore) {
-        audio.playSfx('slice')
-      }
-
-      if (state.world.misses.count > previousMisses) {
-        audio.playSfx('miss')
-      }
-
-      if (state.world.lastBombHitAtMs !== previousBombHitAt && state.world.lastBombHitAtMs !== null) {
-        audio.playSfx('bomb')
-      }
-
-      if (previousPhase !== 'game-over' && state.phase === 'game-over') {
-        audio.playSfx('game-over')
-      }
-
-      const currentPowerUpKey = [
-        state.modeState.arcade.powerUpTimers.freezeMs > 0 ? '1' : '0',
-        state.modeState.arcade.powerUpTimers.frenzyMs > 0 ? '1' : '0',
-        state.modeState.arcade.powerUpTimers.doublePointsMs > 0 ? '1' : '0',
-      ].join('')
-      if (currentPowerUpKey !== previousPowerUpKey && currentPowerUpKey.includes('1')) {
-        audio.playSfx('power-up')
-      }
-
-      previousScore = state.score.current
-      previousMisses = state.world.misses.count
-      previousBombHitAt = state.world.lastBombHitAtMs
-      previousPhase = state.phase
-      previousPowerUpKey = currentPowerUpKey
-    })
-  }, [audio, engine])
+    }
+  }), [audio, engine])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -310,6 +242,9 @@ function App() {
 
   return (
     <main className="game-root" data-reduced-motion={uiSettings.reducedMotion}>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        <span key={announcement.id}>{announcement.text}</span>
+      </div>
       <section className="stage-shell">
         <GameCanvasLayer engine={engine} debugEnabled={debugEnabled}
           sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion} />
@@ -320,31 +255,7 @@ function App() {
 
         <div className="overlay-root">
           {uiSnapshot.view !== 'menu' ? (
-            <div className="hud-bar" role="group" aria-label="Run statistics">
-              <p className="hud-pill">Score {uiSnapshot.score}</p>
-              <p className="hud-pill">Combo x{Math.max(1, uiSnapshot.combo)}</p>
-              <p className="hud-pill">Mode {uiSnapshot.mode}</p>
-              {uiSnapshot.mode === 'arcade' ? (
-                <p className="hud-pill">Time {formatDuration(uiSnapshot.arcadeRemainingMs)}</p>
-              ) : uiSnapshot.mode === 'zen' ? (
-                <p className="hud-pill">Time {formatDuration(uiSnapshot.zenRemainingMs)}</p>
-              ) : (
-                <p className="hud-pill">
-                  Strikes {uiSnapshot.strikesRemaining}/{uiSnapshot.strikesMax}
-                </p>
-              )}
-              <p className="hud-pill">Starfruit {rewardProfile.starfruit}</p>
-              {uiSnapshot.mode === 'arcade'
-                ? uiSnapshot.activePowerUps.map((powerUp) => (
-                    <p key={powerUp} className="hud-pill power-up-pill">
-                      {powerUpLabel(powerUp)}
-                    </p>
-                  ))
-                : null}
-              <button type="button" className="ghost-button" data-focus-anchor onClick={handlePause} disabled={uiSnapshot.view !== 'playing'}>
-                Pause
-              </button>
-            </div>
+            <GameHud snapshot={uiSnapshot} onPause={handlePause} />
           ) : null}
 
           {uiSnapshot.view === 'menu' ? (
@@ -506,10 +417,17 @@ function App() {
                 Score {uiSnapshot.score} · Best {uiSnapshot.bestScore}
               </p>
               <p>
-                Peak Combo x{Math.max(1, currentRunPeakCombo)} · Time {formatDuration(uiSnapshot.elapsedMs)}
+                Peak Streak x{uiSnapshot.stats.peakCombo} · Time {formatDuration(uiSnapshot.elapsedMs)}
               </p>
+              <dl className="result-stats">
+                <div><dt>Fruit sliced</dt><dd>{uiSnapshot.stats.fruitSliced}</dd></div>
+                <div><dt>Misses</dt><dd>{uiSnapshot.stats.missedFruits}</dd></div>
+                <div><dt>Bomb hits</dt><dd>{uiSnapshot.stats.bombHits}</dd></div>
+              </dl>
               {lastRunRewards ? (
                 <div className="reward-strip">
+                  {lastRunRewards.status === 'ineligible' ? <p>Slice fruit and play at least 5 seconds to earn rewards.</p> : null}
+                  {lastRunRewards.flawless ? <p>Flawless run bonus</p> : null}
                   <p>+{lastRunRewards.xpEarned} XP</p>
                   <p>+{lastRunRewards.starfruitEarned} Starfruit</p>
                   {lastRunRewards.objectiveCompletions.length > 0 ? (

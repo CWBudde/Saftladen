@@ -1,4 +1,4 @@
-import type { GameState, PowerUpType } from '../types'
+import type { GameState, PowerUpType, PresentationEventPayload } from '../types'
 import {
   ARCADE_ROUND_DURATION_MS,
   ZEN_ROUND_DURATION_MS,
@@ -92,14 +92,18 @@ export function createInitialZenState() {
   }
 }
 
-export function stepModeSystem(state: GameState, dtMs: number): ModeSystemModifiers {
+export function stepModeSystem(state: GameState, dtMs: number, events?: PresentationEventPayload[]): ModeSystemModifiers {
   if (state.mode === 'arcade') {
     const arcade = state.modeState.arcade
     const timers = arcade.powerUpTimers
+    const activeBeforeStep = getActivePowerUps(state)
     arcade.remainingMs = clampToNonNegative(arcade.remainingMs - dtMs)
     timers.freezeMs = clampToNonNegative(timers.freezeMs - dtMs)
     timers.frenzyMs = clampToNonNegative(timers.frenzyMs - dtMs)
     timers.doublePointsMs = clampToNonNegative(timers.doublePointsMs - dtMs)
+    for (const powerUp of activeBeforeStep) {
+      if (!isPowerUpActive(state, powerUp)) events?.push({ type: 'power-up-expired', atMs: state.world.elapsedMs, powerUp })
+    }
 
     const freezeActive = timers.freezeMs > 0
     const frenzyActive = timers.frenzyMs > 0

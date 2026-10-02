@@ -5,6 +5,7 @@ import { stepPhysicsSystem } from './physicsSystem'
 import { detectSliceEvents } from './sliceDetectSystem'
 import { resolveSliceEvents } from './sliceResolveSystem'
 import { stepSpawnSystem } from './spawnSystem'
+import type { SystemContext } from './systemContext'
 
 type RandomSource = {
   nextFloat: () => number
@@ -23,13 +24,14 @@ export function applyCoreSystems(
   dtMs: number,
   random: RandomSource,
   trails: SliceTrail[],
+  context?: SystemContext,
 ): SystemStepOutcome {
-  const modifiers = stepModeSystem(state, dtMs)
-  stepSpawnSystem(state, random, modifiers)
+  const modifiers = stepModeSystem(state, dtMs, context?.events)
+  stepSpawnSystem(state, random, modifiers, context)
   stepPhysicsSystem(state, dtMs * modifiers.physicsDtScale)
   detectSliceEvents(state, trails)
-  const sliceOutcome = resolveSliceEvents(state, random, modifiers)
-  const despawnOutcome = stepDespawnSystem(state)
+  const sliceOutcome = resolveSliceEvents(state, context?.cosmeticRandom ?? random, modifiers, context)
+  const despawnOutcome = stepDespawnSystem(state, context?.events)
 
   return {
     missedFruits: despawnOutcome.missedFruits,

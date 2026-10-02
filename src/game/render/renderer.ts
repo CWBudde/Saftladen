@@ -1,8 +1,9 @@
 import type { CanvasMetrics } from '../core/canvasStage'
 import type { FrameInfo } from '../core/gameLoop'
 import type { EngineDiagnostics } from '../engine'
-import type { GameState, Vec2 } from '../types'
+import type { GameState, ScoreFeedbackEvent, Vec2 } from '../types'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawTrailStats } from './debugDraw'
+import { collectRenderBuckets, createRenderBuckets, getSpriteScale, type RenderBuckets, type SpriteScale } from './renderHelpers'
 
 export type PointerTrailDebug = {
   pointerId: number
@@ -110,22 +111,17 @@ type FruitImages = {
   starfruit: FruitImageSet
 }
 
-function worldToCanvas(
-  xWorld: number,
-  yWorld: number,
-  worldWidth: number,
-  worldHeight: number,
-  canvasWidth: number,
-  canvasHeight: number,
-): { x: number; y: number } {
-  return {
-    x: (xWorld / worldWidth) * canvasWidth,
-    y: (yWorld / worldHeight) * canvasHeight,
-  }
-}
+const spriteScales = new WeakMap<HTMLImageElement, SpriteScale>()
 
-function worldRadiusToCanvas(radiusWorld: number, worldWidth: number, canvasWidth: number): number {
-  return (radiusWorld / worldWidth) * canvasWidth
+function drawSprite(ctx: CanvasRenderingContext2D, image: HTMLImageElement, radius: number): void {
+  let scale = spriteScales.get(image)
+  if (!scale) {
+    scale = getSpriteScale(image.naturalWidth || image.width, image.naturalHeight || image.height)
+    spriteScales.set(image, scale)
+  }
+  const width = radius * scale.widthPerRadius
+  const height = radius * scale.heightPerRadius
+  ctx.drawImage(image, -width / 2, -height / 2, width, height)
 }
 
 type WoodTextureCache = {
@@ -323,27 +319,19 @@ function drawBackgroundLayer(
 
 function drawDecalLayer(
   ctx: CanvasRenderingContext2D,
-  state: Readonly<GameState>,
-  widthCssPx: number,
-  heightCssPx: number,
+  decals: RenderBuckets['decals'],
+  scaleX: number,
+  scaleY: number,
 ): void {
-  const worldWidth = state.world.bounds.x
-  const worldHeight = state.world.bounds.y
-
-  Object.values(state.world.entities).forEach((entity) => {
-    if (entity.kind !== 'decal') {
-      return
-    }
-
-    const center = worldToCanvas(entity.position.x, entity.position.y, worldWidth, worldHeight, widthCssPx, heightCssPx)
-    const ageMs = Math.max(0, Math.min(entity.lifetimeMs, entity.ageMs))
-    const lifeProgress = entity.lifetimeMs > 0 ? ageMs / entity.lifetimeMs : 1
+  for (const entity of decals) {
+    const lifeProgress = entity.lifetimeMs > 0
+      ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs))
+      : 1
     const alpha = 1 - lifeProgress
-    const radiusWorld = entity.radius + (entity.maxRadius - entity.radius) * lifeProgress
-    const radius = worldRadiusToCanvas(radiusWorld, worldWidth, widthCssPx)
+    const radius = (entity.radius + (entity.maxRadius - entity.radius) * lifeProgress) * scaleX
 
     ctx.save()
-    ctx.translate(center.x, center.y)
+    ctx.translate(entity.position.x * scaleX, entity.position.y * scaleY)
     ctx.rotate(entity.rotationRad)
     ctx.globalAlpha = alpha * 0.38
     ctx.fillStyle = entity.color
@@ -358,73 +346,38 @@ function drawDecalLayer(
       ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance * 0.7, radius * 0.15, radius * 0.1, angle, 0, Math.PI * 2)
       ctx.fill()
     }
-    ctx.globalAlpha = 1
-    ctx.fillStyle = `rgba(17, 24, 39, ${(alpha * 0.07).toFixed(3)})`
+    ctx.globalAlpha = alpha * 0.07
+    ctx.fillStyle = '#111827'
     ctx.beginPath()
     ctx.ellipse(0, radius * 0.1, radius * 0.8, radius * 0.52, 0, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
-  })
+  }
 }
 
 function drawFruitBombPowerLayer(
   ctx: CanvasRenderingContext2D,
-  state: Readonly<GameState>,
-  widthCssPx: number,
-  heightCssPx: number,
+  objects: RenderBuckets['objects'],
+  scaleX: number,
+  scaleY: number,
   fruitImages: FruitImages,
   bombImage: HTMLImageElement | null,
   bombImageReady: boolean,
   freezeGlyphImage: HTMLImageElement | null,
   freezeGlyphReady: boolean,
 ): void {
-  const worldWidth = state.world.bounds.x
-  const worldHeight = state.world.bounds.y
-
-  Object.values(state.world.entities).forEach((entity) => {
-    if (entity.kind === 'fruit-half' || entity.kind === 'particle' || entity.kind === 'decal') {
-      return
-    }
-
-    const center = worldToCanvas(entity.position.x, entity.position.y, worldWidth, worldHeight, widthCssPx, heightCssPx)
-    const radius = worldRadiusToCanvas(entity.radius, worldWidth, widthCssPx)
+  for (const entity of objects) {
+    const radius = entity.radius * scaleX
+    const scaledRadius = radius * 1.15
     ctx.save()
-    ctx.translate(center.x, center.y)
+    ctx.translate(entity.position.x * scaleX, entity.position.y * scaleY)
     ctx.rotate(entity.rotationRad)
 
     if (entity.kind === 'fruit') {
       const imageSet = fruitImages[entity.fruitType]
-      const useImage = imageSet?.whole && imageSet.wholeReady
-
-      if (useImage) {
-        const img = imageSet.whole!
-        const imgWidth = img.naturalWidth || img.width
-        const imgHeight = img.naturalHeight || img.height
-        const imgAspect = imgWidth / Math.max(1, imgHeight)
-
-        // Base size increase: 15% for all items
-        const baseSizeScale = 1.15
-        // Additional scale for non-squared images (20% larger)
-        const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
-        const totalScale = baseSizeScale * nonSquareBonus
-
-        // Calculate dimensions maintaining aspect ratio
-        let drawWidth = radius * 2 * totalScale
-        let drawHeight = radius * 2 * totalScale
-
-        if (imgAspect > 1) {
-          // Image is wider than tall (e.g., banana)
-          drawHeight = drawWidth / imgAspect
-        } else if (imgAspect < 1) {
-          // Image is taller than wide (e.g., pineapple, starfruit)
-          drawWidth = drawHeight * imgAspect
-        }
-
-        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+      if (imageSet.whole && imageSet.wholeReady) {
+        drawSprite(ctx, imageSet.whole, radius)
       } else {
-        // Fallback to circle rendering
-        const baseSizeScale = 1.15
-        const scaledRadius = radius * baseSizeScale
         ctx.fillStyle = entity.color
         ctx.beginPath()
         ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
@@ -434,37 +387,9 @@ function drawFruitBombPowerLayer(
         ctx.stroke()
       }
     } else if (entity.kind === 'bomb') {
-      const useBombImage = bombImage && bombImageReady
-
-      if (useBombImage) {
-        const img = bombImage!
-        const imgWidth = img.naturalWidth || img.width
-        const imgHeight = img.naturalHeight || img.height
-        const imgAspect = imgWidth / Math.max(1, imgHeight)
-
-        // Base size increase: 15% for all items
-        const baseSizeScale = 1.15
-        // Additional scale for non-squared images (20% larger)
-        const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
-        const totalScale = baseSizeScale * nonSquareBonus
-
-        // Calculate dimensions maintaining aspect ratio
-        let drawWidth = radius * 2 * totalScale
-        let drawHeight = radius * 2 * totalScale
-
-        if (imgAspect > 1) {
-          // Image is wider than tall
-          drawHeight = drawWidth / imgAspect
-        } else if (imgAspect < 1) {
-          // Image is taller than wide (bomb: 294×367)
-          drawWidth = drawHeight * imgAspect
-        }
-
-        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+      if (bombImage && bombImageReady) {
+        drawSprite(ctx, bombImage, radius)
       } else {
-        // Fallback to circle rendering with fuse
-        const baseSizeScale = 1.15
-        const scaledRadius = radius * baseSizeScale
         ctx.fillStyle = entity.color
         ctx.beginPath()
         ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
@@ -476,157 +401,62 @@ function drawFruitBombPowerLayer(
         ctx.lineTo(scaledRadius * 0.5, -scaledRadius * 1.2)
         ctx.stroke()
       }
-    } else if (entity.kind === 'power-up') {
-      const baseSizeScale = 1.15
-      const scaledRadius = radius * baseSizeScale
-
-      if (entity.powerUpType === 'freeze' && freezeGlyphImage && freezeGlyphReady) {
-        // Use freeze glyph image
-        const img = freezeGlyphImage
-        const imgWidth = img.naturalWidth || img.width
-        const imgHeight = img.naturalHeight || img.height
-        const imgAspect = imgWidth / Math.max(1, imgHeight)
-
-        // Additional scale for non-squared images (20% larger)
-        const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
-        const totalScale = baseSizeScale * nonSquareBonus
-
-        // Calculate dimensions maintaining aspect ratio
-        let drawWidth = radius * 2 * totalScale
-        let drawHeight = radius * 2 * totalScale
-
-        if (imgAspect > 1) {
-          // Image is wider than tall
-          drawHeight = drawWidth / imgAspect
-        } else if (imgAspect < 1) {
-          // Image is taller than wide
-          drawWidth = drawHeight * imgAspect
-        }
-
-        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
-      } else {
-        // Fallback to circle rendering
-        ctx.fillStyle = entity.color
-        ctx.beginPath()
-        ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.fillStyle = 'rgba(255,255,255,0.85)'
-        ctx.beginPath()
-        ctx.arc(0, 0, scaledRadius * 0.35, 0, Math.PI * 2)
-        ctx.fill()
-      }
+    } else if (entity.powerUpType === 'freeze' && freezeGlyphImage && freezeGlyphReady) {
+      drawSprite(ctx, freezeGlyphImage, radius)
+    } else {
+      ctx.fillStyle = entity.color
+      ctx.beginPath()
+      ctx.arc(0, 0, scaledRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'
+      ctx.beginPath()
+      ctx.arc(0, 0, scaledRadius * 0.35, 0, Math.PI * 2)
+      ctx.fill()
     }
 
     ctx.restore()
-  })
+  }
 }
 
 function drawFruitHalfLayer(
   ctx: CanvasRenderingContext2D,
-  state: Readonly<GameState>,
-  widthCssPx: number,
-  heightCssPx: number,
+  halves: RenderBuckets['halves'],
+  scaleX: number,
+  scaleY: number,
   fruitImages: FruitImages,
   reducedMotion: boolean,
 ): void {
-  const worldWidth = state.world.bounds.x
-  const worldHeight = state.world.bounds.y
-
-  Object.values(state.world.entities).forEach((entity) => {
-    if (entity.kind !== 'fruit-half') {
-      return
-    }
-
-    const center = worldToCanvas(entity.position.x, entity.position.y, worldWidth, worldHeight, widthCssPx, heightCssPx)
-    const radius = worldRadiusToCanvas(entity.radius, worldWidth, widthCssPx)
+  for (const entity of halves) {
+    const radius = entity.radius * scaleX
     const lifeProgress = entity.lifetimeMs > 0 ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs)) : 1
     const popScale = reducedMotion ? 1 : 1 + (1 - lifeProgress) * 0.08
 
     ctx.save()
-    ctx.translate(center.x, center.y)
+    ctx.translate(entity.position.x * scaleX, entity.position.y * scaleY)
     ctx.rotate(entity.rotationRad)
     ctx.scale(popScale, popScale)
     ctx.globalAlpha = Math.min(1, (1 - lifeProgress) * 3)
 
     const imageSet = fruitImages[entity.fruitType]
-
-    const usesSeparateHalves = entity.fruitType === 'pineapple' || entity.fruitType === 'orange' || entity.fruitType === 'starfruit'
-    const useLeftImage = usesSeparateHalves && entity.half === 'left' && imageSet?.cutLeft && imageSet.cutLeftReady
-    const useRightImage = usesSeparateHalves && entity.half === 'right' && imageSet?.cutRight && imageSet.cutRightReady
-    const useSingleCutImage = !usesSeparateHalves && imageSet?.cut && imageSet.cutReady
-
-    if (useLeftImage) {
-      const img = imageSet.cutLeft!
-      const imgWidth = img.naturalWidth || img.width
-      const imgHeight = img.naturalHeight || img.height
-      const imgAspect = imgWidth / Math.max(1, imgHeight)
-
-      // Base size increase: 15% for all items
-      const baseSizeScale = 1.15
-      // Additional scale for non-squared images (20% larger)
-      const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
-      const totalScale = baseSizeScale * nonSquareBonus
-
-      let drawWidth = radius * 2 * totalScale
-      let drawHeight = radius * 2 * totalScale
-      if (imgAspect > 1) {
-        drawHeight = drawWidth / imgAspect
-      } else if (imgAspect < 1) {
-        drawWidth = drawHeight * imgAspect
-      }
-
-      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
-    } else if (useRightImage) {
-      const img = imageSet.cutRight!
-      const imgWidth = img.naturalWidth || img.width
-      const imgHeight = img.naturalHeight || img.height
-      const imgAspect = imgWidth / Math.max(1, imgHeight)
-
-      // Base size increase: 15% for all items
-      const baseSizeScale = 1.15
-      // Additional scale for non-squared images (20% larger)
-      const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
-      const totalScale = baseSizeScale * nonSquareBonus
-
-      let drawWidth = radius * 2 * totalScale
-      let drawHeight = radius * 2 * totalScale
-      if (imgAspect > 1) {
-        drawHeight = drawWidth / imgAspect
-      } else if (imgAspect < 1) {
-        drawWidth = drawHeight * imgAspect
-      }
-
-      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
-    } else if (useSingleCutImage) {
-      const img = imageSet.cut!
-      const imgWidth = img.naturalWidth || img.width
-      const imgHeight = img.naturalHeight || img.height
-      const imgAspect = imgWidth / Math.max(1, imgHeight)
-
-      // Base size increase: 15% for all items
-      const baseSizeScale = 1.15
-      // Additional scale for non-squared images (20% larger)
-      const nonSquareBonus = Math.abs(imgAspect - 1) > 0.1 ? 1.2 : 1.0
-      const totalScale = baseSizeScale * nonSquareBonus
-
-      let drawWidth = radius * 2 * totalScale
-      let drawHeight = radius * 2 * totalScale
-      if (imgAspect > 1) {
-        drawHeight = drawWidth / imgAspect
-      } else if (imgAspect < 1) {
-        drawWidth = drawHeight * imgAspect
-      }
-
-      // The existing cut sprites show a full cross-section. Clip complementary
-      // sections so the two departing pieces reconstruct one fruit at impact.
+    const directionalImage = entity.half === 'left'
+      ? (imageSet.cutLeftReady ? imageSet.cutLeft : null)
+      : (imageSet.cutRightReady ? imageSet.cutRight : null)
+    if (directionalImage) {
+      ctx.rotate(entity.cutAngleRad)
+      drawSprite(ctx, directionalImage, radius)
+    } else if (imageSet.cut && imageSet.cutReady) {
+      // Complementary clipping of full cross-section sprites. The generous
+      // local rectangle covers any sprite dimensions without allocating bounds.
+      const extent = radius * 4
+      ctx.rotate(entity.cutAngleRad)
       ctx.beginPath()
-      ctx.rect(entity.half === 'left' ? -drawWidth / 2 : 0, -drawHeight / 2, drawWidth / 2, drawHeight)
+      ctx.rect(entity.half === 'left' ? -extent : 0, -extent, extent, extent * 2)
       ctx.clip()
-      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
+      ctx.rotate(-entity.cutAngleRad)
+      drawSprite(ctx, imageSet.cut, radius)
     } else {
-      // Fallback to half-circle rendering
-      const baseSizeScale = 1.15
-      const scaledRadius = radius * baseSizeScale
+      const scaledRadius = radius * 1.15
+      ctx.rotate(entity.cutAngleRad)
       ctx.fillStyle = entity.color
       ctx.beginPath()
       if (entity.half === 'left') {
@@ -642,93 +472,75 @@ function drawFruitHalfLayer(
     }
 
     ctx.restore()
-  })
+  }
 }
 
 function drawParticleLayer(
   ctx: CanvasRenderingContext2D,
-  state: Readonly<GameState>,
-  widthCssPx: number,
-  heightCssPx: number,
+  particles: RenderBuckets['particles'],
+  scaleX: number,
+  scaleY: number,
 ): void {
-  const worldWidth = state.world.bounds.x
-  const worldHeight = state.world.bounds.y
-
-  Object.values(state.world.entities).forEach((entity) => {
-    if (entity.kind !== 'particle') {
-      return
-    }
-
-    const center = worldToCanvas(entity.position.x, entity.position.y, worldWidth, worldHeight, widthCssPx, heightCssPx)
-    const radius = worldRadiusToCanvas(entity.radius, worldWidth, widthCssPx)
+  ctx.save()
+  for (const entity of particles) {
+    const radius = entity.radius * scaleX
     const alpha = Math.max(0, 1 - entity.ageMs / entity.lifetimeMs)
-
-    ctx.save()
     ctx.globalAlpha = alpha
     ctx.fillStyle = entity.color
     ctx.beginPath()
     const direction = Math.atan2(entity.velocity.y, entity.velocity.x)
-    ctx.ellipse(center.x, center.y, Math.max(1.5, radius * 1.4), Math.max(1, radius * 0.7), direction, 0, Math.PI * 2)
+    ctx.ellipse(entity.position.x * scaleX, entity.position.y * scaleY, Math.max(1.5, radius * 1.4), Math.max(1, radius * 0.7), direction, 0, Math.PI * 2)
     ctx.fill()
-    ctx.restore()
-  })
+  }
+  ctx.restore()
 }
 
 function drawScoreFeedbackLayer(
   ctx: CanvasRenderingContext2D,
-  state: Readonly<GameState>,
-  widthCssPx: number,
-  heightCssPx: number,
+  feedback: readonly ScoreFeedbackEvent[],
+  elapsedMs: number,
+  scaleX: number,
+  scaleY: number,
   reducedMotion: boolean,
 ): void {
-  const worldWidth = state.world.bounds.x
-  const worldHeight = state.world.bounds.y
-
-  state.world.scoreFeedbackEvents.forEach((event) => {
-    const ageMs = state.world.elapsedMs - event.createdAtMs
+  for (const event of feedback) {
+    const ageMs = elapsedMs - event.createdAtMs
     const lifeProgress = Math.max(0, Math.min(1, ageMs / event.lifetimeMs))
     const alpha = 1 - lifeProgress
-    const floatOffsetY = reducedMotion ? 0 : lifeProgress * 36
-    const anchor = worldToCanvas(
-      event.position.x,
-      event.position.y,
-      worldWidth,
-      worldHeight,
-      widthCssPx,
-      heightCssPx,
-    )
+    const x = event.position.x * scaleX
+    const y = event.position.y * scaleY - (reducedMotion ? 0 : lifeProgress * 36)
 
     ctx.save()
     if (!reducedMotion) {
-      ctx.strokeStyle = `rgba(253, 224, 71, ${(alpha * 0.45).toFixed(3)})`
+      ctx.globalAlpha = alpha * 0.45
+      ctx.strokeStyle = '#fde047'
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.arc(anchor.x, anchor.y, 10 + lifeProgress * 26, 0, Math.PI * 2)
+      ctx.arc(x, event.position.y * scaleY, 10 + lifeProgress * 26, 0, Math.PI * 2)
       ctx.stroke()
     }
 
-    const isPenalty = event.amount < 0
-    ctx.fillStyle = isPenalty
-      ? `rgba(254, 202, 202, ${alpha.toFixed(3)})`
-      : `rgba(236, 253, 245, ${alpha.toFixed(3)})`
-    const size = event.combo > 1 ? 22 : 19
-    ctx.font = `800 ${size}px 'Segoe UI', Tahoma, sans-serif`
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = event.amount < 0 ? '#fecaca' : '#ecfdf5'
+    ctx.font = event.combo > 1
+      ? "800 22px 'Segoe UI', Tahoma, sans-serif"
+      : "800 19px 'Segoe UI', Tahoma, sans-serif"
     ctx.textAlign = 'center'
-    ctx.strokeStyle = `rgba(30, 15, 10, ${alpha.toFixed(3)})`
+    ctx.strokeStyle = '#1e0f0a'
     ctx.lineWidth = 3.5
-    const scoreLabel = event.amount >= 0 ? `+${event.amount}` : `${event.amount}`
-    ctx.strokeText(scoreLabel, anchor.x, anchor.y - floatOffsetY)
-    ctx.fillText(scoreLabel, anchor.x, anchor.y - floatOffsetY)
+    const scoreLabel = event.amount >= 0 ? '+' + event.amount : String(event.amount)
+    ctx.strokeText(scoreLabel, x, y)
+    ctx.fillText(scoreLabel, x, y)
 
     if (event.combo > 1) {
       ctx.font = "800 13px 'Segoe UI', Tahoma, sans-serif"
-      ctx.fillStyle = `rgba(253, 224, 71, ${alpha.toFixed(3)})`
-      const label = `COMBO ×${event.combo}`
-      ctx.strokeText(label, anchor.x, anchor.y - floatOffsetY - 22)
-      ctx.fillText(label, anchor.x, anchor.y - floatOffsetY - 22)
+      ctx.fillStyle = '#fde047'
+      const label = 'STREAK ×' + event.combo
+      ctx.strokeText(label, x, y - 22)
+      ctx.fillText(label, x, y - 22)
     }
     ctx.restore()
-  })
+  }
 }
 
 function drawScreenFlashLayer(
@@ -739,8 +551,11 @@ function drawScreenFlashLayer(
 ): void {
   if (flashAgeMs >= 0 && flashAgeMs < 220) {
     const alpha = 1 - flashAgeMs / 220
-    ctx.fillStyle = `rgba(239, 68, 68, ${Math.max(0, Math.min(0.35, alpha * 0.35)).toFixed(3)})`
+    ctx.save()
+    ctx.globalAlpha = Math.max(0, Math.min(0.35, alpha * 0.35))
+    ctx.fillStyle = '#ef4444'
     ctx.fillRect(0, 0, widthCssPx, heightCssPx)
+    ctx.restore()
   }
 }
 
@@ -749,7 +564,8 @@ function drawBladeTrails(ctx: CanvasRenderingContext2D, context: RenderContext, 
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   // TrailTracker bounds the trail history; cap work here as a second guard.
-  for (const trail of context.debug.trails.slice(0, 10)) {
+  for (let trailIndex = 0; trailIndex < Math.min(10, context.debug.trails.length); trailIndex += 1) {
+    const trail = context.debug.trails[trailIndex]
     const points = trail.canvasPoints
     const firstIndex = Math.max(1, points.length - 24)
     for (let i = firstIndex; i < points.length; i += 1) {
@@ -805,6 +621,7 @@ function loadFruitImage(url: string, onReady: (img: HTMLImageElement) => void): 
 
 export function createRenderer(): Renderer {
   let woodTextureCache: WoodTextureCache | null = null
+  const buckets = createRenderBuckets()
   let observedBombHitAtMs: number | null = null
   let bombFlashStartedAtMs = -Infinity
   let preferredBackgroundImage: HTMLImageElement | null = null
@@ -950,6 +767,10 @@ export function createRenderer(): Renderer {
   return {
     render: (ctx, state, frameInfo, context) => {
       const { widthCssPx, heightCssPx } = context.metrics
+      const scaleX = widthCssPx / state.world.bounds.x
+      const scaleY = heightCssPx / state.world.bounds.y
+      const reducedMotion = context.reducedMotion ?? false
+      collectRenderBuckets(state.world.entities, buckets, !reducedMotion)
       const bombHitAtMs = state.world.lastBombHitAtMs
       if (bombHitAtMs !== observedBombHitAtMs) {
         observedBombHitAtMs = bombHitAtMs
@@ -965,15 +786,15 @@ export function createRenderer(): Renderer {
         preferredBackgroundImage,
         preferredBackgroundReady,
       )
-      drawDecalLayer(ctx, state, widthCssPx, heightCssPx)
-      drawFruitBombPowerLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, bombImage, bombImageReady, freezeGlyphImage, freezeGlyphReady)
-      drawFruitHalfLayer(ctx, state, widthCssPx, heightCssPx, fruitImages, context.reducedMotion ?? false)
-      if (!context.reducedMotion) {
-        drawParticleLayer(ctx, state, widthCssPx, heightCssPx)
+      drawDecalLayer(ctx, buckets.decals, scaleX, scaleY)
+      drawFruitBombPowerLayer(ctx, buckets.objects, scaleX, scaleY, fruitImages, bombImage, bombImageReady, freezeGlyphImage, freezeGlyphReady)
+      drawFruitHalfLayer(ctx, buckets.halves, scaleX, scaleY, fruitImages, reducedMotion)
+      if (!reducedMotion) {
+        drawParticleLayer(ctx, buckets.particles, scaleX, scaleY)
       }
       drawBladeTrails(ctx, context, frameInfo.timestampMs)
-      drawScoreFeedbackLayer(ctx, state, widthCssPx, heightCssPx, context.reducedMotion ?? false)
-      if (!context.reducedMotion) {
+      drawScoreFeedbackLayer(ctx, state.world.scoreFeedbackEvents, state.world.elapsedMs, scaleX, scaleY, reducedMotion)
+      if (!reducedMotion) {
         drawScreenFlashLayer(ctx, frameInfo.timestampMs - bombFlashStartedAtMs, widthCssPx, heightCssPx)
       }
 

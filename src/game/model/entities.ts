@@ -13,6 +13,7 @@ import type {
 import { createEntityId } from './entityId'
 
 type EntityMotionConfig = {
+  id?: EntityId
   position: Vec2
   velocity: Vec2
   rotationRad: number
@@ -45,6 +46,7 @@ type FruitHalfConfig = EntityMotionConfig & {
   half: 'left' | 'right'
   sourceFruitId: EntityId
   lifetimeMs: number
+  cutAngleRad?: number
 }
 
 type DecalConfig = EntityMotionConfig & {
@@ -55,7 +57,7 @@ type DecalConfig = EntityMotionConfig & {
 
 export function createFruitEntity(config: FruitConfig): FruitEntity {
   return {
-    id: createEntityId(),
+    id: config.id ?? createEntityId(),
     kind: 'fruit',
     space: 'world',
     position: config.position,
@@ -71,7 +73,7 @@ export function createFruitEntity(config: FruitConfig): FruitEntity {
 
 export function createBombEntity(config: BombConfig): BombEntity {
   return {
-    id: createEntityId(),
+    id: config.id ?? createEntityId(),
     kind: 'bomb',
     space: 'world',
     position: config.position,
@@ -85,7 +87,7 @@ export function createBombEntity(config: BombConfig): BombEntity {
 
 export function createPowerUpEntity(config: PowerUpConfig): PowerUpEntity {
   return {
-    id: createEntityId(),
+    id: config.id ?? createEntityId(),
     kind: 'power-up',
     space: 'world',
     position: config.position,
@@ -100,7 +102,7 @@ export function createPowerUpEntity(config: PowerUpConfig): PowerUpEntity {
 
 export function createParticleEntity(config: ParticleConfig): ParticleEntity {
   return {
-    id: createEntityId(),
+    id: config.id ?? createEntityId(),
     kind: 'particle',
     space: 'world',
     position: config.position,
@@ -116,7 +118,7 @@ export function createParticleEntity(config: ParticleConfig): ParticleEntity {
 
 export function createFruitHalfEntity(config: FruitHalfConfig): FruitHalfEntity {
   return {
-    id: createEntityId(),
+    id: config.id ?? createEntityId(),
     kind: 'fruit-half',
     space: 'world',
     position: config.position,
@@ -130,12 +132,13 @@ export function createFruitHalfEntity(config: FruitHalfConfig): FruitHalfEntity 
     sourceFruitId: config.sourceFruitId,
     lifetimeMs: config.lifetimeMs,
     ageMs: 0,
+    cutAngleRad: config.cutAngleRad ?? 0,
   }
 }
 
 export function createDecalEntity(config: DecalConfig): DecalEntity {
   return {
-    id: createEntityId(),
+    id: config.id ?? createEntityId(),
     kind: 'decal',
     space: 'world',
     position: config.position,

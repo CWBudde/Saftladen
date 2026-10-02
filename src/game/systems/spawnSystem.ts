@@ -2,6 +2,7 @@ import { createBombEntity, createFruitEntity, createPowerUpEntity } from '../mod
 import type { FruitType, GameEntity, GameState, PendingSpawnEntry, PowerUpType, Vec2 } from '../types'
 import { WORLD_GRAVITY_PX_PER_S2 } from './constants'
 import type { ModeSystemModifiers } from './modeSystem'
+import type { SystemContext } from './systemContext'
 
 type RandomSource = {
   nextFloat: () => number
@@ -100,7 +101,7 @@ function areSimilarTrajectories(a: WaveTraj, b: WaveTraj, boundsX: number, tWind
   return true
 }
 
-export function stepSpawnSystem(state: GameState, random: RandomSource, modifiers: ModeSystemModifiers): void {
+export function stepSpawnSystem(state: GameState, random: RandomSource, modifiers: ModeSystemModifiers, context?: SystemContext): void {
   const { world } = state
 
   // Drain pending entities whose scheduled spawn time has arrived.
@@ -190,6 +191,7 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
     if (roll < powerUpChance) {
       const powerUpPick = POWER_UP_PALETTE[random.nextInt(0, POWER_UP_PALETTE.length - 1)]
       entity = createPowerUpEntity({
+        id: context?.nextGameplayId(),
         powerUpType: powerUpPick.powerUpType,
         color: powerUpPick.color,
         position: { x, y: startY },
@@ -200,6 +202,7 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
       })
     } else if (roll < powerUpChance + bombChance) {
       entity = createBombEntity({
+        id: context?.nextGameplayId(),
         color: '#111827',
         position: { x, y: startY },
         velocity,
@@ -210,6 +213,7 @@ export function stepSpawnSystem(state: GameState, random: RandomSource, modifier
     } else {
       const fruitPick = FRUIT_PALETTE[random.nextInt(0, FRUIT_PALETTE.length - 1)]
       entity = createFruitEntity({
+        id: context?.nextGameplayId(),
         fruitType: fruitPick.fruitType,
         color: fruitPick.color,
         position: { x, y: startY },

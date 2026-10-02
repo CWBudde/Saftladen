@@ -41,5 +41,19 @@ Pointer-up preserves pending movement; cancellation, phase changes, resize, and
 backgrounding clear input. Sensitivity changes the movement threshold (120 CSS
 pixels/second at the 1280px reference width, divided by sensitivity).
 
-`App` still subscribes to world changes for audio/rewards; replacing those
-subscriptions with explicit presentation events remains tracked in `PLAN.md`.
+## Events, Statistics and Determinism
+
+The engine exposes `subscribeEvents` alongside UI snapshot subscriptions. It
+publishes frozen, ordered event batches once per command/advance, preserving
+slice, miss, bomb, power-up activation/expiry and run-end events across catch-up
+steps. Audio and rewards consume these payloads; `App` does not read simulation
+world fields. Run-end includes a unique run ID and copied authoritative counters.
+
+Spawn randomness and cosmetic randomness use separate seeded streams. Engines
+allocate gameplay IDs locally; effects use a separate negative-ID sequence.
+Disabling cosmetic effects cannot change the subsequent spawn schedule or score.
+Slash direction drives fragment separation and juice spray, while local cut
+angles preserve the original fruit pose for complementary clipped sprites.
+
+The renderer scans entities once into reusable layer buffers, caches sprite
+size factors, and uses scalar coordinates/opacity in the entity draw paths.

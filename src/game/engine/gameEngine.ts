@@ -1,6 +1,6 @@
-import { resetEntityIds } from '../model'
+import { createEntityIdAllocator } from '../model'
 import { applyCoreSystems, createInitialArcadeState, createInitialZenState } from '../systems'
-import type { EntityId, GameEntity, GameMode, GameState, SliceTrail, TimeScalePreset } from '../types'
+import type { EntityId, GameEntity, GameMode, GamePresentationEvent, GameState, PresentationEventPayload, SliceTrail, TimeScalePreset } from '../types'
 import { transitionGamePhase } from './phaseMachine'
 import { createSeededRng } from './rng'
 
@@ -22,6 +22,7 @@ type EngineOptions = {
   fixedDtMs?: number
   maxFrameDeltaMs?: number
   mode?: GameMode
+  effectsEnabled?: boolean
 }
 
 type StartOptions = {
@@ -53,6 +54,17 @@ export type GameEngine = {
   advanceBy: (deltaMs: number) => number
   stepOnce: (dtMs?: number) => void
   subscribe: (listener: (state: Readonly<GameState>) => void) => () => void
+  subscribeEvents: (listener: (events: readonly GamePresentationEvent[]) => void) => () => void
+}
+
+let nextEngineIdentity = 1
+
+function freezeEvent<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    Object.values(value).forEach(freezeEvent)
+    Object.freeze(value)
+  }
+  return value
 }
 
 function emptyEntities(): Record<EntityId, GameEntity> {
@@ -135,9 +147,12 @@ function createBaseState(
       lastBombHitAtMs: null,
     },
     run: {
+      id: '',
       seed,
       rngCalls: 0,
       simulationSteps: 0,
+      cosmeticRngCalls: 0,
+      stats: { fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0 },
     },
     modeState: {
       arcade: createInitialArcadeState(),
@@ -152,6 +167,12 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   const mode = options.mode ?? 'classic'
   const initialSeed = options.seed ?? Date.now()
   const rng = createSeededRng(initialSeed)
+  const cosmeticRng = createSeededRng(initialSeed ^ 0x9e3779b9)
+  const gameplayIds = createEntityIdAllocator()
+  const cosmeticIds = createEntityIdAllocator(-1, -1)
+  const engineIdentity = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${nextEngineIdentity++}-${Math.random().toString(36).slice(2)}`
+  let nextRunNumber = 1
+  let nextEventId = 1
   const persistedBestScore = loadBestScore(mode)
   let lastSavedBestScore = persistedBestScore
 
@@ -160,8 +181,19 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   let lastAdvanceSteps = 0
   let inputTrails: SliceTrail[] = []
   const listeners = new Set<(state: Readonly<GameState>) => void>()
+  const eventListeners = new Set<(events: readonly GamePresentationEvent[]) => void>()
+  let pendingEvents: GamePresentationEvent[] = []
+
+  const queueEvents = (events: PresentationEventPayload[]) => {
+    for (const event of events) pendingEvents.push(freezeEvent({ ...event, id: nextEventId++, runId: state.run.id }))
+  }
 
   const emit = () => {
+    if (pendingEvents.length > 0) {
+      const batch = Object.freeze(pendingEvents)
+      pendingEvents = []
+      eventListeners.forEach((listener) => listener(batch))
+    }
     listeners.forEach((listener) => listener(state))
   }
 
@@ -174,6 +206,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const reseedRun = (seed: number) => {
     rng.reseed(seed)
+    cosmeticRng.reseed(seed ^ 0x9e3779b9)
     state.run.seed = rng.getSeed()
     state.run.rngCalls = 0
   }
@@ -191,16 +224,21 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     accumulatorMs = 0
     lastAdvanceSteps = 0
     inputTrails = []
-    resetEntityIds(1)
+    gameplayIds.reset()
+    cosmeticIds.reset()
   }
 
   const transition = (event: 'start' | 'pause' | 'resume' | 'stop' | 'reset' | 'game-over') => {
+    const previousPhase = state.phase
     const nextPhase = transitionGamePhase(state.phase, event)
     if (nextPhase !== state.phase) {
       inputTrails = []
       accumulatorMs = 0
     }
     state.phase = nextPhase
+    if (nextPhase === 'game-over' && nextPhase !== previousPhase) {
+      queueEvents([{ type: 'run-end', atMs: state.world.elapsedMs, mode: state.mode, score: state.score.current, durationMs: state.world.elapsedMs, peakCombo: state.run.stats.peakCombo, stats: { ...state.run.stats } }])
+    }
   }
 
   const runSimulationStep = (dtMs: number) => {
@@ -211,6 +249,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     state.run.simulationSteps += 1
     const stepTrails = inputTrails
     inputTrails = []
+    const stepEvents: PresentationEventPayload[] = []
     const outcome = applyCoreSystems(
       state,
       dtMs,
@@ -219,7 +258,15 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
         nextInt: rng.nextInt,
       },
       stepTrails,
+      {
+        cosmeticRandom: cosmeticRng,
+        nextGameplayId: gameplayIds.next,
+        nextCosmeticId: cosmeticIds.next,
+        events: stepEvents,
+        effectsEnabled: options.effectsEnabled ?? true,
+      },
     )
+    queueEvents(stepEvents)
 
     if (outcome.missedFruits > 0 && state.mode === 'classic') {
       state.strikes.remaining = Math.max(0, state.strikes.remaining - outcome.missedFruits)
@@ -244,6 +291,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }
 
     state.run.rngCalls = rng.getCalls()
+    state.run.cosmeticRngCalls = cosmeticRng.getCalls()
   }
 
   const setInputTrails = (trails: SliceTrail[]) => {
@@ -277,20 +325,23 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     accumulatorMs = 0
     lastAdvanceSteps = 0
     inputTrails = []
-    resetEntityIds(1)
+    gameplayIds.reset()
+    cosmeticIds.reset()
     emit()
   }
 
   const start = (startOptions: StartOptions = {}) => {
     const nextPhase = transitionGamePhase(state.phase, 'start')
-    if (nextPhase !== 'running') {
+    if (nextPhase !== 'running' || state.phase === 'running') {
       return
     }
 
     const seed = startOptions.seed ?? state.run.seed
     reseedRun(seed)
     resetRunState(seed)
+    state.run.id = `${engineIdentity}:${nextRunNumber++}`
     transition('start')
+    queueEvents([{ type: 'run-start', atMs: 0, mode: state.mode, seed: state.run.seed }])
     emit()
   }
 
@@ -383,6 +434,11 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }
   }
 
+  const subscribeEvents = (listener: (events: readonly GamePresentationEvent[]) => void) => {
+    eventListeners.add(listener)
+    return () => { eventListeners.delete(listener) }
+  }
+
   return {
     getState: () => state,
     getDiagnostics: () => ({
@@ -404,5 +460,6 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     advanceBy,
     stepOnce,
     subscribe,
+    subscribeEvents,
   }
 }

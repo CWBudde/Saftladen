@@ -1,5 +1,6 @@
 import { createDecalEntity, createFruitHalfEntity, createParticleEntity } from '../model'
-import type { FruitEntity, GameState } from '../types'
+import type { FruitEntity, GameState, SliceEvent } from '../types'
+import type { SystemContext } from './systemContext'
 import {
   BASE_FRUIT_POINTS,
   JUICE_PARTICLE_COUNT,
@@ -17,16 +18,22 @@ function randomRange(random: RandomSource, min: number, max: number): number {
   return min + (max - min) * random.nextFloat()
 }
 
-function spawnFruitHalves(state: GameState, fruit: FruitEntity, random: RandomSource): void {
+function spawnFruitHalves(state: GameState, fruit: FruitEntity, event: SliceEvent, random: RandomSource, context?: SystemContext): void {
+  const normal = { x: -event.direction.y, y: event.direction.x }
+  const cutAngleRad = Math.atan2(normal.y, normal.x) - fruit.rotationRad
+  const separation = randomRange(random, 140, 220)
+  const lift = randomRange(random, 40, 100)
   const leftHalf = createFruitHalfEntity({
+    id: context?.nextCosmeticId(),
+    cutAngleRad,
     fruitType: fruit.fruitType,
     color: fruit.color,
     half: 'left',
     sourceFruitId: fruit.id,
     position: { ...fruit.position },
     velocity: {
-      x: fruit.velocity.x - randomRange(random, 80, 220),
-      y: fruit.velocity.y - randomRange(random, 80, 180),
+      x: fruit.velocity.x - normal.x * separation,
+      y: fruit.velocity.y - normal.y * separation - lift,
     },
     rotationRad: fruit.rotationRad,
     angularVelocityRadPerS: fruit.angularVelocityRadPerS - randomRange(random, 0.6, 1.6),
@@ -35,14 +42,16 @@ function spawnFruitHalves(state: GameState, fruit: FruitEntity, random: RandomSo
   })
 
   const rightHalf = createFruitHalfEntity({
+    id: context?.nextCosmeticId(),
+    cutAngleRad,
     fruitType: fruit.fruitType,
     color: fruit.color,
     half: 'right',
     sourceFruitId: fruit.id,
     position: { ...fruit.position },
     velocity: {
-      x: fruit.velocity.x + randomRange(random, 80, 220),
-      y: fruit.velocity.y - randomRange(random, 80, 180),
+      x: fruit.velocity.x + normal.x * separation,
+      y: fruit.velocity.y + normal.y * separation - lift,
     },
     rotationRad: fruit.rotationRad,
     angularVelocityRadPerS: fruit.angularVelocityRadPerS + randomRange(random, 0.6, 1.6),
@@ -59,12 +68,16 @@ function spawnJuiceParticles(
   source: FruitEntity,
   hitPosition: { x: number; y: number },
   random: RandomSource,
+  context?: SystemContext,
+  event?: SliceEvent,
 ): void {
   for (let i = 0; i < JUICE_PARTICLE_COUNT; i += 1) {
-    const angle = randomRange(random, 0, Math.PI * 2)
+    const normalAngle = event ? Math.atan2(event.direction.y, event.direction.x) + Math.PI / 2 : 0
+    const angle = normalAngle + (i % 2 === 0 ? 0 : Math.PI) + randomRange(random, -0.65, 0.65)
     const speed = randomRange(random, 120, 440)
 
     const particle = createParticleEntity({
+      id: context?.nextCosmeticId(),
       color: source.color,
       position: { ...hitPosition },
       velocity: {
@@ -86,6 +99,7 @@ function spawnJuiceSplats(
   source: FruitEntity,
   hitPosition: { x: number; y: number },
   random: RandomSource,
+  context?: SystemContext,
 ): void {
   for (let i = 0; i < JUICE_SPLAT_DECAL_COUNT; i += 1) {
     const offsetX = randomRange(random, -32, 32)
@@ -93,6 +107,7 @@ function spawnJuiceSplats(
     const radius = randomRange(random, source.radius * 0.45, source.radius * 0.8)
 
     const decal = createDecalEntity({
+      id: context?.nextCosmeticId(),
       color: source.color,
       position: {
         x: hitPosition.x + offsetX,
@@ -117,6 +132,7 @@ export function resolveSliceEvents(
   state: GameState,
   random: RandomSource,
   modifiers: ModeSystemModifiers,
+  context?: SystemContext,
 ): { bombHit: boolean; fruitSlices: number } {
   let bombHit = false
   let fruitSlices = 0
@@ -133,9 +149,11 @@ export function resolveSliceEvents(
     }
 
     if (entity.kind === 'bomb') {
+      const penalty = state.mode === 'arcade' ? Math.floor(state.score.current / 2) : 0
+      state.run.stats.bombHits += 1
+      context?.events.push({ type: 'bomb-hit', atMs: state.world.elapsedMs, entityId: entity.id, position: { ...event.hitPosition }, penalty })
       delete state.world.entities[entity.id]
       if (state.mode === 'arcade') {
-        const penalty = Math.floor(state.score.current / 2)
         state.score.current = Math.max(0, state.score.current - penalty)
         state.score.combo = 0
         state.score.lastSliceAtMs = state.world.elapsedMs
@@ -161,6 +179,11 @@ export function resolveSliceEvents(
     if (entity.kind === 'power-up') {
       delete state.world.entities[entity.id]
       activatePowerUp(state, entity.powerUpType)
+      if (state.mode === 'arcade') {
+        const timers = state.modeState.arcade.powerUpTimers
+        const durationMs = entity.powerUpType === 'freeze' ? timers.freezeMs : entity.powerUpType === 'frenzy' ? timers.frenzyMs : timers.doublePointsMs
+        context?.events.push({ type: 'power-up-activated', atMs: state.world.elapsedMs, powerUp: entity.powerUpType, position: { ...event.hitPosition }, durationMs })
+      }
       const bonusPoints = Math.round(BASE_FRUIT_POINTS * 1.5 * modifiers.scoreMultiplier)
       state.score.current += bonusPoints
       state.world.scoreFeedbackEvents.push({
@@ -190,6 +213,9 @@ export function resolveSliceEvents(
     delete state.world.entities[entity.id]
     state.score.current += points
     fruitSlices += 1
+    state.run.stats.fruitSliced += 1
+    state.run.stats.peakCombo = Math.max(state.run.stats.peakCombo, nextCombo)
+    context?.events.push({ type: 'fruit-slice', atMs: state.world.elapsedMs, entityId: entity.id, fruitType: entity.fruitType, position: { ...event.hitPosition }, direction: { ...event.direction }, points, combo: nextCombo })
 
     state.world.scoreFeedbackEvents.push({
       id: state.world.nextScoreFeedbackId,
@@ -201,9 +227,11 @@ export function resolveSliceEvents(
     })
     state.world.nextScoreFeedbackId += 1
 
-    spawnFruitHalves(state, entity, random)
-    spawnJuiceParticles(state, entity, event.hitPosition, random)
-    spawnJuiceSplats(state, entity, event.hitPosition, random)
+    if (context?.effectsEnabled !== false) {
+      spawnFruitHalves(state, entity, event, random, context)
+      spawnJuiceParticles(state, entity, event.hitPosition, random, context, event)
+      spawnJuiceSplats(state, entity, event.hitPosition, random, context)
+    }
   }
 
   const comboExpired =

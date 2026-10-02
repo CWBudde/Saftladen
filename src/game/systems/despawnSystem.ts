@@ -1,4 +1,4 @@
-import type { EntityId, GameEntity, GameState } from '../types'
+import type { EntityId, GameEntity, GameState, PresentationEventPayload } from '../types'
 import { OFFSCREEN_MARGIN_PX } from './constants'
 
 function shouldRemoveParticle(entity: GameEntity): boolean {
@@ -21,7 +21,7 @@ function isFarOutsideHorizontalBounds(entity: GameEntity, worldWidth: number): b
   return entity.position.x + entity.radius < -OFFSCREEN_MARGIN_PX || entity.position.x - entity.radius > worldWidth + OFFSCREEN_MARGIN_PX
 }
 
-export function stepDespawnSystem(state: GameState): { missedFruits: number } {
+export function stepDespawnSystem(state: GameState, events?: PresentationEventPayload[]): { missedFruits: number } {
   const world = state.world
   const nextEntities: Record<EntityId, GameEntity> = {} as Record<EntityId, GameEntity>
   let missedFruits = 0
@@ -43,6 +43,8 @@ export function stepDespawnSystem(state: GameState): { missedFruits: number } {
         world.misses.lastMissedFruitId = entity.id
         world.misses.lastMissedAtMs = world.elapsedMs
         missedFruits += 1
+        state.run.stats.missedFruits += 1
+        events?.push({ type: 'fruit-miss', atMs: world.elapsedMs, entityId: entity.id, position: { ...entity.position } })
       }
       return
     }

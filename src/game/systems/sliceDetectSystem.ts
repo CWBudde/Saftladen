@@ -50,6 +50,10 @@ export function detectSliceEvents(state: GameState, trails: SliceTrail[]): void 
           pointerId: trail.pointerId,
           atMs: end.tMs,
           hitPosition: closestPointOnSegment(start, end, fruit.position),
+          direction: {
+            x: (end.x - start.x) / Math.hypot(end.x - start.x, end.y - start.y),
+            y: (end.y - start.y) / Math.hypot(end.x - start.x, end.y - start.y),
+          },
         })
 
         // One fruit can only be scored once. If multiple pointers overlap on the same step,
