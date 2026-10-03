@@ -105,6 +105,16 @@ angles preserve the original fruit pose for complementary clipped sprites.
 The renderer scans entities once into reusable layer buffers, caches sprite
 size factors, and uses scalar coordinates/opacity in the entity draw paths.
 
+The canvas controller also forwards ordered presentation events to the renderer
+once per frame, including every catch-up step. `render/impactFeedback.ts` owns
+contact-centered combo bursts and bomb rings/penalty labels. It retains at most
+12 impacts, coalesces growing combos by stroke ID, and ages effects on the RAF
+clock (360ms combos, 700ms bomb labels, 220ms bomb flash), including after
+game-over or while paused. Run changes/menu reset the effects. Normalized impact
+positions survive rotation. These effects consume no RNG and change no simulation
+state, timers or input mapping. Reduced motion suppresses rings/flash while
+retaining static bomb labels and the existing score/combo text.
+
 The asset manifest references the actual imported sprite/background/title URLs.
 A shared loader owns decoded images, progress and retry state independently of
 React mounts. The menu gates run starts until decoding succeeds or the player

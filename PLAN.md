@@ -2,8 +2,10 @@
 
 ## Start here
 
-**Next implementation:** the remaining hit feedback, audio and visual identity
-in **Phase 16**. Onboarding now includes safe practice, repeatable/skippable help
+**Next implementation:** action audio, followed by visual identity
+in **Phase 16**. Hit feedback now includes contact-centered combo/bomb bursts
+and readable bomb penalties with reduced-motion support.
+Onboarding includes safe practice, repeatable/skippable help
 and a foreground-only ready countdown. Phase 17 implements gesture combos, capped timed streaks,
 authored spawn patterns, hazard clearance, power-up policies and swept contact.
 Human playtests are still needed to tune pressure and rewards from run statistics.
@@ -13,7 +15,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Remaining slice/audio and presentation polish](#phase-16--signature-slice-feel-and-presentation-p1) | Onboarding complete; optional hit punctuation, layered audio/listening QA and visual identity remain |
+| 1 | [Action audio and presentation polish](#phase-16--signature-slice-feel-and-presentation-p1) | Onboarding/hit feedback complete; layered audio/listening QA and visual identity remain |
 | 2 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
 | 3 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
 | 4 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
@@ -40,10 +42,13 @@ last. Completed tasks and the original review are archived below the backlog.
 - Gesture combos, capped timed streaks, authored spawn rhythms and safe hazard lanes.
 - Swept moving-fruit contact, independent pickup clocks and explicit Frenzy bomb retirement.
 - Optional first-run practice, repeatable help and a three-second ready countdown that suspends on backgrounding.
-- 139 Bun tests / 2,680 assertions; lint, typecheck and production build passed in the latest batch.
-- Thirteen permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Bounded combo/bomb impact bursts and bomb labels that expire on presentation time,
+  including after game-over; reduced motion retains readable static text.
+- 146 Bun tests / 2,724 assertions; lint, typecheck and production build passed in the latest batch.
+- Fifteen permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
-  practice isolation, remembered/skipped help and foreground-only countdowns.
+  practice isolation, remembered/skipped help, foreground-only countdowns,
+  combo bursts and bomb impact expiry with reduced motion enabled/disabled.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -103,13 +108,19 @@ tests show fruit before bombs, and every mode has documented pressure budgets.
       launch/replay has a three-second countdown with Start now/cancel; blur/hidden
       pages suspend it until explicit continuation. The round timer starts afterward.
       Keyboard focus, reduced motion and scrollable portrait/landscape help are checked.
-- [ ] **Celebrate meaningful hits.** Larger same-stroke combo labels, distinct
+- [x] **Celebrate meaningful hits.** Larger same-stroke combo labels, distinct
       critical/bonus feedback if introduced, tiny optional hit-stop or shake,
       and strong bomb punctuation. Effects must preserve mode timer rules and
       honor reduced-motion/flash preferences (Phases 11/14.4).
       Larger outlined score/combo feedback and motion/flash suppression are done;
       stroke-bonus labels and event-driven combo cues are now implemented;
-      optional extra punctuation remains.
+      contact-centered double rings/rays now punctuate growing combos and bomb
+      hits. Bomb labels show the actual penalty, including zero-score hits.
+      At most 12 impacts are retained; growing combos coalesce by stroke ID.
+      RAF-time expiry works after game-over/pause; replay/menu clear effects.
+      Rotation preserves normalized impact positions, and reduced motion keeps
+      static text while suppressing rings/flash. Local bursts supply the extra
+      punctuation without moving hit geometry or stopping simulation clocks.
 - [ ] **Design action audio.** Layer swipe/cut/splatter sounds with a few
       variations; add combo escalation, bomb explosion, music ducking, and
       separate power-up activation/expiry cues. Cap simultaneous voices.
@@ -180,7 +191,9 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       replay, portrait/landscape fruit contact, profile focus/settings/scroll,
       fresh muted launch, artwork retry/fallback, held-gesture combos, stroke
       results, horizontal moving-fruit contact, isolated practice, remembered/repeat
-      help and countdown cancellation/background suspension. Add profile equip after Phase 18. Physical iOS/Android
+      help and countdown cancellation/background suspension. Combo bursts and
+      bomb impact/expiry are checked with reduced motion enabled/disabled.
+      Add profile equip after Phase 18. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
 - [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
@@ -282,7 +295,7 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4358 KiB.
+      precache was 8174.48 KiB; the latest improvement build is about 4360 KiB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
       artifacts).
 
@@ -300,8 +313,10 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
 
 - [ ] Decide on `*2.png` variants (apple2, banana2, melon2, orange2, pineapple2/3, starfruit2) — use as visual variety on spawn, or ignore
 
-- [ ] Score feedback — floating "+10" text + expanding yellow ring; likely fine as procedural (text rendering)
-- [ ] Screen flash (bomb hit) — red overlay; keep procedural (just a fillRect)
+- [x] Score feedback — outlined floating score/stroke labels and procedural
+      expanding rings; additional contact-centered combo bursts completed in Phase 16.
+- [x] Screen flash (bomb hit) — bounded procedural red overlay driven by bomb
+      events and presentation time; reduced motion suppresses it (Phase 16).
 
 ---
 
@@ -629,7 +644,7 @@ Historical findings below describe the build reviewed at the time. They are not
 a current defect list or a fresh rating; use the active backlog above for next work.
 
 <details>
-<summary>Original review and the five improvement batches (2026-10-03)</summary>
+<summary>Original review and the six improvement batches (2026-10-03)</summary>
 
 **Initial product review (2026-10-03, before the improvements below):**
 **4.5/10 as a Fruit Ninja clone.** Recognizable
@@ -766,5 +781,23 @@ keyboard skip/cancel, short-screen scrolling, reduced motion, countdown cleanup,
 background suspension and full Arcade/Zen timer budgets. Remaining Phase 16 hit
 punctuation, layered audio/listening and visual identity are next; physical input,
 human balance, performance and offline/update QA remain pending.
+
+**Sixth improvement batch (2026-10-03):** completed Phase 16 meaningful-hit
+punctuation. The controller forwards ordered event batches to a bounded renderer
+effect layer. Same-stroke combos create double rings and deterministic rays;
+growing gestures refresh one burst. Bombs add an orange impact burst, a brief red
+flash and a high-contrast label with the actual penalty or zero-score hit cue.
+Effects age on presentation time after game-over/pause, reset on menu/new runs,
+and preserve normalized positions through rotation. Reduced motion keeps static
+score/combo/bomb text and suppresses rings/flash; input mapping, simulation,
+random streams, scoring and mode clocks remain unchanged.
+
+Validation: 146 Bun tests / 2,724 assertions, fifteen production browser checks,
+lint, application/browser typechecking and build. Regressions cover event delivery,
+duplicate prevention, combo coalescing, bounded catch-up work, reset, rotation,
+edge-label placement, terminal expiry and unchanged engine state. Browser checks
+observe real canvas combo bursts and swipe actual Arcade bombs with motion on/off,
+then confirm impact expiry while paused. Action audio and visual identity are
+next; subjective listening and physical-device checks remain pending.
 
 </details>

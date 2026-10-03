@@ -3,7 +3,8 @@ import type { CanvasMetrics } from '../core/canvasStage'
 import type { FrameInfo } from '../core/gameLoop'
 import { createViewportTransform, worldPointToCanvas } from '../core/viewport'
 import type { EngineDiagnostics } from '../engine'
-import type { GameState, ScoreFeedbackEvent, Vec2 } from '../types'
+import type { GamePresentationEvent, GameState, ScoreFeedbackEvent, Vec2 } from '../types'
+import { createImpactFeedback } from './impactFeedback'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawSpawnEnvelopes, drawTrailStats } from './debugDraw'
 import { collectRenderBuckets, createRenderBuckets, getSpriteScale, type RenderBuckets, type SpriteScale } from './renderHelpers'
 
@@ -28,6 +29,7 @@ export type RenderContext = {
   metrics: CanvasMetrics
   debug: RendererDebugData
   reducedMotion?: boolean
+  presentationEvents?: readonly GamePresentationEvent[]
 }
 
 export type Renderer = {
@@ -452,6 +454,8 @@ function drawScoreFeedbackLayer(
   reducedMotion: boolean,
 ): void {
   for (const event of feedback) {
+    // Bomb penalties have a separate presentation-clock label, including +0.
+    if (event.amount <= 0) continue
     const ageMs = elapsedMs - event.createdAtMs
     const lifeProgress = Math.max(0, Math.min(1, ageMs / event.lifetimeMs))
     const alpha = 1 - lifeProgress
@@ -490,22 +494,6 @@ function drawScoreFeedbackLayer(
       ctx.strokeText(label, x, y - 22)
       ctx.fillText(label, x, y - 22)
     }
-    ctx.restore()
-  }
-}
-
-function drawScreenFlashLayer(
-  ctx: CanvasRenderingContext2D,
-  flashAgeMs: number,
-  widthCssPx: number,
-  heightCssPx: number,
-): void {
-  if (flashAgeMs >= 0 && flashAgeMs < 220) {
-    const alpha = 1 - flashAgeMs / 220
-    ctx.save()
-    ctx.globalAlpha = Math.max(0, Math.min(0.35, alpha * 0.35))
-    ctx.fillStyle = '#ef4444'
-    ctx.fillRect(0, 0, widthCssPx, heightCssPx)
     ctx.restore()
   }
 }
@@ -571,8 +559,8 @@ function readFruitImages(): FruitImages {
 export function createRenderer(): Renderer {
   let woodTextureCache: WoodTextureCache | null = null
   const buckets = createRenderBuckets()
-  let observedBombHitAtMs: number | null = null
-  let bombFlashStartedAtMs = -Infinity
+  const impacts = createImpactFeedback()
+  let observedRunId: string | null = null
   let assetSnapshot = gameAssets.getSnapshot()
   let fruitImages = readFruitImages()
 
@@ -595,13 +583,9 @@ export function createRenderer(): Renderer {
       const scaleY = viewport.scale
       const reducedMotion = context.reducedMotion ?? false
       collectRenderBuckets(state.world.entities, buckets, !reducedMotion)
-      const bombHitAtMs = state.world.lastBombHitAtMs
-      if (bombHitAtMs !== observedBombHitAtMs) {
-        observedBombHitAtMs = bombHitAtMs
-        bombFlashStartedAtMs = bombHitAtMs === null
-          ? -Infinity
-          : frameInfo.timestampMs - Math.max(0, state.world.elapsedMs - bombHitAtMs)
-      }
+      if (state.run.id !== observedRunId || state.phase === 'idle') impacts.reset()
+      observedRunId = state.run.id
+      if (state.phase !== 'idle') impacts.consume(context.presentationEvents ?? [], frameInfo.timestampMs, state.world.bounds)
       woodTextureCache = drawBackgroundLayer(
         ctx,
         widthCssPx,
@@ -621,9 +605,7 @@ export function createRenderer(): Renderer {
       drawScoreFeedbackLayer(ctx, state.world.scoreFeedbackEvents, state.world.elapsedMs, scaleX, scaleY, reducedMotion)
       ctx.restore()
       drawBladeTrails(ctx, context, frameInfo.timestampMs)
-      if (!reducedMotion) {
-        drawScreenFlashLayer(ctx, frameInfo.timestampMs - bombFlashStartedAtMs, widthCssPx, heightCssPx)
-      }
+      impacts.draw(ctx, frameInfo.timestampMs, viewport, state.world.bounds, widthCssPx, heightCssPx, reducedMotion)
 
       if (context.debug.enabled) {
         drawSpawnEnvelopes(ctx, state, viewport)

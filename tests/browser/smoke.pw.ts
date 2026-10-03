@@ -4,6 +4,9 @@ import type { Page } from '@playwright/test'
 type DrawnFruit = { x: number; y: number; radius: number }
 type BrowserProbe = {
   fruit: DrawnFruit[]
+  bombs: DrawnFruit[]
+  impactRings: string[]
+  impactLabels: string[]
   audibleSfxStarts: number
   musicVolumes: number[]
 }
@@ -24,7 +27,7 @@ const test = base.extend<{ runtimeErrors: string[] }>({
 
 async function openGame(page: Page, muted = false, seenOnboarding = true) {
   await page.addInitScript(({ muted, seenOnboarding }) => {
-    window.__browserProbe = { fruit: [], audibleSfxStarts: 0, musicVolumes: [] }
+    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], audibleSfxStarts: 0, musicVolumes: [] }
     if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
     // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
     // on the real clock. Keep input age/velocity on the same simulated clock.
@@ -39,21 +42,37 @@ async function openGame(page: Page, muted = false, seenOnboarding = true) {
     const originalClear = CanvasRenderingContext2D.prototype.clearRect
     CanvasRenderingContext2D.prototype.clearRect = function (...args) {
       window.__browserProbe.fruit = []
+      window.__browserProbe.bombs = []
+      window.__browserProbe.impactRings = []
+      window.__browserProbe.impactLabels = []
       return originalClear.apply(this, args)
     }
     const originalDraw = CanvasRenderingContext2D.prototype.drawImage
     CanvasRenderingContext2D.prototype.drawImage = function (
       this: CanvasRenderingContext2D, source: CanvasImageSource, ...coordinates: number[]
     ) {
-      if (source instanceof HTMLImageElement && /\/(apple|banana|melon|orange|pineapple|starfruit)1-/.test(source.src)) {
+      if (source instanceof HTMLImageElement && /\/((apple|banana|melon|orange|pineapple|starfruit)1|bomb)-/.test(source.src)) {
         const matrix = this.getTransform()
         const dpr = window.devicePixelRatio
-        window.__browserProbe.fruit.push({
+        const collection = /\/bomb-/.test(source.src) ? window.__browserProbe.bombs : window.__browserProbe.fruit
+        collection.push({
           x: matrix.e / dpr, y: matrix.f / dpr,
           radius: Math.abs(coordinates[2]) * Math.hypot(matrix.a, matrix.b) / dpr / 2,
         })
       }
       return Reflect.apply(originalDraw, this, [source, ...coordinates])
+    }
+    const originalArc = CanvasRenderingContext2D.prototype.arc
+    CanvasRenderingContext2D.prototype.arc = function (...args) {
+      if (this.strokeStyle === '#fb923c' || (this.strokeStyle === '#fde047' && this.lineWidth > 2)) {
+        window.__browserProbe.impactRings.push(String(this.strokeStyle))
+      }
+      return originalArc.apply(this, args)
+    }
+    const originalText = CanvasRenderingContext2D.prototype.fillText
+    CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
+      if (text.startsWith('BOMB')) window.__browserProbe.impactLabels.push(text)
+      return originalText.call(this, text, ...args)
     }
     const originalStart = AudioBufferSourceNode.prototype.start
     AudioBufferSourceNode.prototype.start = function (...args) {
@@ -165,7 +184,7 @@ test('320px fruit contact stays aligned after landscape resize', async ({ page }
 
 test('one held gesture cuts a rendered fruit group and reports a stroke combo', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 })
-  await openGame(page, true)
+  await openGame(page)
   await startMode(page, 'Zen')
   let group: DrawnFruit[] = []
   for (let elapsed = 0; elapsed < 30_000 && group.length < 3; elapsed += 100) {
@@ -189,6 +208,7 @@ test('one held gesture cuts a rendered fruit group and reports a stroke combo', 
   await page.mouse.up()
   await advance(page, 32)
   await expect(page.locator('.hud-effects')).toContainText('Stroke combo')
+  expect(await page.evaluate(() => window.__browserProbe.impactRings.filter(color => color === '#fde047').length)).toBeGreaterThan(0)
   expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(45)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete' })
@@ -196,6 +216,42 @@ test('one held gesture cuts a rendered fruit group and reports a stroke combo', 
   expect(Number.parseInt(await bestStroke.locator('dd').innerText(), 10)).toBeGreaterThanOrEqual(3)
   await expect(results.locator('.result-stats')).toContainText('Stroke accuracy100% (1/1)')
 })
+
+for (const reducedMotion of [false, true]) {
+  test(`bomb impact is readable and expires with reduced motion ${reducedMotion}`, async ({ page }) => {
+    await page.setViewportSize({ width: 844, height: 390 })
+    await openGame(page, reducedMotion)
+    await startMode(page, 'Arcade')
+    let bomb: DrawnFruit | undefined
+    for (let elapsed = 0; elapsed < 30_000 && !bomb; elapsed += 100) {
+      await advance(page, 100)
+      bomb = await page.evaluate(() => window.__browserProbe.bombs.find(item =>
+        item.y > 160 && item.y < innerHeight - 50 && item.x > 60 && item.x < innerWidth - 60))
+    }
+    expect(bomb, 'The director should offer a visible Arcade bomb after its safe opening').toBeDefined()
+    if (!bomb) throw new Error('No visible bomb')
+    const timer = await page.locator('.hud-timer strong').innerText()
+    const score = await page.locator('.hud-score strong').innerText()
+    await page.mouse.move(bomb.x - 8, bomb.y)
+    await page.mouse.down()
+    await advance(page, 1)
+    await page.mouse.move(bomb.x + 8, bomb.y)
+    await page.mouse.up()
+    await advance(page, 32)
+    expect(await page.evaluate(() => window.__browserProbe.impactLabels)).toContain('BOMB HIT')
+    const rings = await page.evaluate(() => window.__browserProbe.impactRings.filter(color => color === '#fb923c').length)
+    if (reducedMotion) expect(rings).toBe(0)
+    else expect(rings).toBeGreaterThan(0)
+    await expect(page.locator('.hud-score strong')).toHaveText(score)
+    const timerAfterHit = await page.locator('.hud-timer strong').innerText()
+    expect(Number.parseInt(timerAfterHit, 10)).toBeGreaterThanOrEqual(Number.parseInt(timer, 10) - 1)
+    await page.getByRole('button', { name: 'Pause', exact: true }).click()
+    await advance(page, 800)
+    expect(await page.evaluate(() => window.__browserProbe.impactLabels)).toEqual([])
+    expect(await page.evaluate(() => window.__browserProbe.impactRings)).toEqual([])
+    await expect(page.locator('.hud-timer strong')).toHaveText(timerAfterHit)
+  })
+}
 
 test('profile traps focus, settings persist, and landscape controls scroll into view', async ({ page }) => {
   await openGame(page)

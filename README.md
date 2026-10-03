@@ -71,6 +71,10 @@ does not change scores, objectives or rewards. Each new run has a three-second
 ready countdown; **Start now** skips the wait. Leaving the page suspends the
 countdown until you explicitly continue. The full round timer starts after it.
 
+Stroke combos create a brief burst at the cut; bombs show an impact ring and
+their actual score penalty. **Reduce motion and flashes** keeps readable text
+while suppressing these bursts and the bomb flash.
+
 ## Input Notes
 
 The canvas sets `touch-action: none` in `src/App.css` so pointer events are not interrupted by browser pan/zoom gestures while playing.

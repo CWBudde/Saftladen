@@ -1,7 +1,7 @@
 import type { GameEngine } from '../engine'
 import { createTrailTracker, isPointInsideCanvas } from '../input'
 import { createRenderer, type PointerTrailDebug } from '../render'
-import type { Vec2 } from '../types'
+import type { GamePresentationEvent, Vec2 } from '../types'
 import { resizeCanvasToDisplaySize } from './canvasStage'
 import { createGameLoop } from './gameLoop'
 import { canvasPointToWorld, createViewportTransform, getAdaptiveWorldBounds } from './viewport'
@@ -32,6 +32,8 @@ export function mountGameCanvas(
   let previousPhase = engine.getState().phase
   let previousWorld = engine.getState().world
   let previousBounds = previousWorld.bounds
+  let presentationEvents: GamePresentationEvent[] = []
+  const unsubscribeEvents = engine.subscribeEvents((events) => presentationEvents.push(...events))
 
   const clearInput = () => {
     tracker.clear()
@@ -110,6 +112,7 @@ export function mountGameCanvas(
   }
 
   const unsubscribe = engine.subscribe((state) => {
+    if (state.world !== previousWorld) presentationEvents = presentationEvents.filter(event => event.runId === state.run.id)
     if (state.phase !== previousPhase || state.world !== previousWorld || state.world.bounds !== previousBounds) clearInput()
     if (state.world.bounds !== previousBounds) {
       viewport = createViewportTransform(metrics, state.world.bounds)
@@ -135,6 +138,8 @@ export function mountGameCanvas(
         })),
       })))
       engine.advanceBy(frameInfo.deltaMs)
+      const frameEvents = presentationEvents
+      presentationEvents = []
 
       const trails: PointerTrailDebug[] = tracker.getActiveTrails(frameInfo.timestampMs).map((trail) => ({
         pointerId: trail.pointerId,
@@ -147,6 +152,7 @@ export function mountGameCanvas(
       renderer.render(ctx, engine.getState(), frameInfo, {
         metrics,
         reducedMotion: preferences.reducedMotion,
+        presentationEvents: frameEvents,
         debug: {
           enabled: preferences.debugEnabled,
           diagnostics: engine.getDiagnostics(),
@@ -173,6 +179,8 @@ export function mountGameCanvas(
   return () => {
     loop.stop()
     unsubscribe()
+    unsubscribeEvents()
+    presentationEvents = []
     clearInput()
     resizeObserver.disconnect()
     window.removeEventListener('resize', syncMetrics)

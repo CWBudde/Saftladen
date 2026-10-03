@@ -2,10 +2,15 @@ import { expect, mock, test } from 'bun:test'
 import { createGameEngine } from '../src/game/engine/gameEngine'
 import { createFruitEntity } from '../src/game/model/entities'
 import { createViewportTransform, worldPointToCanvas } from '../src/game/core/viewport'
+import type { GamePresentationEvent } from '../src/game/types'
+
+const renderedEvents: (readonly GamePresentationEvent[])[] = []
 
 // Exercise the real controller/engine/input pipeline without a GPU or a DOM.
 mock.module('../src/game/render/index.ts', () => ({
-  createRenderer: () => ({ render: () => {} }),
+  createRenderer: () => ({ render: (_ctx: unknown, _state: unknown, _frame: unknown, context: { presentationEvents: readonly GamePresentationEvent[] }) => {
+    renderedEvents.push(context.presentationEvents)
+  } }),
 }))
 const { mountGameCanvas } = await import('../src/game/core/gameCanvasController')
 
@@ -47,6 +52,7 @@ test.each([[1280, 720], [390, 844]])('canvas input at %p queues releases, maps r
 
   let dispose: (() => void) | undefined
   try {
+    renderedEvents.length = 0
     const engine = createGameEngine({ seed: 1 })
     engine.start()
     engine.getState().world.spawn.nextWaveAtMs = Infinity
@@ -80,10 +86,12 @@ test.each([[1280, 720], [390, 844]])('canvas input at %p queues releases, maps r
     const measuredAtGesture = rectReads
     runFrame(117)
     expect(engine.getState().score.current).toBe(10)
+    expect(renderedEvents.at(-1)?.map(event => event.type)).toEqual(['fruit-slice'])
     const laterFruit = addFruit()
     runFrame(134)
     expect(engine.getState().world.entities[laterFruit.id]).toBeDefined()
     expect(rectReads).toBe(measuredAtGesture)
+    expect(renderedEvents.at(-1)).toEqual([])
 
     // Resize cancels the old gesture. The live fruit stays in the same
     // normalized screen position and a fresh real gesture still cuts it.
@@ -110,6 +118,11 @@ test.each([[1280, 720], [390, 844]])('canvas input at %p queues releases, maps r
     engine.resume()
     runFrame(185)
     expect(engine.getState().score.current).toBe(20)
+    engine.reset({ seed: 1 })
+    engine.start()
+    runFrame(202)
+    expect(renderedEvents.at(-1)?.map(event => event.type)).toEqual(['run-start'])
+    expect(renderedEvents.at(-1)?.every(event => event.runId === engine.getState().run.id)).toBe(true)
     dispose()
     dispose = undefined
     expect(listeners.size).toBe(0)
