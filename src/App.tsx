@@ -15,6 +15,7 @@ import { OnboardingDialog } from './game/ui/OnboardingDialog'
 import { hasSeenOnboarding, rememberOnboarding } from './game/ui/onboarding'
 import { ReadyCountdown } from './game/ui/ReadyCountdown'
 import { eventAnnouncement, eventSounds } from './game/ui/eventFeedback'
+import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock } from './game/ui/cosmetics'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
 import {
@@ -28,24 +29,6 @@ import {
   type RunRewards,
   type RunSummary,
 } from './game/ui'
-
-type Unlockable = {
-  name: string
-  requirement: string
-  unlocked: boolean
-}
-
-const DOJO_UNLOCKS = [
-  { name: 'Great Wave Dojo', level: 1 },
-  { name: 'Sunset Harbor Dojo', level: 3 },
-  { name: 'Storm Temple Dojo', level: 5 },
-]
-
-const BLADE_UNLOCKS = [
-  { name: 'Bamboo Blade', starfruit: 0 },
-  { name: 'Comet Blade', starfruit: 40 },
-  { name: 'Dragon Fang', starfruit: 110 },
-]
 
 function isPwaMode(): boolean {
   if (typeof window === 'undefined') return false
@@ -103,18 +86,6 @@ function App() {
   const rankInfo = getRankInfo(rewardProfile.xp)
 
   useEffect(() => { void gameAssets.load() }, [])
-
-  const dojos: Unlockable[] = DOJO_UNLOCKS.map((dojo) => ({
-    name: dojo.name,
-    requirement: `Level ${dojo.level}`,
-    unlocked: rankInfo.level >= dojo.level,
-  }))
-
-  const blades: Unlockable[] = BLADE_UNLOCKS.map((blade) => ({
-    name: blade.name,
-    requirement: `${blade.starfruit} starfruit`,
-    unlocked: rewardProfile.starfruit >= blade.starfruit,
-  }))
 
   useEffect(
     () => () => {
@@ -400,7 +371,12 @@ function App() {
                   <div className="progress-fill" style={{ width: `${Math.round(rankInfo.levelProgress * 100)}%` }} />
                 </div>
                 <p className="meta-subtle">
-                  XP {rewardProfile.xp} · Starfruit {rewardProfile.starfruit}
+                  XP {rewardProfile.xp} · Starfruit earned {rewardProfile.starfruit}
+                </p>
+                <p className="meta-subtle">
+                  Earn Starfruit to unlock blades and XP to unlock dojos.
+                  Unlocks are automatic and permanent; nothing is spent.
+                  All rewards are cosmetic.
                 </p>
               </section>
 
@@ -416,6 +392,7 @@ function App() {
                         </strong>
                       </div>
                       <small>{objective.description}</small>
+                      <small>Reward: {objective.rewardXp} XP · {objective.rewardStarfruit} Starfruit</small>
                     </li>
                   ))}
                 </ul>
@@ -425,16 +402,16 @@ function App() {
                 <div>
                   <p className="meta-subheading">Dojos</p>
                   <ul>
-                    {dojos.map((dojo) => (
-                      <li key={dojo.name}><strong>{dojo.name}</strong><span>{dojo.unlocked ? 'Unlocked' : dojo.requirement}</span></li>
+                    {DOJO_UNLOCKS.map((dojo) => (
+                      <li key={dojo.id}><strong>{dojo.name}</strong><span>{getCosmeticUnlock(dojo, rewardProfile).status}</span></li>
                     ))}
                   </ul>
                 </div>
                 <div>
                   <p className="meta-subheading">Blades</p>
                   <ul>
-                    {blades.map((blade) => (
-                      <li key={blade.name}><strong>{blade.name}</strong><span>{blade.unlocked ? 'Unlocked' : blade.requirement}</span></li>
+                    {BLADE_UNLOCKS.map((blade) => (
+                      <li key={blade.id}><strong>{blade.name}</strong><span>{getCosmeticUnlock(blade, rewardProfile).status}</span></li>
                     ))}
                   </ul>
                 </div>

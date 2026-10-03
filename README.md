@@ -155,6 +155,12 @@ Architecture and React/game boundary notes are documented in `src/game/README.md
 Classic ends on a bomb or three missed fruit. Arcade lasts 60 seconds with
 power-ups and bomb score penalties. Zen is a bomb-free 90-second session.
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
+Cosmetics unlock automatically from lifetime rewards: Comet Blade at 40 earned
+Starfruit and Dragon Fang at 110; Sunset Harbor Dojo at Level 3 (560 XP) and
+Storm Temple Dojo at Level 5 (1120 XP). Bamboo Blade and Great Wave Dojo start
+unlocked. Starfruit is never spent, and unlocks remain available as rewards grow.
+The profile shows requirements, remaining progress and objective payouts.
+Equipping cosmetics and applying their visuals is the next planned feature.
 Action audio layers a blade sweep, cut and juice droplets, with three cut
 variations and two explosions. Larger gesture combos raise a short chord;
 power-up activation and expiry use separate rising/falling cues. Eight active

@@ -423,6 +423,7 @@
 }
 
 .objective-list small {
+  display: block;
   color: #eac897;
 }
 

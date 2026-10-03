@@ -2,8 +2,9 @@
 
 ## Start here
 
-**Next implementation:** define the currency policy in **Phase 18**, then build
-persistent equippable cosmetics.
+**Next implementation:** build persistent equippable cosmetics in **Phase 18**.
+Currency policy is implemented: lifetime earned milestones, automatic unlocks
+and no spending, with shared thresholds and visible remaining progress.
 Phase 16 visual identity, layered action audio and variations are implemented.
 Subjective listening QA remains pending, with a generated audition page available.
 Hit feedback includes contact-centered combo/bomb bursts and readable bomb
@@ -18,7 +19,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
+| 1 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Use the shared earned-milestone catalog for previews, equip/persistence and actual visuals; stroke statistics available |
 | 2 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
 | 3 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
 | 4 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
@@ -50,13 +51,16 @@ last. Completed tasks and the original review are archived below the backlog.
   distinct activation/expiry chords, with a local listening page generator.
 - Citrus fruit-stall wordmark, shared typography/palette and controls, opaque readable
   panels, shaded HUD backdrop and consistent aspect-preserving sprite scale.
-- 150 Bun tests / 2,834 assertions; lint, typecheck and production build passed in the latest batch.
-- Sixteen permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Shared cosmetic milestones with automatic unlocks, lifetime earned totals,
+  remaining progress and objective payouts; existing saved unlocks retained.
+- 158 Bun tests / 3,430 assertions; lint, typecheck and production build passed in the latest batch.
+- Seventeen permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
   combo bursts, real layered WAV decoding/headroom and bomb impact expiry
   with reduced motion enabled/disabled. Presentation checks cover shared fonts,
-  guide text contrast, 44px controls and portrait/landscape menu bounds.
+  guide text contrast, 44px controls and portrait/landscape menu bounds. Reward
+  checks cover milestone boundaries, reload persistence and unchanged earned totals.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -168,8 +172,16 @@ and mode goal. Reduced-motion play retains clear feedback without shake/flash.
 
 ## Phase 18 — Rewards That Change the Experience (P2)
 
-- [ ] **Define currency use.** Decide earned-threshold unlocks versus purchases;
+- [x] **Define currency use.** Decide earned-threshold unlocks versus purchases;
       make costs, ownership, spending, and attainable progression consistent.
+      Starfruit is lifetime earned progress, never a purchase price or debit.
+      Blades unlock automatically at 0/40/110 Starfruit; dojos at Levels 1/3/5
+      (0/560/1120 XP). Shared catalog IDs/requirements derive permanent ownership
+      from saved totals; existing saves need no ownership migration. Profile shows
+      remaining progress, unlock requirements and one-time objective payouts.
+      A 210-point/peak-streak-three/one-miss repeated-run baseline reaches Comet
+      at eight runs and Dragon Fang at 25 in all modes without skill-objective
+      bonuses. Human reward-rate/attainability tuning remains in Phase 17.
 - [ ] **Implement equippable blades and dojos.** Show names, previews,
       requirements, unlock celebrations, and equip actions; persist selection
       and apply it to actual trails/backgrounds. Unlocks remain cosmetic.
@@ -662,6 +674,23 @@ ticks. These are correctness fixes; the later phases are product improvements.
       installs, and PR lint/build/tests; gate deployment on them (Phase 14.7).
       Document supported Node or force Bun runtime: local Node 18 cannot run
       this Vite dev server despite the README listing only Bun as prerequisite.
+
+**Ninth improvement batch (2026-10-03):** completed Phase 18 currency policy.
+Blades and dojos share stable catalog IDs and earned thresholds. Starfruit remains
+a lifetime total; automatic ownership derives from that total or XP without
+spending or a new save schema. Existing profiles retain their earned unlocks.
+The profile now explains the policy and shows exact requirements, remaining
+XP/Starfruit and objective payouts. Cosmetic equip/preview/visual application is
+the next implementation item.
+
+Validation: 158 Bun tests / 3,430 assertions, seventeen production browser checks,
+lint, application/browser/tooling typechecking and build. Regressions cover exact
+unlock boundaries, cumulative ownership, legacy save round-trips, no deductions,
+duplicate settlements and a repeatable imperfect-run progression route in all
+modes. Browser checks exercise the public saved-profile boundary, reload through
+locked/unlocked milestones, unchanged totals and landscape settings access.
+Human progression tuning, listening, physical input, performance and offline/update
+QA remain pending.
 
 </details>
 

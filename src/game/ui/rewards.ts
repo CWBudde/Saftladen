@@ -19,6 +19,7 @@ export type RewardProfile = {
   schemaVersion: 2
   settledRunIds: string[]
   xp: number
+  /** Lifetime earned Starfruit; cosmetic thresholds never deduct this total. */
   starfruit: number
   totalRuns: number
   totalScore: number
@@ -79,7 +80,7 @@ export const REWARD_PROFILE_STORAGE_KEY = 'saftladen.rewards.profile'
 export const REWARD_PROFILE_SCHEMA_VERSION = 2
 export const SETTLED_RUN_HISTORY_LIMIT = 128
 export const MIN_REWARDED_RUN_DURATION_MS = 5000
-const XP_PER_LEVEL = 280
+export const XP_PER_LEVEL = 280
 const RANK_NAMES = ['Novice', 'Apprentice', 'Sensei', 'Master', 'Grandmaster'] as const
 
 function createDefaultObjectives(): RewardObjective[] {

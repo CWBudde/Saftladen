@@ -143,3 +143,27 @@ before image decoding. Panel surfaces are opaque; a board-header gradient is
 drawn behind objects for HUD contrast. `getSpriteScale` gives whole fruit,
 fragments, bombs and practice art the same 2.3-radius maximum dimension while
 preserving aspect ratio. Presentation sizing does not change collision radii.
+
+## Cosmetic reward policy
+
+`ui/cosmetics.ts` is the shared catalog and ownership resolver. Starfruit is a
+lifetime earned counter, not a spendable wallet. Blades unlock at 0/40/110
+Starfruit; dojos unlock at Levels 1/3/5 (0/560/1120 XP with 280 XP per level).
+Unlocks are automatic, cumulative and cosmetic; resolving ownership never
+mutates the profile. Existing version-2 and migrated unversioned profiles retain
+their counters and therefore their unlocks, without a second ownership ledger.
+Equipping/visual application remains separate upcoming work.
+
+Eligible runs last at least five seconds, score above zero and slice fruit.
+Base Starfruit is `floor(score / 70) + max(0, peakTimedStreak - 2)`, plus two
+for zero misses/bomb hits. Objectives add 10/16/24 Starfruit once (runs/streak/score).
+XP and reward settlement rules remain in `ui/rewards.ts`; recent run IDs prevent
+duplicate payouts. The profile displays lifetime totals, exact unlock thresholds,
+remaining XP/Starfruit and objective payouts.
+
+An automated arithmetic baseline repeats 210-point runs with peak timed streak
+three and one miss: four Starfruit per run, plus ten on the fifth run. In every
+mode this reaches Comet at run eight, Dragon Fang at run 25 and both later dojos
+by run eight, without streak/score objective bonuses. This verifies a repeatable
+progression route under those inputs; measured human playtests must establish
+whether these scores and unlock times feel attainable on mouse/touch devices.

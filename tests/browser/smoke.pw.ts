@@ -302,6 +302,39 @@ test('profile traps focus, settings persist, and landscape controls scroll into 
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeFocused()
 })
 
+test('cosmetic milestones show earned progress and retain automatic unlocks after reload', async ({ page }) => {
+  await openGame(page)
+  await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
+  await expect(profile.getByText('Unlocks are automatic and permanent; nothing is spent.', { exact: false })).toBeVisible()
+  const comet = profile.getByRole('listitem').filter({ hasText: 'Comet Blade' })
+  const sunset = profile.getByRole('listitem').filter({ hasText: 'Sunset Harbor Dojo' })
+  await expect(comet).toContainText('40 Starfruit earned · 0/40 · 40 Starfruit to go')
+  await expect(sunset).toContainText('Level 3 · 560 XP earned · 0/560 · 560 XP to go')
+  await expect(profile.getByRole('listitem').filter({ hasText: 'Warmup Ritual' })).toContainText('Reward: 80 XP · 10 Starfruit')
+  for (const totals of [{ xp: 559, starfruit: 39 }, { xp: 560, starfruit: 40 }, { xp: 1120, starfruit: 110 }]) {
+    // Load a previously earned profile through the public persistence boundary.
+    await page.evaluate((totals) => {
+      const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+      localStorage.setItem('saftladen.rewards.profile', JSON.stringify({ ...saved, ...totals }))
+    }, totals)
+    await page.reload()
+    await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+    await expect(comet).toContainText(totals.starfruit === 39 ? '39/40 · 1 Starfruit to go' : 'Unlocked · 40 Starfruit earned')
+    await expect(sunset).toContainText(totals.xp === 559 ? '559/560 · 1 XP to go' : 'Unlocked · Level 3 · 560 XP earned')
+    expect(await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+      return { xp: saved.xp, starfruit: saved.starfruit }
+    })).toEqual(totals)
+  }
+  await expect(profile.getByRole('listitem').filter({ hasText: 'Dragon Fang' })).toContainText('Unlocked · 110 Starfruit earned')
+  await expect(profile.getByRole('listitem').filter({ hasText: 'Storm Temple Dojo' })).toContainText('Unlocked · Level 5 · 1120 XP earned')
+  await page.setViewportSize({ width: 844, height: 390 })
+  const volume = profile.getByRole('slider', { name: 'Music', exact: true })
+  await volume.scrollIntoViewIfNeeded()
+  await expect(volume).toBeInViewport()
+})
+
 test('saved zero volume applies before the first gesture and music playback', async ({ page }) => {
   await openGame(page, true)
   await startMode(page, 'Classic')

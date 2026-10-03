@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock } from '../src/game/ui/cosmetics'
 import {
   applyRunRewards, createDefaultRewardProfile, getRankInfo, loadRewardProfile,
   REWARD_PROFILE_STORAGE_KEY, saveRewardProfile, SETTLED_RUN_HISTORY_LIMIT,
@@ -47,6 +48,11 @@ describe('reward profile migrations', () => {
     expect(profile.objectives.find((objective) => objective.id === 'combo')?.progress).toBe(4)
     expect(profile.objectives.find((objective) => objective.id === 'score')?.completed).toBe(true)
     expect(profile.settledRunIds).toEqual([])
+    expect(getCosmeticUnlock(BLADE_UNLOCKS[1], profile).unlocked).toBe(true)
+    expect(getCosmeticUnlock(DOJO_UNLOCKS[1], profile).unlocked).toBe(true)
+    saveRewardProfile(profile)
+    expect(loadRewardProfile()).toEqual(profile)
+    expect(getCosmeticUnlock(BLADE_UNLOCKS[1], loadRewardProfile()).unlocked).toBe(true)
   })
 
   test('nonfinite, wrong-type and negative counters are repaired independently', () => {
