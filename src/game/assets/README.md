@@ -5,6 +5,19 @@
 wordmark is semantic text and an inline SVG; it requires no title image. The
 manifest has no placeholder atlases or unused audio URLs.
 
+The current sprite set uses one whole-fruit image per type and the cut images
+listed in the manifest, including `starfruit4.png` / `starfruit5.png`. Alternate
+`*2.png` images and the unused pineapple/starfruit `*3.png` images were removed
+after the Phase 7 decision to keep this consistent set. Adding visual variety
+later requires an explicit manifest/rendering change and a check that cosmetic
+selection preserves gameplay RNG. Git history retains the removed source art.
+
+The install splash and favicon live only in `public`; duplicate copies in
+`src/assets` were removed. The old title image and Vite placeholder logo are
+also removed. Generated image sources belong in ignored `output/imagegen/`;
+only the selected runtime artwork belongs in `src/assets`. The local generated
+freeze image remains available without being tracked.
+
 `gameAssets` is a shared, module-level image loader. React subscribes to its
 readiness snapshots and starts loading once at startup. Images become ready only
 after the request, decoding and positive-dimension checks succeed. Loading and

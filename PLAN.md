@@ -3,6 +3,9 @@
 ## Start here
 
 **Next implementation:** remove dead simulation state/constants in **Phase 14.4**.
+Phase 14.8 repository hygiene is complete: generated sources are untracked,
+duplicate/unused art and the stale draft are removed, and Phase 7's variant
+decision is recorded. Shipped-asset compression remains a separate measured task.
 App decomposition is complete: menu, profile, pause and results UI live in focused
 components, with global shortcuts in a dedicated hook. App retains launch,
 settlement, equipment and safe update orchestration. Renderer decomposition is
@@ -86,6 +89,10 @@ last. Completed tasks and the original review are archived below the backlog.
   callbacks; global keyboard handling has its own hook. App retains ordered
   audio/reward event handling, launch preparation, equipment and update gating.
   Dialog focus, live announcements and held-key suppression are preserved.
+- Repository hygiene removes 6.65 MiB from the tracked tree: generated source art,
+  duplicate/unused images, the Vite placeholder and stale draft. All 18 runtime
+  images and app bundles remain byte-identical; only the unused public logo and
+  its worker entry leave the deployment. Every retained source asset is referenced.
 - Deliberate menu/results PWA updates, no automatic reload of active/paused tabs,
   reconnect recovery after interrupted first installs and retained caches after failed updates.
 - Current player/contributor guides describe actual modes, shortcuts, audio, local
@@ -452,21 +459,26 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 
 ### 14.8 Repo / asset hygiene
 
-- [ ] **`git rm --cached output/imagegen/freeze_glyph_gen.png`** (2.2 MB, already
-      `.gitignore`d but committed before the rule).
-- [ ] **Delete confirmed orphaned/duplicate binaries:** `src/assets/background.png`
-      (3 MB, byte-identical to `public/splash-screen.png`) and `src/assets/icon-saft.png`
-      (identical to `public/favicon.png`). Neither ships (build tree-shakes them) but
-      they bloat git.
-- [ ] **Resolve unused image variants through the Phase 7 decision.** Keep
-      `starfruit4.png`/`starfruit5.png`, which are now loaded directional halves.
-      Only remove other variants after confirming they will not be used.
+- [x] **Untrack `output/imagegen/freeze_glyph_gen.png`.** The 2.27 MB generated
+      source remains local; the existing ignore rule now keeps it out of commits.
+      No tracked files match ignore rules after cleanup.
+- [x] **Delete confirmed orphaned/duplicate binaries.** SHA-256 and byte comparisons
+      confirm `src/assets/background.png` duplicates `public/splash-screen.png` and
+      `src/assets/icon-saft.png` duplicates `public/favicon.png`. Retained public
+      assets still serve installation/browser identity. Removed the unused old
+      `src/assets/title.png` and `public/vite.svg` after verifying no live references.
+- [x] **Resolve unused image variants through the Phase 7 decision.** Keep one
+      whole-fruit sprite per type and the manifest's current cut sprites, including
+      `starfruit4.png`/`starfruit5.png`. Removed unused apple/banana/melon/orange `*2`,
+      pineapple `*2/*3` and starfruit `*2/*3` art. Every remaining source asset is
+      imported; Git history retains removed art for future deliberate variety work.
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4085 KiB.
-- [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
-      artifacts).
+      precache was 8174.48 KiB; the hygiene build has 29 entries / 4085.13 KiB.
+- [x] Remove `goal.md`: unreferenced 29.6 KB German scaffold-era draft with raw
+      citation artifacts. Current README, PLAN and architecture guides cover the
+      implemented game and remaining work.
 
 ### 14.9 Documentation
 
@@ -479,10 +491,13 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 
 ## Phase 7 — Rendering (assets)
 
-Required sprites and directional halves are loaded. The remaining items are
-asset/presentation decisions; implement their outcome with Phase 14 hygiene.
+Required sprites and directional halves are loaded. The variant decision is
+recorded below; shipped-asset optimization remains in Phase 14.8.
 
-- [ ] Decide on `*2.png` variants (apple2, banana2, melon2, orange2, pineapple2/3, starfruit2) — use as visual variety on spawn, or ignore
+- [x] **Decide on unused variants.** Keep the current consistent whole/cut sprite
+      set; remove unused `*2` and pineapple/starfruit `*3` images in Phase 14.8.
+      Spawn-time variety is deferred until explicitly designed, with cosmetic
+      selection independent of gameplay RNG. See `src/game/assets/README.md`.
 
 - [x] Score feedback — outlined floating score/stroke labels and procedural
       expanding rings; additional contact-centered combo bursts completed in Phase 16.
@@ -585,7 +600,8 @@ in the active backlog.
 - [x] Bomb sprite (bomb.png)
 - [x] Freeze power-up glyph (freeze-glyph.png)
 - [x] Background image (background.jpg; the PNG duplicate is not the runtime asset)
-- [x] Title screen image (title.png)
+- [x] Original title screen image (replaced by the semantic wordmark in Phase 16;
+      unused `title.png` removed in Phase 14.8)
 
 - [x] Load starfruit directional halves (starfruit4.png / starfruit5.png)
 - [x] Blade/swipe trail — tapered bright core, restrained halo, age fade and release fade
@@ -1005,6 +1021,26 @@ and production build passed; all 16 local architecture-guide links resolve.
 The build has 30 precache entries / 4086.60 KiB. Dead simulation state/constants
 are the next independent code task. Physical input/device performance,
 screen-reader/listening and human balance QA remain open.
+
+**Eighteenth improvement batch (2026-10-03):** completed Phase 14.8 repository
+hygiene and Phase 7's variant decision. Untracked the already-ignored generated
+freeze image while retaining its local copy. Removed byte-identical background/
+icon duplicates, eight unused fruit variants, the superseded title image, the
+Vite placeholder logo and the unreferenced scaffold-era `goal.md`. The tracked
+tree loses 6,971,179 bytes (6.65 MiB); prior Git history is preserved. The asset
+guide records the canonical sprite set, public identity assets and generated
+source policy. Every retained source asset has a live import; no tracked files
+match ignore rules. No game code, asset encoding or ignore rules changed.
+
+Validation: all 186 Bun tests / 3,703 assertions, lint, application/tooling/browser
+typechecking and production build passed. Nine relevant production Chromium
+checks passed: all five real-worker offline/update cases, every equipment pair's
+actual gameplay visuals, artwork failure/retry, explicit simple fallback and
+portrait/landscape identity. Before/after deployment hashes confirm 27 deployment
+files are byte-identical. Only `vite.svg` is removed; the worker
+drops its precache entry (29 entries / 4085.13 KiB). All 18 gameplay images still
+decode offline. Shipped-asset optimization and physical QA remain open; dead
+simulation state/constants in Phase 14.4 are the next independent code task.
 
 </details>
 
