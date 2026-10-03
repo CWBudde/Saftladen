@@ -56,3 +56,10 @@ test('combo audio and announcements represent a stroke bonus, while a timed stre
   expect(eventSounds(events)).toEqual([{ name: 'slice' }, { name: 'combo', rate: 1 }])
   expect(eventAnnouncement(events)).toBe('Stroke combo. 3 fruit, 15 bonus points.')
 })
+
+test('ordinary cuts and empty timer batches leave the live announcement unchanged', () => {
+  expect(eventAnnouncement([])).toBeNull()
+  expect(eventAnnouncement([{ id: 1, runId: 'run', type: 'fruit-slice', atMs: 100,
+    entityId: 'fruit', fruitType: 'apple', position: { x: 10, y: 20 },
+    direction: { x: 1, y: 0 }, points: 10, combo: 1 }])).toBeNull()
+})

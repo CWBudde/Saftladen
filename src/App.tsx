@@ -85,6 +85,7 @@ function App() {
   const [announcement, setAnnouncement] = useState({ id: 0, text: '' })
   const [musicPlaying, setMusicPlaying] = useState(false)
   const [uiSettings, updateUiSettings] = useUiSettings()
+  const heldPauseShortcut = useRef<'Space' | 'Escape' | null>(null)
   const assets = useSyncExternalStore(gameAssets.subscribe, gameAssets.getSnapshot)
   const update = useSyncExternalStore(pwaUpdates.subscribe, pwaUpdates.getSnapshot)
   const assetsReady = assets.status === 'ready' || assets.status === 'fallback'
@@ -187,8 +188,15 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === heldPauseShortcut.current) {
+        event.preventDefault()
+        return
+      }
+      if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+
       if (event.key === 'Escape' && uiSnapshot.phase === 'running') {
         event.preventDefault()
+        heldPauseShortcut.current = 'Escape'
         engine.pause()
         return
       }
@@ -200,9 +208,11 @@ function App() {
       if (event.code === 'Space') {
         if (uiSnapshot.phase === 'running') {
           event.preventDefault()
+          heldPauseShortcut.current = 'Space'
           engine.pause()
         } else if (uiSnapshot.phase === 'paused') {
           event.preventDefault()
+          heldPauseShortcut.current = 'Space'
           engine.resume()
         }
       }
@@ -213,9 +223,22 @@ function App() {
 
     }
 
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== heldPauseShortcut.current) return
+      // Modal autofocus moves to Resume during this press. Repeats and keyup
+      // must not dismiss it; the next deliberate press uses native behavior.
+      event.preventDefault()
+      heldPauseShortcut.current = null
+    }
+    const onBlur = () => { heldPauseShortcut.current = null }
+
     window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp, true)
+    window.addEventListener('blur', onBlur)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp, true)
+      window.removeEventListener('blur', onBlur)
     }
   }, [engine, uiSnapshot.phase])
 
@@ -295,11 +318,15 @@ function App() {
     setMusicPlaying(playing)
   }
 
+  const liveAnnouncement = (
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      <span key={announcement.id}>{announcement.text}</span>
+    </div>
+  )
+
   return (
     <main className="game-root" data-reduced-motion={uiSettings.reducedMotion}>
-      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        <span key={announcement.id}>{announcement.text}</span>
-      </div>
+      {uiSnapshot.view !== 'game-over' && !(uiSnapshot.view === 'menu' && profileOpen) ? liveAnnouncement : null}
       <section className="stage-shell">
         <GameCanvasLayer engine={engine} debugEnabled={debugEnabled}
           sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion} cosmetics={cosmetics} />
@@ -348,7 +375,7 @@ function App() {
                   disabled={!canStart}
                   onClick={() => startMode('classic')}
                   aria-describedby="classic-help"
-                  data-focus-anchor
+                  data-focus-anchor={selectedMode === 'classic' || undefined}
                 >
                   <span className="ring-fruit">
                     <img src={appleModeImage} alt="" className="ring-fruit-image" />
@@ -361,6 +388,7 @@ function App() {
                   disabled={!canStart}
                   onClick={() => startMode('arcade')}
                   aria-describedby="arcade-help"
+                  data-focus-anchor={selectedMode === 'arcade' || undefined}
                 >
                   <span className="ring-fruit">
                     <img src={arcadeModeImage} alt="" className="ring-fruit-image" />
@@ -373,6 +401,7 @@ function App() {
                   disabled={!canStart}
                   onClick={() => startMode('zen')}
                   aria-describedby="zen-help"
+                  data-focus-anchor={selectedMode === 'zen' || undefined}
                 >
                   <span className="ring-fruit">
                     <img src={zenModeImage} alt="" className="ring-fruit-image" />
@@ -416,6 +445,8 @@ function App() {
           {uiSnapshot.view === 'menu' && profileOpen ? (
             <GameDialog className="profile-panel" labelledBy="profile-heading" onDismiss={() => setProfileOpen(false)}
               returnFocusSelector=".profile-button">
+              {/* The page's live region is inert while a native modal is open. */}
+              {liveAnnouncement}
               <div className="profile-heading-row">
                 <h2 id="profile-heading">Profile & Rewards</h2>
                 <button type="button" className="ghost-button" onClick={() => setProfileOpen(false)}>Close</button>
@@ -525,6 +556,7 @@ function App() {
           {uiSnapshot.view === 'game-over' ? (
             <GameDialog className="overlay-card" labelledBy="game-over-heading" onDismiss={handleReturnToMenu}
               returnFocusSelector="[data-focus-anchor]:not(:disabled)">
+              {liveAnnouncement}
               <h2 id="game-over-heading">Run Complete</h2>
               {updateSafe ? updateNotice : null}
               <p>

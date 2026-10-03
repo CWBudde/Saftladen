@@ -1,5 +1,5 @@
 import { expect, test as base } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 type DrawnFruit = { x: number; y: number; radius: number }
 type BrowserProbe = {
@@ -11,6 +11,7 @@ type BrowserProbe = {
   audibleSfxStarts: number
   sfxSamples: { duration: number; peak: number; rate: number }[]
   musicVolumes: number[]
+  debugDrawn: boolean
 }
 
 declare global {
@@ -29,7 +30,7 @@ const test = base.extend<{ runtimeErrors: string[] }>({
 
 async function openGame(page: Page, muted = false, seenOnboarding = true) {
   await page.addInitScript(({ muted, seenOnboarding }) => {
-    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], bladeColors: [], audibleSfxStarts: 0, sfxSamples: [], musicVolumes: [] }
+    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], bladeColors: [], audibleSfxStarts: 0, sfxSamples: [], musicVolumes: [], debugDrawn: false }
     if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
     // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
     // on the real clock. Keep input age/velocity on the same simulated clock.
@@ -49,6 +50,7 @@ async function openGame(page: Page, muted = false, seenOnboarding = true) {
         window.__browserProbe.impactRings = []
         window.__browserProbe.impactLabels = []
         window.__browserProbe.bladeColors = []
+        window.__browserProbe.debugDrawn = false
       }
       return originalClear.apply(this, args)
     }
@@ -81,6 +83,7 @@ async function openGame(page: Page, muted = false, seenOnboarding = true) {
     }
     const originalText = CanvasRenderingContext2D.prototype.fillText
     CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
+      if (text.startsWith('Debug: ON')) window.__browserProbe.debugDrawn = true
       if (text.startsWith('BOMB')) window.__browserProbe.impactLabels.push(text)
       return originalText.call(this, text, ...args)
     }
@@ -386,7 +389,7 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
       await button.focus()
       await page.keyboard.press('Enter')
       await expect(button).toHaveAttribute('aria-pressed', 'true')
-      await expect(page.getByRole('status').first()).toContainText(`${name} equipped.`)
+      await expect(profile.getByRole('status')).toHaveText(`${name} equipped.`)
     }
     await page.screenshot({ path: testInfo.outputPath(`equipment-${pair.blade}.png`) })
     await page.keyboard.press('Escape')
@@ -789,4 +792,244 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.hud-score')).toHaveCount(0)
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!))).toEqual(settled)
+})
+
+
+async function checkDialogKeyboard(page: Page, dialog: Locator) {
+  await expect(dialog).toBeVisible()
+  expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true)
+  const controls = dialog.locator('button:not(:disabled), input:not(:disabled), a[href]')
+  const count = await controls.count()
+  expect(count).toBeGreaterThan(0)
+  await controls.first().focus()
+  await page.keyboard.press('Shift+Tab')
+  await expect(controls.last()).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(controls.first()).toBeFocused()
+  for (const key of ['Tab', 'Shift+Tab']) {
+    for (let i = 0; i < count; i++) {
+      await page.keyboard.press(key)
+      expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true)
+    }
+    await expect(controls.first()).toBeFocused()
+  }
+  // Native showModal makes controls behind the panel inert, even to DOM focus.
+  await page.locator('.music-toggle-button').evaluate((button: HTMLButtonElement) => button.focus())
+  await expect(controls.first()).toBeFocused()
+}
+
+test('every dialog supports both Tab directions, keyboard transitions and meaningful focus restoration', async ({ page }) => {
+  await openGame(page, false, false)
+  const zen = page.getByRole('button', { name: 'Zen', exact: true })
+  await zen.focus()
+  await page.keyboard.press('Space')
+  const help = page.getByRole('dialog', { name: 'How to play', exact: true })
+  await checkDialogKeyboard(page, help)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(help).toHaveCount(0)
+  await expect(zen).toBeFocused()
+  await page.keyboard.press('Enter')
+  await help.getByRole('button', { name: 'Skip practice', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  const ready = page.getByRole('dialog', { name: 'Ready for Zen?', exact: true })
+  await checkDialogKeyboard(page, ready)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(ready).toHaveCount(0)
+  await expect(zen).toBeFocused()
+  const helpButton = page.getByRole('button', { name: 'How to play', exact: true })
+  await helpButton.focus()
+  await page.keyboard.press('Enter')
+  await checkDialogKeyboard(page, help)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(helpButton).toBeFocused()
+  const profileButton = page.getByRole('button', { name: 'Profile & Rewards', exact: true })
+  await profileButton.focus()
+  await page.keyboard.press('Enter')
+  const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+  await checkDialogKeyboard(page, profile)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(profile).toHaveCount(0)
+  await expect(profileButton).toBeFocused()
+  await zen.focus()
+  await page.keyboard.press('Enter')
+  await ready.getByRole('button', { name: 'Start now', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await advance(page, 32)
+  const pauseButton = page.getByRole('button', { name: 'Pause', exact: true })
+  await expect(pauseButton).toBeFocused()
+  await page.keyboard.press('Space')
+  const paused = page.getByRole('dialog', { name: 'Run Paused', exact: true })
+  await checkDialogKeyboard(page, paused)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(pauseButton).toBeFocused()
+  await page.keyboard.press('Enter')
+  await paused.getByRole('button', { name: 'Restart', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await checkDialogKeyboard(page, ready)
+  await ready.getByRole('button', { name: 'Back to menu', exact: true }).focus()
+  await page.keyboard.press('Space')
+  await advance(page, 32)
+  await expect(zen).toBeFocused()
+  // A real Classic run ends naturally; no engine state injection.
+  await startMode(page, 'Classic')
+  await advance(page, 20_000)
+  const results = page.getByRole('dialog', { name: 'Run Complete', exact: true })
+  await checkDialogKeyboard(page, results)
+  await results.getByRole('button', { name: 'Choose equipment', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await checkDialogKeyboard(page, profile)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(profileButton).toBeFocused()
+  await startMode(page, 'Classic')
+  await advance(page, 20_000)
+  await results.getByRole('button', { name: 'Run Again', exact: true }).focus()
+  await page.keyboard.press('Space')
+  await checkDialogKeyboard(page, page.getByRole('dialog', { name: 'Ready for Classic?', exact: true }))
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeFocused()
+  await startMode(page, 'Classic')
+  await advance(page, 20_000)
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(results).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeFocused()
+})
+
+test('game shortcuts respect native controls, browser modifiers and held keys', async ({ page }) => {
+  await openGame(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  await page.keyboard.press('Control+d')
+  await advance(page, 32)
+  expect(await page.evaluate(() => window.__browserProbe.debugDrawn)).toBe(false)
+  await page.keyboard.down('d')
+  await advance(page, 32)
+  expect(await page.evaluate(() => window.__browserProbe.debugDrawn)).toBe(true)
+  await page.keyboard.down('d') // Sends a native repeated keydown.
+  await advance(page, 32)
+  expect(await page.evaluate(() => window.__browserProbe.debugDrawn)).toBe(true)
+  await page.keyboard.up('d')
+  await page.keyboard.press('d')
+  await advance(page, 32)
+  expect(await page.evaluate(() => window.__browserProbe.debugDrawn)).toBe(false)
+  await startMode(page, 'Zen')
+  await advance(page, 32)
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  await page.keyboard.press('Control+Space')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const paused = page.getByRole('dialog', { name: 'Run Paused', exact: true })
+  await page.keyboard.down('Escape')
+  await expect(paused).toBeVisible()
+  await page.keyboard.down('Escape')
+  await expect(paused).toBeVisible()
+  await page.keyboard.up('Escape')
+  await expect(paused).toBeVisible()
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(paused).toHaveCount(0)
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  await page.keyboard.down('Space')
+  await expect(paused).toBeVisible()
+  // Repeated Space must not activate the newly focused Resume button.
+  await page.keyboard.down('Space')
+  await expect(paused).toBeVisible()
+  await page.keyboard.up('Space')
+  await expect(paused).toBeVisible()
+  // Use a range/checkbox to ensure Space and D cannot resume or toggle debug.
+  const music = paused.getByRole('slider', { name: 'Music', exact: true })
+  await music.focus()
+  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('Space')
+  await page.keyboard.press('d')
+  await advance(page, 32)
+  await expect(paused).toBeVisible()
+  expect(await page.evaluate(() => window.__browserProbe.debugDrawn)).toBe(false)
+  const motion = paused.getByRole('checkbox', { name: 'Reduce motion and flashes', exact: true })
+  await motion.focus()
+  const checked = await motion.isChecked()
+  await page.keyboard.press('Space')
+  await expect(motion).toBeChecked({ checked: !checked })
+  await expect(paused).toBeVisible()
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  await page.keyboard.press('Space')
+  await advance(page, 32)
+  await expect(paused).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(paused).toBeVisible()
+  await paused.getByRole('button', { name: 'Main Menu', exact: true }).focus()
+  await page.keyboard.press('Space')
+  await advance(page, 32)
+  await expect(page.getByRole('button', { name: 'Zen', exact: true })).toBeFocused()
+})
+
+test('OS motion defaults and every keyboard setting persist across profile, pause and practice', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await openGame(page)
+  await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+  const motion = profile.getByRole('checkbox', { name: 'Reduce motion and flashes', exact: true })
+  await expect(motion).toBeChecked()
+  await expect(motion).toHaveAccessibleDescription('Hides flashes, bursts and particles. Score and bomb messages stay visible.')
+  for (const name of ['Music', 'SFX']) {
+    const slider = profile.getByRole('slider', { name, exact: true })
+    await slider.focus()
+    await page.keyboard.press('Home')
+    await expect(slider).toHaveValue('0')
+    await expect(slider).toHaveAttribute('aria-valuetext', '0 percent')
+  }
+  const sensitivity = profile.getByRole('slider', { name: 'Blade sensitivity', exact: true })
+  await sensitivity.focus()
+  await page.keyboard.press('Home')
+  await expect(sensitivity).toHaveValue('0.5')
+  await expect(sensitivity).toHaveAttribute('aria-valuetext', '50 percent')
+  await motion.focus()
+  await page.keyboard.press('Space')
+  await expect(motion).not.toBeChecked()
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
+  await expect(page.locator('main')).toHaveAttribute('data-reduced-motion', 'false')
+  await page.getByRole('button', { name: 'How to play', exact: true }).click()
+  async function slowPracticeSwipe() {
+    const rect = await page.getByLabel('Practice slicing canvas', { exact: true }).boundingBox()
+    if (!rect) throw new Error('Practice canvas missing')
+    await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2)
+    await page.mouse.down()
+    await advance(page, 100)
+    await page.mouse.move(rect.x + rect.width / 2 + 10, rect.y + rect.height / 2)
+    await page.mouse.up()
+  }
+  await slowPracticeSwipe()
+  await expect(page.locator('.practice-feedback')).toHaveText('Try again: swipe across the apple.')
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await startMode(page, 'Zen')
+  await page.getByRole('button', { name: 'Pause', exact: true }).click()
+  const paused = page.getByRole('dialog', { name: 'Run Paused', exact: true })
+  for (const name of ['Music', 'SFX']) await expect(paused.getByRole('slider', { name, exact: true })).toHaveValue('0')
+  const pauseSensitivity = paused.getByRole('slider', { name: 'Blade sensitivity', exact: true })
+  await expect(pauseSensitivity).toHaveValue('0.5')
+  await pauseSensitivity.focus()
+  await page.keyboard.press('End')
+  await expect(pauseSensitivity).toHaveAttribute('aria-valuetext', '200 percent')
+  await paused.getByRole('button', { name: 'Main Menu', exact: true }).click()
+  await advance(page, 32)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await expect(sensitivity).toHaveValue('2')
+  await expect(motion).not.toBeChecked()
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await page.getByRole('button', { name: 'How to play', exact: true }).click()
+  await slowPracticeSwipe()
+  await expect(page.locator('.practice-feedback')).toHaveText('Nice slice! Ready for the game.')
 })

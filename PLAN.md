@@ -2,9 +2,10 @@
 
 ## Start here
 
-**Next implementation:** finish keyboard/settings acceptance in **Phase 19 / 14.6**.
-Audit remaining focus/shortcut flows, verify saved preferences and resolve whether
-the combined motion/flash control meets the intended acceptance criteria.
+**Next implementation:** continue renderer decomposition in **Phase 14.4**.
+Automated keyboard/settings acceptance in Phase 19 / 14.6 is complete. Continue
+independent code cleanup while physical input, performance, listening and human
+balance checks remain open; device measurements still precede further optimization.
 Release documentation and English public metadata are reconciled; current
 regression/equipment and production-preview checks are complete.
 Offline installation/update coverage is now automated;
@@ -33,7 +34,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Finish automated release acceptance](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Current regression, equipment, offline/update and documentation checks complete; keyboard/settings acceptance next; physical checks remain |
+| 1 | [Finish physical release acceptance](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Automated regression, equipment, keyboard/settings, offline/update and documentation checks complete; record device evidence for remaining checks |
 | 2 | [Validate device performance and select further optimizations](#phase-11--performance--polish) | Host renderer baseline/cache done; measure physical latency/memory before pooling or quality tiers |
 | 3 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
 | 4 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
@@ -80,8 +81,15 @@ last. Completed tasks and the original review are archived below the backlog.
   saves, deployment and mutable system/state contracts. English HTML/Open Graph/
   install descriptions match; share URLs use the production base and install
   colors match the current ink palette.
-- 185 Bun tests / 3,701 assertions; lint, typecheck and production build passed in the latest batch.
-- Twenty-five permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Keyboard flows cover both Tab directions and modal background inertness for
+  help, ready, profile, pause and results. Focus returns to the opener/selected
+  mode/Pause after transitions. Held Space/Escape cannot dismiss a newly opened
+  pause dialog; modifiers/repeats do not trigger game shortcuts. Equipment live
+  announcements sit inside active dialogs. Saved audio, sensitivity and motion
+  settings work across profile/pause/reload and actual practice swipes; one
+  combined motion/flash control preserves readable feedback.
+- 186 Bun tests / 3,703 assertions; lint, typecheck and production build passed in the latest batch.
+- Twenty-eight permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
   combo bursts, real layered WAV decoding/headroom and bomb impact expiry
@@ -310,12 +318,20 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       cosmetic RNG/ID independence, event delivery and renderer regressions.
       Same-stroke scoring, canonical contact ordering and stacking/pressure tests
       are now implemented. Vitest/RTL are optional later tooling.
-- [ ] **Complete accessible settings/flows** using Phase 14.6: dialog focus
+- [x] **Complete accessible settings/flows** using Phase 14.6: dialog focus
       move/restore, inert closed panels, discrete live announcements, menu/pause
       settings, functioning sensitivity, OS reduced-motion defaults, and
-      optional flash suppression. Dialog focus, saved settings, reduced-motion
-      defaults and discrete announcements are implemented; verify every keyboard
-      flow and decide whether a separate flash-suppression control is needed.
+      optional flash suppression. Production checks verify both Tab directions,
+      background inertness and keyboard transitions for all five dialog types,
+      selected-mode/opener/Pause focus restoration, held Space/Escape handoff,
+      modifiers, native controls and runtime debug behavior. OS defaults and
+      explicit saved overrides survive reload; all sliders work by keyboard,
+      and saved sensitivity changes actual slow practice swipes. Equipment
+      announcements now live inside profile/results dialogs; ordinary cuts and
+      timer batches produce no live announcement. Keep the single labelled
+      motion/flash control: it suppresses flashes, rings/bursts and particles
+      while retaining text, with an accessible description. Device/screen-reader
+      listening and physical touch QA remain manual checks.
 - [x] **Verify interrupted first loads and safe service-worker updates.** Five
       production Chromium checks enable real workers, confirm failed precache
       fetches, recover first installs and verify all 18 images decode offline.
@@ -334,7 +350,7 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       HTML/Open Graph/install descriptions share English copy; canonical/share
       URLs target `/Saftladen/`, install language is English and theme colors
       match the current palette. Production metadata and 28 local documentation
-      links verified; all 25 production browser checks pass.
+      links verified; the current production browser suite has 28 checks.
 - [ ] **Profile before renderer upgrades.** Establish production frame-time and
       input-latency budgets on agreed midrange mobile devices during Frenzy and
       multitouch; measure p95 frame time and long-session memory. Apply Phases
@@ -473,7 +489,7 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
 
 ## Phase 13 — Deployment (and optional analytics)
 
-- [x] Confirm production build output works via `vite preview`. Twenty-five
+- [x] Confirm production build output works via `vite preview`. Twenty-eight
       Chromium checks run against `dist` under `/Saftladen/`; five real-worker
       checks use the production-serving fault fixture. CI runs both before deploy.
 - [ ] Build-time feature flags (`VITE_DEBUG`, `VITE_ANALYTICS`). The implemented
@@ -902,6 +918,29 @@ and all install assets; 28 local documentation file/heading links resolve.
 The build precaches 30 entries / 4084.54 KiB. Existing regression/equipment and
 preview checklist items are reconciled against that evidence. Keyboard/settings
 acceptance is next; physical input/device performance, listening and human
+balance QA remain open.
+
+**Fifteenth improvement batch (2026-10-03):** completed automated keyboard/settings
+acceptance in Phases 19/14.6. Cancelling ready/results now restores the selected
+mode instead of always Classic. Global shortcuts respect browser modifiers,
+already-handled events and repeats; a consumed Space/Escape press stays consumed
+through modal autofocus and keyup, preventing an immediate accidental resume.
+Equipment announcements are rendered inside native dialogs, where the modal
+backdrop cannot make them inert. The existing combined motion/flash control
+meets acceptance without a new preference or storage migration; its accessible
+description explains suppressed effects and retained text. README corrects the
+Arcade bomb rule to the actual half-score penalty, rounded down.
+
+Validation: 186 Bun tests / 3,703 assertions, lint and application/browser/tooling
+typechecking passed. All 28 production browser checks passed in one full run;
+after extending held-key protection to Escape, all four affected keyboard/settings/
+equipment cases passed again against the final build. New checks cover both Tab
+directions, background inertness, focus restoration and public keyboard transitions
+for all five dialog types, native slider/checkbox/button behavior, OS motion
+defaults, saved overrides/zero audio, profile/pause persistence and sensitivity
+through real slow practice gestures. Production build precaches 30 entries /
+4085.32 KiB. Renderer decomposition in Phase 14.4 is the next independent code
+task; physical input/device performance, screen-reader/listening and human
 balance QA remain open.
 
 </details>

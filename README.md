@@ -74,6 +74,10 @@ No analytics adapter or `VITE_ANALYTICS` behavior is implemented.
 - `Tab` / `Shift+Tab`: navigate controls; `Enter` or `Space`: activate focused buttons
 - Backgrounding the page pauses automatically; resume explicitly
 
+Game shortcuts ignore browser modifier keys and held-key repeats. Dialogs keep
+Tab navigation inside the panel; closing one restores focus to its opener or
+the selected mode/Pause button after a screen change.
+
 The first mode selection opens skippable help with a safe practice apple and
 the rules for each mode. Revisit it with **How to play** on the menu. Practice
 does not change scores, objectives or rewards. Each new run has a three-second
@@ -112,11 +116,13 @@ mutation, event ordering and determinism rules.
 | Mode | Goal and ending | Hazards / pickups |
 | --- | --- | --- |
 | Classic | Survive for a high score; ends on a bomb or three missed fruit | Bombs end the run; no pickups |
-| Arcade | Score within 60 seconds | Bombs subtract up to 25 points; Freeze, Frenzy and Double Points pickups |
+| Arcade | Score within 60 seconds | Bombs subtract half your score, rounded down; Freeze, Frenzy and Double Points pickups |
 | Zen | Relaxed, timed 90-second session | No bombs or pickups; misses do not end the run |
 
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
 Preferences persist locally; the initial motion preference follows the OS.
+Your saved motion choice overrides that initial default. One combined control
+suppresses flashes, bursts and particles while preserving score and bomb text.
 
 ## Equipment and Rewards
 
@@ -212,7 +218,7 @@ An interrupted first install retries registration on reconnect or return to the
 page; failed artwork still offers **Retry artwork**. Offline reload requires a
 completed initial cache installation. See [offline/update checks](docs/PWA.md).
 
-The automated suite currently has 185 Bun tests and 25 production Chromium
+The automated suite currently has 186 Bun tests and 28 production Chromium
 checks. It covers lifecycle/contact/scoring, saved rewards/equipment/goals,
 keyboard/dialog flows, audio decoding and real offline/update recovery. Installed
 iOS/Android behavior, physical touch calibration, headphone/phone listening,

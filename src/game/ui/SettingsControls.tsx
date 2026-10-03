@@ -33,9 +33,11 @@ export function SettingsControls({ settings, onChange }: SettingsControlsProps) 
       <p className="settings-help">Higher sensitivity makes slower swipes count as cuts.</p>
       <label className="motion-row">
         <input type="checkbox" checked={settings.reducedMotion}
+          aria-describedby="motion-help"
           onChange={(event) => onChange({ reducedMotion: event.target.checked })} />
         Reduce motion and flashes
       </label>
+      <p id="motion-help" className="settings-help">Hides flashes, bursts and particles. Score and bomb messages stay visible.</p>
     </fieldset>
   )
 }
