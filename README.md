@@ -46,7 +46,8 @@ We are not switching to `bunx --bun vite` right now because the direct script fo
 
 For browser checks, install Chromium once with `bunx playwright install chromium`,
 then run `bun run build` and `bun run test:browser`. The suite covers loading,
-game modes, pause/resume, results/replay and compact-screen dialogs. CI runs
+game modes, pause/resume, results/replay, compact-screen dialogs and real
+service-worker installation/offline/update scenarios. CI runs
 these checks before deployment.
 
 The optional renderer benchmark uses the native browser clock at DPR 1 and 3,
@@ -226,5 +227,12 @@ Pull requests run lint, unit and browser regression tests, and a production buil
 on `main` deploy to GitHub Pages under `/Saftladen/`. Gameplay artwork is
 precached for offline reload; music is cached after its first requested playback.
 Run `bun run preview` to check the production build locally.
+
+Updates wait for **Update game** on the menu or results screen. Runs, pauses,
+practice and ready countdowns never reload automatically, including when another
+tab accepts an update. Saved progress, equipment and settings survive the reload.
+An interrupted first install retries registration on reconnect or return to the
+page; failed artwork still offers **Retry artwork**. Offline reload requires a
+completed initial cache installation. See [offline/update checks](docs/PWA.md).
 
 See `PLAN.md` for the remaining gameplay, presentation, progression, and QA work.

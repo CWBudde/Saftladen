@@ -742,3 +742,14 @@ input:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+.update-notice {
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid var(--color-border, #88694d);
+  border-radius: 12px;
+  background: #291b14;
+  color: #fff5dc;
+}
+
+.update-notice p { margin: 0 0 8px; }

@@ -2,7 +2,9 @@
 
 ## Start here
 
-**Next implementation:** extend offline/update browser coverage in **Phase 19**.
+**Next implementation:** reconcile release documentation and public metadata in
+**Phases 19 / 14.9**. Offline installation/update coverage is now automated;
+updates wait for a deliberate menu/results action and preserve active tabs.
 The first performance pass adds a reproducible production renderer benchmark
 and caches complete static dojo boards. Physical-device latency, actual Frenzy
 multitouch and long-session memory remain pending before pooling/quality tiers.
@@ -27,7 +29,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact, equipment and progression smoke added; offline/update and physical checks remain |
+| 1 | [Finish release documentation and coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact, equipment, progression and offline/update checks added; documentation/metadata and physical checks remain |
 | 2 | [Validate device performance and select further optimizations](#phase-11--performance--polish) | Host renderer baseline/cache done; measure physical latency/memory before pooling or quality tiers |
 | 3 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
 | 4 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
@@ -68,8 +70,10 @@ last. Completed tasks and the original review are archived below the backlog.
   bounded saved state, once-per-goal payouts and useful next-mode launch actions.
 - Complete static dojo/background/HUD-shade cache with geometry, DPR, equip and asset invalidation;
   reproducible native-RAF production renderer benchmark at DPR 1/3 with an effects stress load.
+- Deliberate menu/results PWA updates, no automatic reload of active/paused tabs,
+  reconnect recovery after interrupted first installs and retained caches after failed updates.
 - 185 Bun tests / 3,701 assertions; lint, typecheck and production build passed in the latest batch.
-- Twenty permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Twenty-five permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
   combo bursts, real layered WAV decoding/headroom and bomb impact expiry
@@ -80,6 +84,9 @@ last. Completed tasks and the original review are archived below the backlog.
   pixels/trail colors, new-unlock results/equip/replay and portrait/landscape bounds.
   Progression checks cover retained saved progress, real challenge completion,
   set rotation, reload and keyboard next-mode actions from profile/results.
+  Five real-worker checks cover all 18 images on offline reload, failed initial
+  installation/reconnect, interrupted updates retaining the old cache, cross-tab
+  acceptance without run interruption, and delayed acceptance from natural results.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -300,7 +307,16 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       optional flash suppression. Dialog focus, saved settings, reduced-motion
       defaults and discrete announcements are implemented; verify every keyboard
       flow and decide whether a separate flash-suppression control is needed.
-- [ ] Verify interrupted first loads and safe service-worker updates.
+- [x] **Verify interrupted first loads and safe service-worker updates.** Five
+      production Chromium checks enable real workers, confirm failed precache
+      fetches, recover first installs and verify all 18 images decode offline.
+      Failed updates keep the old cache usable. Open tabs apply waiting updates
+      through menu/results acceptance; countdowns/runs/pauses remain intact,
+      including after another tab updates. Saved rewards/equipment survive
+      acceptance. Inlining Workbox makes handler registration synchronous;
+      activation failures offer retry. `docs/PWA.md` records the policy, test
+      method and transition limitation for already-open older auto-update clients.
+      Installed iOS/Android behavior remains physical-device QA.
 - [ ] **Reconcile documentation** via Phase 14.9, including actual mode status,
       keyboard shortcuts, audio, deployment, and mutable systems contracts.
       README/runtime architecture updated; public metadata language remains.
@@ -818,6 +834,31 @@ Existing browser checks confirm live cosmetic pixels, equip/replay, viewport
 contact, art retry/fallback and all progression flows. Physical phone latency,
 actual Frenzy multitouch, long-session memory and idle scheduling measurements
 remain open. Offline/update coverage is the next independent implementation.
+
+**Thirteenth improvement batch (2026-10-03):** completed Phase 19 interrupted
+installation and safe update coverage. Native registration exposes a deliberate
+menu/results action, retries detached first-install registrations on reconnect,
+and keeps other active/paused tabs on their current run after worker activation.
+New launches are blocked during accepted activation, which has a retryable error
+state. Workbox is inlined so its message handler registers synchronously; no
+automatic reload script is injected. Existing older clients keep their previous
+update behavior until they load this version, as documented in `docs/PWA.md`.
+
+Five Chromium cases use real workers against the production build, with a local
+fixture controlling failed downloads and an HTML precache revision. Failure
+checks confirm actual failed worker fetches before recovery. They verify all 18
+gameplay images decode on offline reload, initial installation retry/reconnect,
+failed updates retaining the old cache, cross-tab acceptance preserving a run,
+and a waiting update accepted only after a complete Zen run. Rewards/equipment
+survive acceptance. Ordinary smoke checks still block workers for isolation.
+
+Validation: 185 Bun tests / 3,701 assertions; all twenty-five production browser
+cases passed in one full run. Failed-update recovery also passed ten consecutive
+targeted runs after the runtime/startup changes. Lint, application/browser/tooling
+typechecking and production build passed. Test controls are tooling only and are
+not bundled into the deployed game. Release documentation/public metadata is the
+next implementation; physical device, listening, balance and performance QA
+remain open.
 
 </details>
 

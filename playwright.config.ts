@@ -18,9 +18,13 @@ export default defineConfig({
       ? { channel: process.env.PLAYWRIGHT_CHROME_CHANNEL }
       : {},
   },
-  webServer: {
+  webServer: [{
     command: 'bun --bun vite preview --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173/Saftladen/',
     reuseExistingServer: false,
-  },
+  }, {
+    command: 'bun scripts/pwa-test-server.ts',
+    url: 'http://127.0.0.1:4175/Saftladen/',
+    reuseExistingServer: false,
+  }],
 })

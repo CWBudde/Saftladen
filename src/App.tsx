@@ -19,6 +19,7 @@ import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock, getNewCosmeticUnlocks,
   loadCosmeticSelection, normalizeCosmeticSelection, saveCosmeticSelection, type CosmeticUnlock } from './game/ui/cosmetics'
 import { CosmeticCard } from './game/ui/CosmeticCard'
 import { GoalList } from './game/ui/GoalList'
+import { pwaUpdates } from './game/ui/pwaUpdates'
 import { getNextGoal, MODE_NAMES } from './game/ui/progression'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
@@ -85,7 +86,23 @@ function App() {
   const [musicPlaying, setMusicPlaying] = useState(false)
   const [uiSettings, updateUiSettings] = useUiSettings()
   const assets = useSyncExternalStore(gameAssets.subscribe, gameAssets.getSnapshot)
+  const update = useSyncExternalStore(pwaUpdates.subscribe, pwaUpdates.getSnapshot)
   const assetsReady = assets.status === 'ready' || assets.status === 'fallback'
+  const canStart = assetsReady && !update.applying
+  const updateSafe = (uiSnapshot.view === 'menu' || uiSnapshot.view === 'game-over') && !help && !readyMode
+
+  useEffect(() => {
+    if (update.applying && update.canReload && updateSafe) window.location.reload()
+  }, [update.applying, update.canReload, updateSafe])
+
+  const updateNotice = update.available ? (
+    <section className="update-notice" aria-label="Game update" aria-live="polite">
+      <p>{update.error ? 'Update could not finish. Please try again.' : 'A new version is ready. Your saved progress will stay.'}</p>
+      <button type="button" className="ghost-button" onClick={pwaUpdates.apply} disabled={update.applying}>
+        {update.applying ? 'Updating…' : 'Update game'}
+      </button>
+    </section>
+  ) : null
 
   const rewardProfileRef = useRef(rewardProfile)
 
@@ -203,7 +220,7 @@ function App() {
   }, [engine, uiSnapshot.phase])
 
   const startMode = (mode: GameMode) => {
-    if (!assetsReady) return
+    if (!canStart) return
     audio.initMuted()
     audio.playSfx('ui-click')
     setSelectedMode(mode)
@@ -238,6 +255,7 @@ function App() {
   }
 
   const handleRestart = () => {
+    if (update.applying) return
     audio.initMuted()
     audio.playSfx('ui-click')
     setLastRunRewards(null)
@@ -298,6 +316,7 @@ function App() {
           {uiSnapshot.view === 'menu' ? (
             <section className="menu-home">
               <SaftladenBrand />
+              {updateSafe ? updateNotice : null}
 
               {!assetsReady ? (
                 <section className="asset-readiness" aria-label="Game artwork" aria-live="polite" aria-atomic="true">
@@ -326,7 +345,7 @@ function App() {
                 <button
                   type="button"
                   className={`ring-mode ring-red ${selectedMode === 'classic' ? 'selected' : ''}`}
-                  disabled={!assetsReady}
+                  disabled={!canStart}
                   onClick={() => startMode('classic')}
                   aria-describedby="classic-help"
                   data-focus-anchor
@@ -339,7 +358,7 @@ function App() {
                 <button
                   type="button"
                   className={`ring-mode ring-orange ${selectedMode === 'arcade' ? 'selected' : ''}`}
-                  disabled={!assetsReady}
+                  disabled={!canStart}
                   onClick={() => startMode('arcade')}
                   aria-describedby="arcade-help"
                 >
@@ -351,7 +370,7 @@ function App() {
                 <button
                   type="button"
                   className={`ring-mode ring-green ${selectedMode === 'zen' ? 'selected' : ''}`}
-                  disabled={!assetsReady}
+                  disabled={!canStart}
                   onClick={() => startMode('zen')}
                   aria-describedby="zen-help"
                 >
@@ -439,7 +458,7 @@ function App() {
               <section className="profile-card" aria-label="Next goal">
                 <h3>Next goal: {nextGoal.title}</h3>
                 <p>{nextGoal.description} ({nextGoal.progress}/{nextGoal.target}{nextGoal.metric === 'accuracy' ? '%' : ''})</p>
-                <button type="button" className="primary-button" onClick={playGoal} disabled={!assetsReady}>
+                <button type="button" className="primary-button" onClick={playGoal} disabled={!canStart}>
                   Play {MODE_NAMES[nextGoal.mode]} goal
                 </button>
               </section>
@@ -507,6 +526,7 @@ function App() {
             <GameDialog className="overlay-card" labelledBy="game-over-heading" onDismiss={handleReturnToMenu}
               returnFocusSelector="[data-focus-anchor]:not(:disabled)">
               <h2 id="game-over-heading">Run Complete</h2>
+              {updateSafe ? updateNotice : null}
               <p>
                 Score {uiSnapshot.score} · {uiSnapshot.mode[0].toUpperCase() + uiSnapshot.mode.slice(1)} best {uiSnapshot.bestScore}
               </p>
@@ -547,7 +567,7 @@ function App() {
               <section aria-label="Next goal">
                 <p className="next-objective">Next goal: {nextGoal.title} ({nextGoal.progress}/{nextGoal.target}{nextGoal.metric === 'accuracy' ? '%' : ''})</p>
                 <p>{nextGoal.description}</p>
-                <button type="button" className="primary-button" onClick={playGoal}>Play {MODE_NAMES[nextGoal.mode]} goal</button>
+                <button type="button" className="primary-button" onClick={playGoal} disabled={!canStart}>Play {MODE_NAMES[nextGoal.mode]} goal</button>
               </section>
               <GoalList goals={rewardProfile.challenges.goals} label="Challenge progress" />
               <GoalList goals={rewardProfile.achievements.filter(goal => goal.mode === selectedMode)} label="Mode achievement progress" />
@@ -559,7 +579,7 @@ function App() {
                 </li>)}
               </ul>
               <div className="overlay-actions">
-                <button type="button" className="primary-button" onClick={handleRestart}>
+                <button type="button" className="primary-button" onClick={handleRestart} disabled={update.applying}>
                   Run Again
                 </button>
                 <button type="button" className="ghost-button" onClick={openEquipment}>

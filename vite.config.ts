@@ -7,11 +7,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      registerType: 'prompt',
+      injectRegister: false,
       manifest: false,
       includeAssets: ['favicon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.webmanifest'],
       workbox: {
+        // Keep the message handler available synchronously when a stopped worker
+        // wakes up; updates must not race a separate runtime loader.
+        inlineWorkboxRuntime: true,
+        skipWaiting: false,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest,wav}'],
         globIgnores: ['**/splash-screen.png'],
         runtimeCaching: [{
