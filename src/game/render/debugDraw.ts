@@ -1,5 +1,5 @@
 import type { FrameInfo } from '../core/gameLoop'
-import type { RenderContext } from './renderer'
+import type { RenderContext } from './renderTypes'
 import type { GameState, Vec2 } from '../types'
 import type { ViewportTransform } from '../core/viewport'
 import { getSpawnWavePlan, getTrajectoryEnvelope } from '../systems/spawnDirector'

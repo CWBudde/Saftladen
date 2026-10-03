@@ -138,6 +138,19 @@ angles preserve the original fruit pose for complementary clipped sprites.
 The renderer scans entities once into reusable layer buffers, caches sprite
 size factors, and uses scalar coordinates/opacity in the entity draw paths.
 
+[`render/renderer.ts`](render/renderer.ts) owns asset snapshots, per-renderer
+caches and layer order: board, decals, whole objects, halves, particles, score
+labels, trails, impacts and debug overlays. [`entityLayers.ts`](render/entityLayers.ts)
+draws objects/fragments and juice with the shared sprite-size cache;
+[`feedbackLayers.ts`](render/feedbackLayers.ts) draws score labels and fading
+cosmetic trails. [`backgroundLayer.ts`](render/backgroundLayer.ts) handles image
+cropping and fallback painting, using [`woodTexture.ts`](render/woodTexture.ts)
+for deterministic procedural wood before decoding or during simple-artwork play.
+Shared renderer contracts live in [`renderTypes.ts`](render/renderTypes.ts), so
+draw modules depend on types without importing the renderer factory. All layers
+read the borrowed state synchronously; they never mutate simulation or consume
+gameplay RNG.
+
 The canvas controller also forwards ordered presentation events to the renderer
 once per frame, including every catch-up step. `render/impactFeedback.ts` owns
 contact-centered combo bursts and bomb rings/penalty labels. It retains at most

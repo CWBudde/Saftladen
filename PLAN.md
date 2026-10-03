@@ -2,7 +2,9 @@
 
 ## Start here
 
-**Next implementation:** continue renderer decomposition in **Phase 14.4**.
+**Next implementation:** continue `App.tsx` decomposition in **Phase 14.4**.
+Renderer decomposition is complete: background/wood, entity and feedback drawing
+now live in focused modules, with shared renderer types and preserved layer order.
 Automated keyboard/settings acceptance in Phase 19 / 14.6 is complete. Continue
 independent code cleanup while physical input, performance, listening and human
 balance checks remain open; device measurements still precede further optimization.
@@ -75,6 +77,9 @@ last. Completed tasks and the original review are archived below the backlog.
   bounded saved state, once-per-goal payouts and useful next-mode launch actions.
 - Complete static dojo/background/HUD-shade cache with geometry, DPR, equip and asset invalidation;
   reproducible native-RAF production renderer benchmark at DPR 1/3 with an effects stress load.
+- Renderer orchestration is separated from background/wood, entity and feedback
+  layers; shared types keep draw modules independent of the renderer factory.
+  Existing cache ownership, draw order, fallback art and reduced-motion behavior are preserved.
 - Deliberate menu/results PWA updates, no automatic reload of active/paused tabs,
   reconnect recovery after interrupted first installs and retained caches after failed updates.
 - Current player/contributor guides describe actual modes, shortcuts, audio, local
@@ -404,10 +409,15 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 
 ### 14.4 Dead code / cleanup
 
-- [ ] **Continue splitting `renderer.ts`.** `renderHelpers.ts` is extracted;
-      shared asset loading now lives in `assets/`; remaining candidates include
-      `woodTexture.ts` (the ~120-line procedural generator that only paints
-      pre-decode), and `drawHelpers.ts`.
+- [x] **Continue splitting `renderer.ts`.** The factory is now 116 lines instead
+      of 627. `woodTexture.ts` owns deterministic procedural wood;
+      `backgroundLayer.ts` owns cropping and fallbacks; `entityLayers.ts` owns
+      sprites, halves, decals and particles; `feedbackLayers.ts` owns score labels
+      and fading trails. `renderTypes.ts` supplies shared contracts without
+      draw-module dependencies on the factory. Asset snapshots, cache ownership,
+      layer order, geometry and reduced-motion behavior are preserved. Moved
+      code matches the original after export normalization; all 186 unit tests
+      and 28 production browser checks, lint, typechecking and build pass.
 - [ ] **Continue decomposing `App.tsx`.** `GameHud` is extracted; remaining
       candidates include `MenuScreen`,
       `PauseOverlay`, `GameOverOverlay`, `ProfilePanel`, and hooks
@@ -942,6 +952,27 @@ through real slow practice gestures. Production build precaches 30 entries /
 4085.32 KiB. Renderer decomposition in Phase 14.4 is the next independent code
 task; physical input/device performance, screen-reader/listening and human
 balance QA remain open.
+
+**Sixteenth improvement batch (2026-10-03):** completed renderer decomposition
+in Phase 14.4. `renderer.ts` now concentrates on asset snapshots, cache lifecycle,
+viewport setup and layer order (116 lines, previously 627). Procedural wood,
+background image cropping/fallbacks, entity layers and score/trail feedback live
+in focused modules. Shared renderer contracts let debug/feedback drawing depend
+on types directly; the existing renderer exports remain compatible. The game
+architecture guide documents these boundaries. This is a code-organization
+change; it introduces no new assets, dependencies or performance claims.
+
+Validation: source comparison confirms that relocated types, drawing functions,
+cache state and renderer orchestration match the previous version byte-for-byte
+after export normalization. All 186 Bun tests / 3,703 assertions and all 28
+production Chromium checks passed; lint, application/browser/tooling typechecking
+and production build passed. Existing browser checks cover actual equipment
+pixels/trails, resizing/contact, reduced-motion impacts, failed artwork/retry/
+simple fallback, natural rewards/replay and real-worker offline/update flows.
+All ten local architecture-guide links resolve. The build retains 30 precache
+entries / 4085.32 KiB. `App.tsx` decomposition is the next independent code task;
+physical input/device performance, screen-reader/listening and human balance QA
+remain open.
 
 </details>
 
