@@ -1,10 +1,18 @@
 import { describe, expect, test } from 'bun:test'
-import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock } from '../src/game/ui/cosmetics'
+import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock, getNewCosmeticUnlocks } from '../src/game/ui/cosmetics'
 import { applyRunRewards, createDefaultRewardProfile, type RunSummary } from '../src/game/ui/rewards'
 
 const catalog = [...BLADE_UNLOCKS, ...DOJO_UNLOCKS]
 
 describe('earned cosmetic milestones', () => {
+  test('celebrations include only thresholds crossed by this settlement', () => {
+    const before = { ...createDefaultRewardProfile(), xp: 559, starfruit: 39 }
+    const after = { ...before, xp: 1120, starfruit: 110 }
+    expect(getNewCosmeticUnlocks(before, after).map(item => item.id))
+      .toEqual(['comet', 'dragon-fang', 'sunset-harbor', 'storm-temple'])
+    expect(getNewCosmeticUnlocks(after, after)).toEqual([])
+    expect(getNewCosmeticUnlocks(createDefaultRewardProfile(), before)).toEqual([])
+  })
   test('starter cosmetics are available with an empty profile', () => {
     const profile = createDefaultRewardProfile()
     expect(catalog.filter((item) => getCosmeticUnlock(item, profile).unlocked).map((item) => item.id))

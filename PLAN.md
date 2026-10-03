@@ -2,7 +2,10 @@
 
 ## Start here
 
-**Next implementation:** build persistent equippable cosmetics in **Phase 18**.
+**Next implementation:** extend goals beyond the three static objectives in **Phase 18**.
+Equippable blades/dojos now have visual previews, saved selections and live
+trail/background treatments. Results celebrate new unlocks with direct equip,
+all objective progress, per-mode best and an equipment shortcut.
 Currency policy is implemented: lifetime earned milestones, automatic unlocks
 and no spending, with shared thresholds and visible remaining progress.
 Phase 16 visual identity, layered action audio and variations are implemented.
@@ -19,7 +22,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Use the shared earned-milestone catalog for previews, equip/persistence and actual visuals; stroke statistics available |
+| 1 | [Extend progression goals](#phase-18--rewards-that-change-the-experience-p2) | Build mode-specific achievements, rotating challenges and next-goal prompts on the completed reward/equipment system |
 | 2 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
 | 3 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
 | 4 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
@@ -53,14 +56,20 @@ last. Completed tasks and the original review are archived below the backlog.
   panels, shaded HUD backdrop and consistent aspect-preserving sprite scale.
 - Shared cosmetic milestones with automatic unlocks, lifetime earned totals,
   remaining progress and objective payouts; existing saved unlocks retained.
-- 158 Bun tests / 3,430 assertions; lint, typecheck and production build passed in the latest batch.
-- Seventeen permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Three equippable blades/dojos with shared preview/live art, independent validated
+  selections, reload persistence and once-per-settlement unlock celebrations.
+- Results show per-mode best, all objective progress, direct reward equip and
+  an equipment shortcut alongside replay.
+- 167 Bun tests / 3,447 assertions; lint, typecheck and production build passed in the latest batch.
+- Nineteen permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
   combo bursts, real layered WAV decoding/headroom and bomb impact expiry
   with reduced motion enabled/disabled. Presentation checks cover shared fonts,
   guide text contrast, 44px controls and portrait/landscape menu bounds. Reward
   checks cover milestone boundaries, reload persistence and unchanged earned totals.
+  Equipment checks cover locked/stale selections, keyboard actions, actual canvas
+  pixels/trail colors, new-unlock results/equip/replay and portrait/landscape bounds.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -182,13 +191,22 @@ and mode goal. Reduced-motion play retains clear feedback without shake/flash.
       A 210-point/peak-streak-three/one-miss repeated-run baseline reaches Comet
       at eight runs and Dragon Fang at 25 in all modes without skill-objective
       bonuses. Human reward-rate/attainability tuning remains in Phase 17.
-- [ ] **Implement equippable blades and dojos.** Show names, previews,
+- [x] **Implement equippable blades and dojos.** Show names, previews,
       requirements, unlock celebrations, and equip actions; persist selection
       and apply it to actual trails/backgrounds. Unlocks remain cosmetic.
-- [ ] **Improve results.** Show per-mode personal best, fruit/miss/bomb counts,
+      Shared canvas art supplies three blade palettes and static wood/wave,
+      sunset harbor and moonlit temple dojos without new raster assets. A separate
+      version-1 save validates each slot against earned totals, preserving reward
+      schema v2 and repairing locked/stale IDs independently. Results celebrate
+      newly crossed thresholds with direct equip; selections survive reload and
+      leave input, spawning, scoring and reduced-motion behavior intact.
+- [x] **Improve results.** Show per-mode personal best, fruit/miss/bomb counts,
       best stroke combo, objective progress, and a clear replay/equip next action.
       Fruit/miss/bomb counts, peak timed streak, per-mode best and reward status
-      and best stroke/accuracy are implemented; equip actions remain.
+      and best stroke/accuracy are implemented. Results now label the mode's best,
+      show all objective progress, offer direct equip for new unlocks and a
+      Choose equipment shortcut alongside replay. Browser checks cover a real
+      earned unlock, equip, replay and no repeated celebration/extra reward.
 - [ ] **Extend goals beyond the three static objectives.** Add mode-specific
       achievements, a rotating small challenge set, and useful next-goal prompts
       without punishing missed days.
@@ -234,7 +252,9 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       help and countdown cancellation/background suspension. Combo bursts and
       bomb impact/expiry are checked with reduced motion enabled/disabled.
       Real WebAudio decoding verifies layered cut/combo playback and sample headroom.
-      Add profile equip after Phase 18. Physical iOS/Android
+      Equipment smoke now covers every blade/dojo pair, real trail/background
+      drawing, locked/stale IDs, keyboard equip, reload, real unlock results and
+      replay, with narrow portrait/landscape controls. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
 - [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
@@ -691,6 +711,26 @@ modes. Browser checks exercise the public saved-profile boundary, reload through
 locked/unlocked milestones, unchanged totals and landscape settings access.
 Human progression tuning, listening, physical input, performance and offline/update
 QA remain pending.
+
+**Tenth improvement batch (2026-10-03):** completed Phase 18 equippable cosmetics
+and the remaining results actions. Shared canvas drawing supplies all previews
+and actual blade/background appearances. Stable IDs and an independent validated
+selection save preserve earned reward profiles; locked/stale selections repair
+per slot and blocked storage retains a playable session. Settlements celebrate
+newly crossed milestones once with direct equip buttons. Results also name the
+mode's best, show all objective progress and offer an equipment-panel shortcut.
+
+Validation: 167 Bun tests / 3,447 assertions; nineteen production browser cases
+passed across the full-suite run and targeted rerun after fixing narrow card
+overflow (18 passed initially; all four layout/equipment cases then passed).
+Lint, application/browser/tooling typechecking and build passed. Browser checks verify
+all equipment pairs via actual background pixels and live trail colors, equal
+opening-hit scores, no spending, keyboard selection/focus, reload persistence,
+320px card bounds and short landscape controls. A real played Zen run crosses
+milestones, equips from results and replays without another unlock celebration.
+Screenshot review corrected narrow preview overflow; generated browser/audio
+artifacts are excluded from lint scanning as well as Git. Extend progression
+goals next; human/device/listening/performance and offline/update QA remain open.
 
 </details>
 

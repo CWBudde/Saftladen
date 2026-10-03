@@ -5,6 +5,8 @@ import { createViewportTransform, worldPointToCanvas } from '../core/viewport'
 import type { EngineDiagnostics } from '../engine'
 import type { GamePresentationEvent, GameState, ScoreFeedbackEvent, Vec2 } from '../types'
 import { createImpactFeedback } from './impactFeedback'
+import { drawBladeSegment, drawDojoScenery } from './cosmeticArt'
+import { DEFAULT_COSMETIC_SELECTION, type CosmeticSelection } from '../ui/cosmetics'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawSpawnEnvelopes, drawTrailStats } from './debugDraw'
 import { collectRenderBuckets, createRenderBuckets, getSpriteScale, type RenderBuckets, type SpriteScale } from './renderHelpers'
 
@@ -29,6 +31,7 @@ export type RenderContext = {
   metrics: CanvasMetrics
   debug: RendererDebugData
   reducedMotion?: boolean
+  cosmetics?: CosmeticSelection
   presentationEvents?: readonly GamePresentationEvent[]
 }
 
@@ -514,17 +517,7 @@ function drawBladeTrails(ctx: CanvasRenderingContext2D, context: RenderContext, 
       if (freshness <= 0 || (from.x === to.x && from.y === to.y)) continue
       const taper = (i - firstIndex + 1) / Math.max(1, points.length - firstIndex)
       const width = (1.5 + taper * 4.5) * freshness
-      ctx.globalAlpha = freshness * 0.24
-      ctx.strokeStyle = '#38d8ee'
-      ctx.lineWidth = width * 2.5
-      ctx.beginPath()
-      ctx.moveTo(from.x, from.y)
-      ctx.lineTo(to.x, to.y)
-      ctx.stroke()
-      ctx.globalAlpha = freshness * 0.95
-      ctx.strokeStyle = '#e6fdff'
-      ctx.lineWidth = width
-      ctx.stroke()
+      drawBladeSegment(ctx, context.cosmetics?.blade ?? 'bamboo', from, to, width, freshness)
     }
   }
   ctx.restore()
@@ -582,11 +575,12 @@ export function createRenderer(): Renderer {
       const scaleX = viewport.scale
       const scaleY = viewport.scale
       const reducedMotion = context.reducedMotion ?? false
+      const cosmetics = context.cosmetics ?? DEFAULT_COSMETIC_SELECTION
       collectRenderBuckets(state.world.entities, buckets, !reducedMotion)
       if (state.run.id !== observedRunId || state.phase === 'idle') impacts.reset()
       observedRunId = state.run.id
       if (state.phase !== 'idle') impacts.consume(context.presentationEvents ?? [], frameInfo.timestampMs, state.world.bounds)
-      woodTextureCache = drawBackgroundLayer(
+      if (cosmetics.dojo === 'great-wave') woodTextureCache = drawBackgroundLayer(
         ctx,
         widthCssPx,
         heightCssPx,
@@ -594,6 +588,8 @@ export function createRenderer(): Renderer {
         preferredBackgroundImage,
         preferredBackgroundReady,
       )
+      else ctx.clearRect(0, 0, widthCssPx, heightCssPx)
+      drawDojoScenery(ctx, widthCssPx, heightCssPx, cosmetics.dojo, cosmetics.dojo === 'great-wave')
       // Shade the board behind the HUD; draw objects afterward to retain bright art.
       const boardShade = ctx.createLinearGradient(0, 0, 0, Math.min(200, heightCssPx * 0.45))
       boardShade.addColorStop(0, 'rgba(25, 16, 12, 0.88)')

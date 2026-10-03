@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock } from '../src/game/ui/cosmetics'
+import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock, COSMETIC_SELECTION_STORAGE_KEY,
+  DEFAULT_COSMETIC_SELECTION, loadCosmeticSelection, saveCosmeticSelection } from '../src/game/ui/cosmetics'
 import {
   applyRunRewards, createDefaultRewardProfile, getRankInfo, loadRewardProfile,
   REWARD_PROFILE_STORAGE_KEY, saveRewardProfile, SETTLED_RUN_HISTORY_LIMIT,
@@ -157,5 +158,50 @@ describe('settings migrations', () => {
     expect(loadRewardProfile()).toEqual(createDefaultRewardProfile())
     expect(() => saveUiSettings(DEFAULT_UI_SETTINGS)).not.toThrow()
     expect(() => saveRewardProfile(createDefaultRewardProfile())).not.toThrow()
+  })
+})
+
+describe('equipment persistence', () => {
+  const earned = { ...createDefaultRewardProfile(), xp: 1120, starfruit: 110 }
+
+  test('old profiles start with usable equipment and keep all earned progress', () => {
+    saveRewardProfile(earned)
+    expect(loadCosmeticSelection(loadRewardProfile())).toEqual(DEFAULT_COSMETIC_SELECTION)
+    expect(loadRewardProfile()).toEqual(earned)
+  })
+
+  test('both slots survive reload without spending or changing the reward save', () => {
+    saveRewardProfile(earned)
+    const rewardSave = values.get(REWARD_PROFILE_STORAGE_KEY)
+    saveCosmeticSelection({ blade: 'dragon-fang', dojo: 'storm-temple' }, earned)
+    expect(loadCosmeticSelection(loadRewardProfile())).toEqual({ blade: 'dragon-fang', dojo: 'storm-temple' })
+    expect(JSON.parse(values.get(COSMETIC_SELECTION_STORAGE_KEY)!)).toEqual({
+      schemaVersion: 1, blade: 'dragon-fang', dojo: 'storm-temple',
+    })
+    expect(values.get(REWARD_PROFILE_STORAGE_KEY)).toBe(rewardSave)
+  })
+
+  test.each(['{broken', 'null', '[]', '42'])('invalid equipment root %s falls back safely', raw => {
+    values.set(COSMETIC_SELECTION_STORAGE_KEY, raw)
+    expect(loadCosmeticSelection(earned)).toEqual(DEFAULT_COSMETIC_SELECTION)
+  })
+
+  test('invalid IDs and unearned items repair independently of a valid sibling', () => {
+    values.set(COSMETIC_SELECTION_STORAGE_KEY, JSON.stringify({ blade: 'retired-blade', dojo: 'storm-temple' }))
+    expect(loadCosmeticSelection(earned)).toEqual({ blade: 'bamboo', dojo: 'storm-temple' })
+    values.set(COSMETIC_SELECTION_STORAGE_KEY, JSON.stringify({ blade: 'comet', dojo: 'storm-temple' }))
+    const early = { ...createDefaultRewardProfile(), starfruit: 40 }
+    expect(loadCosmeticSelection(early)).toEqual({ blade: 'comet', dojo: 'great-wave' })
+    saveCosmeticSelection({ blade: 'dragon-fang', dojo: 'sunset-harbor' }, early)
+    expect(loadCosmeticSelection(early)).toEqual(DEFAULT_COSMETIC_SELECTION)
+  })
+
+  test('blocked storage retains session usability', () => {
+    replaceGlobal('localStorage', {
+      getItem: () => { throw new Error('Blocked') },
+      setItem: () => { throw new Error('Full') },
+    })
+    expect(loadCosmeticSelection(earned)).toEqual(DEFAULT_COSMETIC_SELECTION)
+    expect(() => saveCosmeticSelection({ blade: 'comet', dojo: 'sunset-harbor' }, earned)).not.toThrow()
   })
 })

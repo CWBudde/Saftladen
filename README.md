@@ -159,8 +159,11 @@ Cosmetics unlock automatically from lifetime rewards: Comet Blade at 40 earned
 Starfruit and Dragon Fang at 110; Sunset Harbor Dojo at Level 3 (560 XP) and
 Storm Temple Dojo at Level 5 (1120 XP). Bamboo Blade and Great Wave Dojo start
 unlocked. Starfruit is never spent, and unlocks remain available as rewards grow.
-The profile shows requirements, remaining progress and objective payouts.
-Equipping cosmetics and applying their visuals is the next planned feature.
+The profile shows visual previews, requirements, remaining progress and objective
+payouts. Equip an unlocked blade or dojo to change the live trail or background;
+both choices survive reload. New rewards appear on the results screen with an
+equip button, followed by replay or a shortcut to all equipment. These choices
+change appearance only.
 Action audio layers a blade sweep, cut and juice droplets, with three cut
 variations and two explosions. Larger gesture combos raise a short chord;
 power-up activation and expiry use separate rising/falling cues. Eight active
@@ -194,7 +197,7 @@ Rewards require a completed run lasting at least five seconds, at least one
 fruit sliced, and a positive score. Flawless bonuses require zero misses and zero
 bomb hits in every mode. Recent run IDs prevent duplicate payouts; versioned
 storage migrates existing profiles/preferences and validates fields independently.
-Cosmetics are currently unlock previews; equipping them remains on the roadmap.
+Results show per-mode best scores and progress for all three objectives.
 
 Saftladen uses a citrus fruit-stall wordmark, cream/citrus/coral/leaf colors,
 matching UI/canvas typography and consistent controls. Opaque panels and a

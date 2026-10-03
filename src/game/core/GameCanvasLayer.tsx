@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react'
 import { isGameDebugEnabled } from '../debug'
 import type { GameEngine } from '../engine'
 import { mountGameCanvas } from './gameCanvasController'
+import { DEFAULT_COSMETIC_SELECTION, type CosmeticSelection } from '../ui/cosmetics'
 
 type GameCanvasLayerProps = {
   engine: GameEngine
   debugEnabled?: boolean
   sliceSensitivity?: number
   reducedMotion?: boolean
+  cosmetics?: CosmeticSelection
 }
 
 export function GameCanvasLayer({
@@ -15,13 +17,14 @@ export function GameCanvasLayer({
   debugEnabled = isGameDebugEnabled(),
   sliceSensitivity = 1,
   reducedMotion = false,
+  cosmetics = DEFAULT_COSMETIC_SELECTION,
 }: GameCanvasLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const optionsRef = useRef({ debugEnabled, sliceSensitivity, reducedMotion })
+  const optionsRef = useRef({ debugEnabled, sliceSensitivity, reducedMotion, cosmetics })
 
   useEffect(() => {
-    optionsRef.current = { debugEnabled, sliceSensitivity, reducedMotion }
-  }, [debugEnabled, sliceSensitivity, reducedMotion])
+    optionsRef.current = { debugEnabled, sliceSensitivity, reducedMotion, cosmetics }
+  }, [debugEnabled, sliceSensitivity, reducedMotion, cosmetics])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -29,5 +32,6 @@ export function GameCanvasLayer({
     return mountGameCanvas(canvas, engine, () => optionsRef.current)
   }, [engine])
 
-  return <canvas ref={canvasRef} className="game-canvas" aria-label="Fruit slicing game canvas" />
+  return <canvas ref={canvasRef} className="game-canvas" aria-label="Fruit slicing game canvas"
+    data-blade={cosmetics.blade} data-dojo={cosmetics.dojo} />
 }

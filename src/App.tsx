@@ -15,7 +15,9 @@ import { OnboardingDialog } from './game/ui/OnboardingDialog'
 import { hasSeenOnboarding, rememberOnboarding } from './game/ui/onboarding'
 import { ReadyCountdown } from './game/ui/ReadyCountdown'
 import { eventAnnouncement, eventSounds } from './game/ui/eventFeedback'
-import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock } from './game/ui/cosmetics'
+import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock, getNewCosmeticUnlocks,
+  loadCosmeticSelection, normalizeCosmeticSelection, saveCosmeticSelection, type CosmeticUnlock } from './game/ui/cosmetics'
+import { CosmeticCard } from './game/ui/CosmeticCard'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
 import {
@@ -69,6 +71,8 @@ function App() {
   const uiSnapshot = useGameUiSnapshot(engine)
   const [debugEnabled, setDebugEnabled] = useState(() => isGameDebugEnabled())
   const [rewardProfile, setRewardProfile] = useState(() => loadRewardProfile())
+  const [cosmetics, setCosmetics] = useState(() => loadCosmeticSelection(rewardProfile))
+  const [newUnlocks, setNewUnlocks] = useState<CosmeticUnlock[]>([])
   const [lastRunRewards, setLastRunRewards] = useState<RunRewards | null>(null)
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic')
   const [profileOpen, setProfileOpen] = useState(false)
@@ -126,12 +130,19 @@ function App() {
     saveRewardProfile(rewardProfile)
   }, [rewardProfile])
 
+  useEffect(() => {
+    saveCosmeticSelection(cosmetics, rewardProfile)
+  }, [cosmetics, rewardProfile])
+
   useEffect(() => engine.subscribeEvents((events) => {
     eventSounds(events).forEach((sound) => audio.playSfx(sound.name, sound.rate))
     const message = eventAnnouncement(events)
-    if (message) setAnnouncement((previous) => ({ id: previous.id + 1, text: message }))
+    let unlockMessage = ''
     for (const event of events) {
-      if (event.type === 'run-start') setLastRunRewards(null)
+      if (event.type === 'run-start') {
+        setLastRunRewards(null)
+        setNewUnlocks([])
+      }
       if (event.type === 'run-end') {
         const summary: RunSummary = {
           runId: event.runId,
@@ -141,11 +152,16 @@ function App() {
           stats: event.stats,
         }
         const applied = applyRunRewards(rewardProfileRef.current, summary)
+        const unlocked = getNewCosmeticUnlocks(rewardProfileRef.current, applied.profile)
+        setNewUnlocks(unlocked)
+        if (unlocked.length) unlockMessage = `Unlocked ${unlocked.map(item => item.name).join(', ')}. Equip your reward below.`
         rewardProfileRef.current = applied.profile
         setRewardProfile(applied.profile)
         setLastRunRewards(applied.rewards)
       }
     }
+    if (message || unlockMessage) setAnnouncement(previous => ({ id: previous.id + 1,
+      text: [message, unlockMessage].filter(Boolean).join(' ') }))
   }), [audio, engine])
 
   useEffect(() => {
@@ -234,6 +250,19 @@ function App() {
 
   const nextObjective = rewardProfile.objectives.find((objective) => !objective.completed) ?? null
 
+  const equipCosmetic = (item: CosmeticUnlock) => {
+    if (!getCosmeticUnlock(item, rewardProfile).unlocked) return
+    const slot = item.metric === 'xp' ? 'dojo' : 'blade'
+    setCosmetics(previous => normalizeCosmeticSelection({ ...previous, [slot]: item.id }, rewardProfile))
+    audio.playSfx('ui-click')
+    setAnnouncement(previous => ({ id: previous.id + 1, text: `${item.name} equipped.` }))
+  }
+
+  const openEquipment = () => {
+    handleReturnToMenu()
+    setProfileOpen(true)
+  }
+
   const handleToggleMusic = () => {
     const playing = audio.toggleMusic()
     setMusicPlaying(playing)
@@ -246,7 +275,7 @@ function App() {
       </div>
       <section className="stage-shell">
         <GameCanvasLayer engine={engine} debugEnabled={debugEnabled}
-          sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion} />
+          sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion} cosmetics={cosmetics} />
 
         <button type="button" className="music-toggle-button" onClick={handleToggleMusic} aria-label={musicPlaying ? 'Pause music' : 'Play music'}>
           {musicPlaying ? '🔊' : '🔇'}
@@ -402,17 +431,15 @@ function App() {
                 <div>
                   <p className="meta-subheading">Dojos</p>
                   <ul>
-                    {DOJO_UNLOCKS.map((dojo) => (
-                      <li key={dojo.id}><strong>{dojo.name}</strong><span>{getCosmeticUnlock(dojo, rewardProfile).status}</span></li>
-                    ))}
+                    {DOJO_UNLOCKS.map(item => <CosmeticCard key={item.id} item={item} profile={rewardProfile}
+                      selection={cosmetics} onEquip={equipCosmetic} />)}
                   </ul>
                 </div>
                 <div>
                   <p className="meta-subheading">Blades</p>
                   <ul>
-                    {BLADE_UNLOCKS.map((blade) => (
-                      <li key={blade.id}><strong>{blade.name}</strong><span>{getCosmeticUnlock(blade, rewardProfile).status}</span></li>
-                    ))}
+                    {BLADE_UNLOCKS.map(item => <CosmeticCard key={item.id} item={item} profile={rewardProfile}
+                      selection={cosmetics} onEquip={equipCosmetic} />)}
                   </ul>
                 </div>
               </section>
@@ -453,7 +480,7 @@ function App() {
               returnFocusSelector="[data-focus-anchor]:not(:disabled)">
               <h2 id="game-over-heading">Run Complete</h2>
               <p>
-                Score {uiSnapshot.score} · Best {uiSnapshot.bestScore}
+                Score {uiSnapshot.score} · {uiSnapshot.mode[0].toUpperCase() + uiSnapshot.mode.slice(1)} best {uiSnapshot.bestScore}
               </p>
               <p>
                 Peak streak · {uiSnapshot.stats.peakCombo} hits · Time {formatDuration(uiSnapshot.elapsedMs)}
@@ -478,6 +505,14 @@ function App() {
                   ) : null}
                 </div>
               ) : null}
+              {newUnlocks.length ? <section className="unlock-celebration" aria-label="New cosmetic unlocks">
+                <h3>New rewards unlocked!</h3>
+                <p>Your next run can have a new look.</p>
+                <ul className="cosmetic-rewards">
+                  {newUnlocks.map(item => <CosmeticCard key={item.id} item={item} profile={rewardProfile}
+                    selection={cosmetics} onEquip={equipCosmetic} />)}
+                </ul>
+              </section> : null}
               {nextObjective ? (
                 <p className="next-objective">
                   Next Objective: {nextObjective.title} ({Math.min(nextObjective.progress, nextObjective.target)}/
@@ -486,9 +521,19 @@ function App() {
               ) : (
                 <p className="next-objective">All objectives completed.</p>
               )}
+              <ul className="objective-list" aria-label="Objective progress">
+                {rewardProfile.objectives.map(objective => <li key={objective.id}
+                  className={objective.completed ? 'done' : ''}>
+                  <div className="objective-row"><span>{objective.title}</span>
+                    <strong>{Math.min(objective.progress, objective.target)}/{objective.target}</strong></div>
+                </li>)}
+              </ul>
               <div className="overlay-actions">
                 <button type="button" className="primary-button" onClick={handleRestart}>
                   Run Again
+                </button>
+                <button type="button" className="ghost-button" onClick={openEquipment}>
+                  Choose equipment
                 </button>
                 <button type="button" className="ghost-button" onClick={handleReturnToMenu}>
                   Main Menu

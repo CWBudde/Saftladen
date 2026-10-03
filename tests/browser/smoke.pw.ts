@@ -7,6 +7,7 @@ type BrowserProbe = {
   bombs: DrawnFruit[]
   impactRings: string[]
   impactLabels: string[]
+  bladeColors: string[]
   audibleSfxStarts: number
   sfxSamples: { duration: number; peak: number; rate: number }[]
   musicVolumes: number[]
@@ -28,7 +29,7 @@ const test = base.extend<{ runtimeErrors: string[] }>({
 
 async function openGame(page: Page, muted = false, seenOnboarding = true) {
   await page.addInitScript(({ muted, seenOnboarding }) => {
-    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], audibleSfxStarts: 0, sfxSamples: [], musicVolumes: [] }
+    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], bladeColors: [], audibleSfxStarts: 0, sfxSamples: [], musicVolumes: [] }
     if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
     // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
     // on the real clock. Keep input age/velocity on the same simulated clock.
@@ -42,11 +43,19 @@ async function openGame(page: Page, muted = false, seenOnboarding = true) {
     }
     const originalClear = CanvasRenderingContext2D.prototype.clearRect
     CanvasRenderingContext2D.prototype.clearRect = function (...args) {
-      window.__browserProbe.fruit = []
-      window.__browserProbe.bombs = []
-      window.__browserProbe.impactRings = []
-      window.__browserProbe.impactLabels = []
+      if (this.canvas.classList.contains('game-canvas')) {
+        window.__browserProbe.fruit = []
+        window.__browserProbe.bombs = []
+        window.__browserProbe.impactRings = []
+        window.__browserProbe.impactLabels = []
+        window.__browserProbe.bladeColors = []
+      }
       return originalClear.apply(this, args)
+    }
+    const originalStroke = CanvasRenderingContext2D.prototype.stroke
+    CanvasRenderingContext2D.prototype.stroke = function (path?: Path2D) {
+      if (this.canvas.classList.contains('game-canvas')) window.__browserProbe.bladeColors.push(String(this.strokeStyle))
+      return Reflect.apply(originalStroke, this, path ? [path] : [])
     }
     const originalDraw = CanvasRenderingContext2D.prototype.drawImage
     CanvasRenderingContext2D.prototype.drawImage = function (
@@ -333,6 +342,130 @@ test('cosmetic milestones show earned progress and retain automatic unlocks afte
   const volume = profile.getByRole('slider', { name: 'Music', exact: true })
   await volume.scrollIntoViewIfNeeded()
   await expect(volume).toBeInViewport()
+})
+
+test('equipment previews, keyboard equip, saved choices and actual gameplay visuals work for every pair', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await openGame(page)
+  await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Equip Comet Blade', exact: true })).toBeDisabled()
+  // An unearned or stale saved selection cannot equip a locked reward.
+  await page.evaluate(() => localStorage.setItem('saftladen.cosmetics.selection', JSON.stringify({
+    schemaVersion: 1, blade: 'dragon-fang', dojo: 'retired-dojo',
+  })))
+  await page.reload()
+  const canvas = page.getByLabel('Fruit slicing game canvas', { exact: true })
+  await expect(canvas).toHaveAttribute('data-blade', 'bamboo')
+  await expect(canvas).toHaveAttribute('data-dojo', 'great-wave')
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+    localStorage.setItem('saftladen.rewards.profile', JSON.stringify({ ...saved, xp: 1120, starfruit: 110 }))
+  })
+  await page.reload()
+  const backgrounds: string[] = []
+  const scores: number[] = []
+  for (const pair of [
+    { blade: 'bamboo', bladeName: 'Bamboo Blade', dojo: 'great-wave', dojoName: 'Great Wave Dojo', edge: '#f4ffe6', glow: '#8cdb72' },
+    { blade: 'comet', bladeName: 'Comet Blade', dojo: 'sunset-harbor', dojoName: 'Sunset Harbor Dojo', edge: '#d9faff', glow: '#a78bfa' },
+    { blade: 'dragon-fang', bladeName: 'Dragon Fang', dojo: 'storm-temple', dojoName: 'Storm Temple Dojo', edge: '#fff0a6', glow: '#ff7858' },
+  ]) {
+    await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+    const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
+    for (const name of [pair.bladeName, pair.dojoName]) {
+      const card = profile.getByRole('listitem').filter({ hasText: name })
+      await expect(card.getByRole('img', { name: new RegExp(`${name} preview:`) })).toHaveCount(1)
+      const button = card.getByRole('button')
+      await button.scrollIntoViewIfNeeded()
+      await expect(button).toBeInViewport()
+      const box = await button.boundingBox()
+      expect(box && box.height >= 44 && box.x >= 0 && box.x + box.width <= 320).toBe(true)
+      const cardBox = await card.boundingBox()
+      const panelBox = await profile.boundingBox()
+      expect(cardBox && panelBox && cardBox.x >= panelBox.x + 8 &&
+        cardBox.x + cardBox.width <= panelBox.x + panelBox.width - 8).toBe(true)
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await expect(button).toHaveAttribute('aria-pressed', 'true')
+      await expect(page.getByRole('status').first()).toContainText(`${name} equipped.`)
+    }
+    await page.screenshot({ path: testInfo.outputPath(`equipment-${pair.blade}.png`) })
+    await page.keyboard.press('Escape')
+    await advance(page, 32)
+    await expect(page.getByRole('button', { name: 'Profile & Rewards', exact: true })).toBeFocused()
+    await page.reload()
+    await expect(canvas).toHaveAttribute('data-blade', pair.blade)
+    await expect(canvas).toHaveAttribute('data-dojo', pair.dojo)
+    await advance(page, 32)
+    // Read actual canvas pixels, rather than trusting the selection attributes.
+    backgrounds.push(await canvas.evaluate((element: HTMLCanvasElement) => {
+      const data = element.getContext('2d')!.getImageData(Math.floor(element.width / 2), Math.floor(element.height / 2), 1, 1).data
+      return Array.from(data).join(',')
+    }))
+    await startMode(page, 'Zen')
+    await swipeVisibleFruit(page)
+    scores.push(Number(await page.locator('.hud-score strong').innerText()))
+    const colors = await page.evaluate(() => window.__browserProbe.bladeColors)
+    expect(colors).toContain(pair.edge)
+    expect(colors).toContain(pair.glow)
+    await page.getByRole('button', { name: 'Pause', exact: true }).click()
+    await page.getByRole('button', { name: 'Main Menu', exact: true }).click()
+    expect(await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+      return { xp: saved.xp, starfruit: saved.starfruit }
+    })).toEqual({ xp: 1120, starfruit: 110 })
+  }
+  expect(new Set(backgrounds).size).toBe(3)
+  expect(scores).toEqual([10, 10, 10])
+  await page.setViewportSize({ width: 844, height: 390 })
+  await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  const equipped = page.getByRole('button', { name: 'Equipped Dragon Fang', exact: true })
+  await equipped.scrollIntoViewIfNeeded()
+  await expect(equipped).toBeInViewport()
+  await page.screenshot({ path: testInfo.outputPath('equipment-landscape.png') })
+})
+
+test('earned unlocks celebrate once, equip from results and carry into replay', async ({ page }) => {
+  test.setTimeout(90_000) // Two naturally completed 90-second runs, with every RAF tick rendered.
+  await openGame(page, true)
+  await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+    localStorage.setItem('saftladen.rewards.profile', JSON.stringify({ ...saved, xp: 559, starfruit: 39 }))
+  })
+  await page.reload()
+  await startMode(page, 'Zen')
+  for (let attempt = 0; attempt < 10 && Number(await page.locator('.hud-score strong').innerText()) < 70; attempt++) {
+    await swipeVisibleFruit(page)
+  }
+  expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(70)
+  await advance(page, 91_000)
+  const results = page.getByRole('dialog', { name: 'Run Complete' })
+  const celebration = results.getByRole('region', { name: 'New cosmetic unlocks' })
+  await expect(celebration).toContainText('Comet Blade')
+  await expect(celebration).toContainText('Sunset Harbor Dojo')
+  await expect(results.getByRole('list', { name: 'Objective progress' }).getByRole('listitem').filter({ hasText: 'Warmup Ritual' }))
+    .toContainText('1/5')
+  await expect(page.getByRole('status').first()).toContainText('Unlocked Comet Blade, Sunset Harbor Dojo.')
+  await celebration.getByRole('button', { name: 'Equip Comet Blade', exact: true }).click()
+  await celebration.getByRole('button', { name: 'Equip Sunset Harbor Dojo', exact: true }).click()
+  const settled = await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))
+  await results.getByRole('button', { name: 'Run Again', exact: true }).click()
+  await page.getByRole('button', { name: 'Start now', exact: true }).click()
+  await expect(page.locator('.game-canvas')).toHaveAttribute('data-blade', 'comet')
+  await expect(page.locator('.game-canvas')).toHaveAttribute('data-dojo', 'sunset-harbor')
+  await advance(page, 91_000)
+  await expect(results).toBeVisible()
+  await expect(celebration).toHaveCount(0)
+  // Empty replay settles no additional reward and never repeats old celebrations.
+  expect(await page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+    return { xp: saved.xp, starfruit: saved.starfruit, totalRuns: saved.totalRuns }
+  })).toEqual(((saved) => ({ xp: saved.xp, starfruit: saved.starfruit, totalRuns: saved.totalRuns }))(JSON.parse(settled!)))
+  await results.getByRole('button', { name: 'Choose equipment', exact: true }).click()
+  const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
+  await expect(profile).toBeVisible()
+  await advance(page, 32)
+  expect(await profile.evaluate(dialog => dialog.contains(document.activeElement))).toBe(true)
+  await expect(profile.getByRole('button', { name: 'Equipped Comet Blade', exact: true })).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('saved zero volume applies before the first gesture and music playback', async ({ page }) => {

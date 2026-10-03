@@ -152,7 +152,25 @@ Starfruit; dojos unlock at Levels 1/3/5 (0/560/1120 XP with 280 XP per level).
 Unlocks are automatic, cumulative and cosmetic; resolving ownership never
 mutates the profile. Existing version-2 and migrated unversioned profiles retain
 their counters and therefore their unlocks, without a second ownership ledger.
-Equipping/visual application remains separate upcoming work.
+Equipment uses a separate version-1 `saftladen.cosmetics.selection` save, leaving
+reward schema/version-2 counters unchanged. Each blade/dojo ID is validated
+against the catalog and earned totals on load/save; unknown or locked IDs fall
+back independently to Bamboo/Great Wave. Missing, malformed or blocked storage
+leaves usable starter equipment, and blocked saves retain in-session choices.
+
+React owns equip commands and previews (`ui/CosmeticCard.tsx`). The canvas
+controller reads the selected IDs as presentation preferences each frame without
+remounting the runtime or passing them into the engine. `render/cosmeticArt.ts`
+draws both previews and live artwork: cream/green, ice/violet and gold/ember
+trails; wood/waves, sunset harbor and moonlit temple backgrounds. Trail width,
+expiry, input geometry and scoring remain shared. Static canvas scenery adds no
+bitmap downloads or gameplay random calls. Reduced motion retains the selected
+appearance without introducing animations or flashes.
+
+Run settlement compares earned totals before/after to celebrate newly crossed
+milestones once. Results offer direct equip buttons, per-mode best, all objective
+progress, replay and a shortcut to the full equipment panel. Equipping never
+settles a run, spends currency, or automatically replaces an existing selection.
 
 Eligible runs last at least five seconds, score above zero and slice fruit.
 Base Starfruit is `floor(score / 70) + max(0, peakTimedStreak - 2)`, plus two

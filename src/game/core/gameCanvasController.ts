@@ -2,6 +2,7 @@ import type { GameEngine } from '../engine'
 import { createTrailTracker, isPointInsideCanvas } from '../input'
 import { createRenderer, type PointerTrailDebug } from '../render'
 import type { GamePresentationEvent, Vec2 } from '../types'
+import type { CosmeticSelection } from '../ui/cosmetics'
 import { resizeCanvasToDisplaySize } from './canvasStage'
 import { createGameLoop } from './gameLoop'
 import { canvasPointToWorld, createViewportTransform, getAdaptiveWorldBounds } from './viewport'
@@ -10,6 +11,7 @@ export type CanvasPreferences = {
   debugEnabled: boolean
   sliceSensitivity: number
   reducedMotion: boolean
+  cosmetics?: CosmeticSelection
 }
 
 /** Owns input, simulation and rendering; React only mounts this controller. */
@@ -152,6 +154,7 @@ export function mountGameCanvas(
       renderer.render(ctx, engine.getState(), frameInfo, {
         metrics,
         reducedMotion: preferences.reducedMotion,
+        cosmetics: preferences.cosmetics,
         presentationEvents: frameEvents,
         debug: {
           enabled: preferences.debugEnabled,
