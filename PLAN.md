@@ -2,7 +2,11 @@
 
 ## Start here
 
-**Next implementation:** remove dead simulation state/constants in **Phase 14.4**.
+**Next implementation:** add repository formatting configuration in **Phase 14.7**
+(`.editorconfig` and Prettier setup); license selection remains open.
+Phase 14.4 dead simulation cleanup is complete: fruit slicing uses entity removal,
+the unused fixed bomb penalty is gone, and new-run reset owns both RNG reseeds.
+Gameplay/effect replay, explicit seeds, scoring and lifecycle behavior are preserved.
 Phase 14.8 repository hygiene is complete: generated sources are untracked,
 duplicate/unused art and the stale draft are removed, and Phase 7's variant
 decision is recorded. Shipped-asset compression remains a separate measured task.
@@ -89,6 +93,10 @@ last. Completed tasks and the original review are archived below the backlog.
   callbacks; global keyboard handling has its own hook. App retains ordered
   audio/reward event handling, launch preparation, equipment and update gating.
   Dialog focus, live announcements and held-key suppression are preserved.
+- Simulation state omits the never-used fruit slice flag and fixed bomb penalty.
+  New-run reset reseeds both RNG streams with one state construction; replay
+  coverage includes real effects, pending input, accumulator reset and explicit
+  zero/large seeds. Arcade's existing half-score bomb deduction is unchanged.
 - Repository hygiene removes 6.65 MiB from the tracked tree: generated source art,
   duplicate/unused images, the Vite placeholder and stale draft. All 18 runtime
   images and app bundles remain byte-identical; only the unused public logo and
@@ -106,7 +114,7 @@ last. Completed tasks and the original review are archived below the backlog.
   announcements sit inside active dialogs. Saved audio, sensitivity and motion
   settings work across profile/pause/reload and actual practice swipes; one
   combined motion/flash control preserves readable feedback.
-- 186 Bun tests / 3,703 assertions; lint, typecheck and production build passed in the latest batch.
+- 188 Bun tests / 3,756 assertions; lint, typecheck and production build passed in the latest batch.
 - Twenty-eight permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
@@ -440,10 +448,17 @@ in the completion record below. Coordinate overlapping work with Phases 11,
       held-key state, capture-phase keyup, blur cleanup and interactive-target
       guards. Source comparison and all 186 unit tests / 28 production browser
       checks pass, along with lint, typechecking and build.
-- [ ] **Remove dead simulation state/constants:** `FruitEntity.sliced` (set,
-      read, never becomes true), `BOMB_ARCADE_SCORE_PENALTY` (defined, never
-      used — reconcile with the actual half-score penalty), the
-      `reseedRun`-then-`resetRunState` double-write (`gameEngine.ts:272-274`).
+- [x] **Remove dead simulation state/constants.** Removed `FruitEntity.sliced`,
+      its false initializer and candidate guard; the resolver already deletes
+      sliced fruit, and duplicate contacts still score once. Removed the unused
+      `BOMB_ARCADE_SCORE_PENALTY`; Arcade continues deducting `floor(score / 2)`.
+      Consolidated both RNG reseeds into `resetRunState`, avoiding writes to the
+      discarded state and redundant seed assignments after state construction.
+      Reset/restart preserve explicit seed handling, best score, viewport bounds,
+      scoring, IDs and event ordering. Replay checks now exercise actual halves/
+      particles, both RNG streams, queued input and accumulator clearing for
+      ordinary, zero and large seeds. All 188 unit tests and eight relevant
+      production browser checks pass, along with lint, typechecking and build.
 
 ### 14.5 Gameplay logic gaps
 
@@ -1041,6 +1056,28 @@ files are byte-identical. Only `vite.svg` is removed; the worker
 drops its precache entry (29 entries / 4085.13 KiB). All 18 gameplay images still
 decode offline. Shipped-asset optimization and physical QA remain open; dead
 simulation state/constants in Phase 14.4 are the next independent code task.
+
+**Nineteenth improvement batch (2026-10-03):** completed Phase 14.4 dead
+simulation cleanup. Removed the fruit slice flag and its unreachable guard;
+fruit deletion and ordered contact deduplication already prevent repeat scoring.
+Removed the unused fixed 25-point bomb constant while retaining Arcade's actual
+half-score deduction. Both RNG reseeds now live in the same helper as new-state
+construction, eliminating transient writes to the discarded run and redundant
+seed assignments. Mode switching still constructs its state without reseeding;
+starting/resetting preserve seed handling and event/run identity behavior.
+The engine guide records fresh-run reset guarantees. No assets, dependencies or
+gameplay tuning changed.
+
+Validation: all 188 Bun tests / 3,756 assertions, lint, application/tooling/browser
+typechecking and production build passed. Strengthened replay coverage includes
+real cuts/halves/particles, cosmetic and gameplay RNG, reset and direct restart,
+pending input/accumulated time, zero and greater-than-32-bit explicit seeds.
+Eight relevant production Chromium checks passed: all three modes' menu/pause/
+natural results/replay, portrait-to-landscape contact, a held-gesture fruit-group
+combo, both motion settings' bomb impact expiry and saved silent launch/music.
+Build precache: 29 entries / 4085.02 KiB. Repository formatting in Phase 14.7 is
+the next independent task; license selection, shipped-asset optimization and
+physical input/performance/listening/human balance QA remain open.
 
 </details>
 

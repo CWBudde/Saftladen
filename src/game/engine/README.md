@@ -8,6 +8,11 @@
   - Default behavior: `start()` reuses current seed for reproducible runs.
   - Pass `start({ seed })` or `reset({ seed })` to intentionally re-seed.
 
+Starting a fresh run or resetting reseeds both RNG streams and constructs the
+new state together. It clears queued input, gesture tracking, accumulated time
+and entity allocators while preserving viewport bounds, scoring configuration
+and the per-mode best. Pause/resume does not reset those streams.
+
 The engine is headless and can be advanced without canvas rendering via `advanceBy(...)` and `stepOnce(...)`.
 
 `getState()` and `subscribe` expose borrowed state references with shallow

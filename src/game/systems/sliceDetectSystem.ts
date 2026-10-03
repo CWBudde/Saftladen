@@ -13,7 +13,7 @@ type Contact = {
 function getSliceCandidates(state: GameState): SliceCandidate[] {
   return Object.values(state.world.entities).filter(
     (entity): entity is SliceCandidate =>
-      (entity.kind === 'fruit' && !entity.sliced) || entity.kind === 'bomb' || entity.kind === 'power-up',
+      entity.kind === 'fruit' || entity.kind === 'bomb' || entity.kind === 'power-up',
   )
 }
 

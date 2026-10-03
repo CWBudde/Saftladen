@@ -27,7 +27,6 @@ export type FruitEntity = BaseEntity & {
   kind: 'fruit'
   fruitType: FruitType
   color: string
-  sliced: boolean
 }
 
 export type FruitHalfEntity = BaseEntity & {

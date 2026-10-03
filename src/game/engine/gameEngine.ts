@@ -219,14 +219,9 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }
   }
 
-  const reseedRun = (seed: number) => {
+  const resetRunState = (seed: number) => {
     rng.reseed(seed)
     cosmeticRng.reseed(seed ^ 0x9e3779b9)
-    state.run.seed = rng.getSeed()
-    state.run.rngCalls = 0
-  }
-
-  const resetRunState = (seed: number) => {
     const bestScore = state.score.best
     state = createBaseState(
       state.mode,
@@ -237,7 +232,6 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       state.world.bounds,
       scoring,
     )
-    state.run.seed = seed
     accumulatorMs = 0
     lastAdvanceSteps = 0
     inputTrails = []
@@ -357,7 +351,6 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       state.world.bounds,
       scoring,
     )
-    state.run.seed = seed
     accumulatorMs = 0
     lastAdvanceSteps = 0
     inputTrails = []
@@ -374,7 +367,6 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }
 
     const seed = startOptions.seed ?? state.run.seed
-    reseedRun(seed)
     resetRunState(seed)
     state.run.id = `${engineIdentity}:${nextRunNumber++}`
     transition('start')
@@ -401,7 +393,6 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const reset = (resetOptions: ResetOptions = {}) => {
     const seed = resetOptions.seed ?? Date.now()
-    reseedRun(seed)
     resetRunState(seed)
     transition('reset')
     emit()

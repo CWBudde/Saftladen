@@ -12,7 +12,6 @@ export const ZEN_ROUND_DURATION_MS = 90000
 export const FREEZE_POWER_UP_DURATION_MS = 4500
 export const FRENZY_POWER_UP_DURATION_MS = 5200
 export const DOUBLE_POINTS_POWER_UP_DURATION_MS = 6500
-export const BOMB_ARCADE_SCORE_PENALTY = 25
 
 export const DEFAULT_SCORING: Readonly<ScoringConfig> = Object.freeze({
   baseFruitPoints: BASE_FRUIT_POINTS,

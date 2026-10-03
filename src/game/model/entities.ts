@@ -67,7 +67,6 @@ export function createFruitEntity(config: FruitConfig): FruitEntity {
     radius: config.radius,
     fruitType: config.fruitType,
     color: config.color,
-    sliced: false,
   }
 }
 
