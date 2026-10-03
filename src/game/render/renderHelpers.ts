@@ -41,10 +41,10 @@ export function collectRenderBuckets(
 
 export type SpriteScale = { widthPerRadius: number; heightPerRadius: number }
 
-/** Fit sprites without changing aspect ratio; preserve the existing art sizing. */
+/** Fit every sprite to the same visual diameter without changing aspect ratio. */
 export function getSpriteScale(width: number, height: number): SpriteScale {
   const aspect = Math.max(1, width) / Math.max(1, height)
-  const diameterScale = 2 * 1.15 * (Math.abs(aspect - 1) > 0.1 ? 1.2 : 1)
+  const diameterScale = 2 * 1.15
   return {
     widthPerRadius: aspect < 1 ? diameterScale * aspect : diameterScale,
     heightPerRadius: aspect > 1 ? diameterScale / aspect : diameterScale,

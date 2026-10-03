@@ -476,8 +476,8 @@ function drawScoreFeedbackLayer(
     ctx.globalAlpha = alpha
     ctx.fillStyle = event.amount < 0 ? '#fecaca' : '#ecfdf5'
     ctx.font = (event.strokeCombo ?? 0) >= 3
-      ? "800 22px 'Segoe UI', Tahoma, sans-serif"
-      : "800 19px 'Segoe UI', Tahoma, sans-serif"
+      ? "800 22px 'Trebuchet MS', 'Segoe UI', sans-serif"
+      : "800 19px 'Trebuchet MS', 'Segoe UI', sans-serif"
     ctx.textAlign = 'center'
     ctx.strokeStyle = '#1e0f0a'
     ctx.lineWidth = 3.5
@@ -486,7 +486,7 @@ function drawScoreFeedbackLayer(
     ctx.fillText(scoreLabel, x, y)
 
     if ((event.strokeCombo ?? 0) >= 3 || event.combo > 1) {
-      ctx.font = "800 13px 'Segoe UI', Tahoma, sans-serif"
+      ctx.font = "800 13px 'Trebuchet MS', 'Segoe UI', sans-serif"
       ctx.fillStyle = '#fde047'
       const label = (event.strokeCombo ?? 0) >= 3
         ? 'STROKE COMBO · ' + event.strokeCombo
@@ -594,6 +594,12 @@ export function createRenderer(): Renderer {
         preferredBackgroundImage,
         preferredBackgroundReady,
       )
+      // Shade the board behind the HUD; draw objects afterward to retain bright art.
+      const boardShade = ctx.createLinearGradient(0, 0, 0, Math.min(200, heightCssPx * 0.45))
+      boardShade.addColorStop(0, 'rgba(25, 16, 12, 0.88)')
+      boardShade.addColorStop(1, 'rgba(25, 16, 12, 0)')
+      ctx.fillStyle = boardShade
+      ctx.fillRect(0, 0, widthCssPx, heightCssPx)
       ctx.save()
       ctx.translate(viewport.offsetX, viewport.offsetY)
       drawDecalLayer(ctx, buckets.decals, scaleX, scaleY)

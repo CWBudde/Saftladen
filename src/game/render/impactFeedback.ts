@@ -91,7 +91,7 @@ export function createImpactFeedback() {
       if (impact.event.type === 'bomb-hit') {
         // Keep the penalty legible without animation, including zero-score hits.
         const label = impact.event.penalty > 0 ? 'BOMB · −' + impact.event.penalty : 'BOMB HIT'
-        ctx.font = "900 18px 'Segoe UI', Tahoma, sans-serif"
+        ctx.font = "900 18px 'Trebuchet MS', 'Segoe UI', sans-serif"
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         const labelWidth = Math.min(width - 16, ctx.measureText(label).width + 20)

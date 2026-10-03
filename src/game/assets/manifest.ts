@@ -16,12 +16,11 @@ import starfruitLeft from '../../assets/starfruit4.png'
 import starfruitRight from '../../assets/starfruit5.png'
 import bomb from '../../assets/bomb.png'
 import freeze from '../../assets/freeze-glyph.png'
-import title from '../../assets/title.png'
 
 const IMAGE_URLS = {
   background, appleWhole, appleCut, orangeWhole, orangeLeft, orangeRight,
   watermelonWhole, watermelonCut, pineappleWhole, pineappleLeft, pineappleRight,
-  bananaWhole, bananaCut, starfruitWhole, starfruitLeft, starfruitRight, bomb, freeze, title,
+  bananaWhole, bananaCut, starfruitWhole, starfruitLeft, starfruitRight, bomb, freeze,
 }
 
 export type ImageAssetKey = keyof typeof IMAGE_URLS

@@ -47,6 +47,6 @@ describe('sprite sizing', () => {
   test.each([[400, 400], [600, 300], [200, 500]])('preserves aspect ratio for a %i × %i sprite', (width, height) => {
     const scale = getSpriteScale(width, height)
     expect(scale.widthPerRadius / scale.heightPerRadius).toBeCloseTo(width / height)
-    expect(Math.max(scale.widthPerRadius, scale.heightPerRadius)).toBeCloseTo(width === height ? 2.3 : 2.76)
+    expect(Math.max(scale.widthPerRadius, scale.heightPerRadius)).toBeCloseTo(2.3)
   })
 })

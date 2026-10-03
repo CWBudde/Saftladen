@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import titleImage from './assets/title.png'
+import { SaftladenBrand } from './game/ui/SaftladenBrand'
 import appleModeImage from './assets/apple1.png'
 import arcadeModeImage from './assets/orange1.png'
 import zenModeImage from './assets/melon1.png'
@@ -288,7 +288,7 @@ function App() {
 
           {uiSnapshot.view === 'menu' ? (
             <section className="menu-home">
-              <img src={titleImage} className="menu-logo" alt="Saftladen" />
+              <SaftladenBrand />
 
               {!assetsReady ? (
                 <section className="asset-readiness" aria-label="Game artwork" aria-live="polite" aria-atomic="true">

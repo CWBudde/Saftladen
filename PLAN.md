@@ -2,10 +2,12 @@
 
 ## Start here
 
-**Next implementation:** unify visual identity in **Phase 16**.
-Layered action audio and variations are implemented; subjective listening QA
-remains pending, with a generated audition page available. Hit feedback includes contact-centered combo/bomb bursts
-and readable bomb penalties with reduced-motion support.
+**Next implementation:** define the currency policy in **Phase 18**, then build
+persistent equippable cosmetics.
+Phase 16 visual identity, layered action audio and variations are implemented.
+Subjective listening QA remains pending, with a generated audition page available.
+Hit feedback includes contact-centered combo/bomb bursts and readable bomb
+penalties with reduced-motion support.
 Onboarding includes safe practice, repeatable/skippable help
 and a foreground-only ready countdown. Phase 17 implements gesture combos, capped timed streaks,
 authored spawn patterns, hazard clearance, power-up policies and swept contact.
@@ -16,15 +18,14 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Unify presentation](#phase-16--signature-slice-feel-and-presentation-p1) | Onboarding, hit feedback and action audio implemented; visual identity and physical listening QA remain |
-| 2 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
-| 3 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
-| 4 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
-| 5 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
-| 6 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
+| 1 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
+| 2 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
+| 3 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
+| 4 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
+| 5 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
 
-Physical input calibration in **Phase 15** and device QA in **Phase 12** can run
-alongside implementation. Record device/browser evidence; pending device access
+Physical input calibration in **Phase 15**, listening QA in **Phase 16** and
+device QA in **Phase 12** can run alongside implementation. Record device/browser evidence; pending device access
 does not block unrelated code work. Add relevant regression coverage with each
 change rather than waiting until the final QA pass.
 
@@ -47,12 +48,15 @@ last. Completed tasks and the original review are archived below the backlog.
   including after game-over; reduced motion retains readable static text.
 - Layered cut/juice and explosion variations, capped combo pitch escalation,
   distinct activation/expiry chords, with a local listening page generator.
+- Citrus fruit-stall wordmark, shared typography/palette and controls, opaque readable
+  panels, shaded HUD backdrop and consistent aspect-preserving sprite scale.
 - 150 Bun tests / 2,834 assertions; lint, typecheck and production build passed in the latest batch.
-- Fifteen permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Sixteen permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
   combo bursts, real layered WAV decoding/headroom and bomb impact expiry
-  with reduced motion enabled/disabled.
+  with reduced motion enabled/disabled. Presentation checks cover shared fonts,
+  guide text contrast, 44px controls and portrait/landscape menu bounds.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -136,9 +140,18 @@ tests show fruit before bombs, and every mode has documented pressure budgets.
       retain 12% headroom; master mute, music ducking and disposal are preserved.
       Asset-local noise and round-robin variation never consume gameplay RNG.
       Automated signal/browser checks pass; subjective listening remains below.
-- [ ] **Unify presentation.** Consistent typography, button treatment, lighting,
+- [x] **Unify presentation.** Consistent typography, button treatment, lighting,
       and fruit scale; choose an original Saftladen identity and retain readable
       contrast against the wood background.
+      A semantic Saftladen wordmark and inline sliced-citrus emblem replace the
+      title bitmap. Cream/citrus/coral/leaf tokens, one UI/canvas font stack,
+      consistent raised controls and mode fruit cards form the fruit-stall identity.
+      Opaque panels and a board-header shade preserve wood-background readability.
+      Whole fruit/fragments/practice share the same aspect-preserving maximum
+      diameter; the old extra boost for non-square sprites is removed.
+      Browser checks verify 4.5:1 guide text contrast, font inheritance, 44px menu
+      targets and 320/390px portrait plus 844px landscape bounds. The required
+      image manifest now has 18 entries; precache is about 4075 KiB.
 - [ ] **Complete listening QA.** Generate `bun run audio:preview`, then listen
       on headphones and physical phone speakers. Check cut/juice separation,
       repetition fatigue, combo escalation, bomb clarity, activation/expiry
@@ -660,7 +673,7 @@ Historical findings below describe the build reviewed at the time. They are not
 a current defect list or a fresh rating; use the active backlog above for next work.
 
 <details>
-<summary>Original review and the seven improvement batches (2026-10-03)</summary>
+<summary>Original review and the eight improvement batches (2026-10-03)</summary>
 
 **Initial product review (2026-10-03, before the improvements below):**
 **4.5/10 as a Fruit Ninja clone.** Recognizable
@@ -835,6 +848,24 @@ checks observe real decoded cut/combo buffers and fresh-launch mute. The generat
 the default mix; its WAVs/page are ignored by Git. Subjective headphones/phone
 listening and in-game mix comfort remain unchecked. Visual identity is the next
 implementation task; physical input, human balance, performance and offline/update
+QA remain pending.
+
+
+**Eighth improvement batch (2026-10-03):** completed Phase 16 visual identity.
+The semantic wordmark and decorative sliced-citrus SVG are available before art
+loads. Shared warm palette/font tokens, raised controls, fruit mode cards and
+opaque dialogs establish a consistent Saftladen fruit-stall look. A board-header
+shade supports the HUD while objects remain bright. The renderer/practice use one
+aspect-preserving 2.3-radius maximum sprite dimension for every aspect ratio;
+collision geometry and simulation remain unchanged. Removing the title bitmap
+from required artwork reduces the production precache to about 4075 KiB.
+
+Validation: 150 Bun tests / 2,834 assertions, sixteen production browser checks,
+lint, application/browser/tooling typechecking and build. The new browser check
+measures guide contrast and font inheritance, verifies 44px menu controls and
+horizontal/vertical bounds at 320×568, 390×844 and 844×390, and saves screenshots
+for visual inspection. Phase 18 currency policy/equippable cosmetics are next;
+subjective listening, physical input, human balance, performance and offline/update
 QA remain pending.
 
 </details>

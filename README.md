@@ -190,7 +190,12 @@ bomb hits in every mode. Recent run IDs prevent duplicate payouts; versioned
 storage migrates existing profiles/preferences and validates fields independently.
 Cosmetics are currently unlock previews; equipping them remains on the roadmap.
 
-Before the first run, the menu loads and decodes the required gameplay and title
+Saftladen uses a citrus fruit-stall wordmark, cream/citrus/coral/leaf colors,
+matching UI/canvas typography and consistent controls. Opaque panels and a
+shaded board header keep text readable against the wood; sprites share one
+aspect-preserving visual diameter. The wordmark needs no image or web font.
+
+Before the first run, the menu loads and decodes the required gameplay
 artwork. Failed or timed-out images keep play disabled until you retry or choose
 **Play with simple artwork**. Successful images are retained during retries;
 music continues to load on demand.

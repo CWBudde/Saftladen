@@ -352,6 +352,49 @@ test('simple artwork fallback is an explicit choice after loading fails', async 
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
 })
 
+test('Saftladen identity stays readable and controls fit portrait and landscape', async ({ page }, testInfo) => {
+  await openGame(page)
+  await expect(page.getByRole('heading', { name: 'Saftladen.', exact: true })).toBeVisible()
+  const appearance = await page.locator('.mode-guide').evaluate((guide) => {
+    const style = getComputedStyle(guide)
+    const luminance = (color: string) => {
+      const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
+        const s = value / 255
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+      })
+      return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+    }
+    const background = luminance(style.backgroundColor)
+    const contrast = (color: string) => {
+      const foreground = luminance(color)
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+    }
+    return {
+      contrast: [contrast(style.color), contrast(getComputedStyle(guide.querySelector('.slice-guide')!).color),
+        contrast(getComputedStyle(guide.querySelector('strong')!).color)],
+      font: style.fontFamily,
+      buttonFont: getComputedStyle(document.querySelector('.profile-button')!).fontFamily,
+    }
+  })
+  expect(appearance.contrast.every(ratio => ratio >= 4.5)).toBe(true)
+  expect(appearance.buttonFont).toBe(appearance.font)
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport)
+    await advance(page, 32)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
+    const brand = await page.locator('.menu-logo').boundingBox()
+    expect(brand && brand.x >= 0 && brand.x + brand.width <= viewport.width).toBe(true)
+    for (const name of ['Classic', 'Arcade', 'Zen', 'How to play', 'Profile & Rewards']) {
+      const control = page.getByRole('button', { name, exact: true })
+      await control.scrollIntoViewIfNeeded()
+      const box = await control.boundingBox()
+      expect(box && box.width >= 44 && box.height >= 44 && box.x >= 0 &&
+        box.x + box.width <= viewport.width && box.y >= 0 && box.y + box.height <= viewport.height).toBe(true)
+    }
+    await page.screenshot({ path: testInfo.outputPath(`menu-${viewport.width}.png`) })
+  }
+})
+
 async function practiceGesture(page: Page, gesture: 'stationary' | 'miss' | 'slice') {
   const canvas = page.getByLabel('Practice slicing canvas', { exact: true })
   await canvas.scrollIntoViewIfNeeded()

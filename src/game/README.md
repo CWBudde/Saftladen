@@ -130,8 +130,16 @@ positions survive rotation. These effects consume no RNG and change no simulatio
 state, timers or input mapping. Reduced motion suppresses rings/flash while
 retaining static bomb labels and the existing score/combo text.
 
-The asset manifest references the actual imported sprite/background/title URLs.
+The asset manifest references the actual imported sprite/background URLs.
 A shared loader owns decoded images, progress and retry state independently of
 React mounts. The menu gates run starts until decoding succeeds or the player
 explicitly chooses simple artwork after a failure. The renderer consumes this
 same decoded cache rather than starting a second set of image requests.
+
+The presentation palette and font stack live in `src/index.css`; controls inherit
+that font, and canvas score/impact text uses the same stack. `SaftladenBrand` is
+semantic text with a decorative inline citrus SVG, so branding is available
+before image decoding. Panel surfaces are opaque; a board-header gradient is
+drawn behind objects for HUD contrast. `getSpriteScale` gives whole fruit,
+fragments, bombs and practice art the same 2.3-radius maximum dimension while
+preserving aspect ratio. Presentation sizing does not change collision radii.
