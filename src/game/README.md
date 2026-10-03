@@ -36,7 +36,9 @@ Phase 0 exposes `isGameDebugEnabled()` in `src/game/debug.ts` as the shared chec
 `core/gameCanvasController.ts` owns pointer listeners, cached canvas metrics,
 the frame loop, and rendering. `GameCanvasLayer` only mounts and disposes it.
 Fresh raw pointer segments queue before simulation and are consumed once on the
-next fixed step. The visual trail has its own 150ms fade and cannot cause cuts.
+next fixed step. Each pointer-down allocates a new stroke ID; movement chunks
+retain it across fixed steps, and release sends an end marker even if the last
+movement was already consumed. The visual trail has its own 150ms fade and cannot cause cuts.
 Pointer-up preserves pending movement; cancellation, phase changes, resize, and
 backgrounding clear input. Sensitivity changes the movement threshold (120 world
 units/second, converted through the viewport scale and divided by sensitivity).
@@ -56,6 +58,29 @@ publishes frozen, ordered event batches once per command/advance, preserving
 slice, miss, bomb, power-up activation/expiry and run-end events across catch-up
 steps. Audio and rewards consume these payloads; `App` does not read simulation
 world fields. Run-end includes a unique run ID and copied authoritative counters.
+
+`score.combo` remains the legacy field name for timed streak hits;
+`score.strokeCombo` counts fruit in the latest moving gesture, and
+`score.streakMultiplier` holds the capped fruit multiplier. Three fruit in one
+stroke earn a bonus; additional fruit award incremental bonuses. `stroke-combo`
+events drive audio and announcements. Stats distinguish moving gestures,
+fruit-hitting gestures and peak stroke combos. Scoring configuration is supplied
+through `createGameEngine({ scoring: ... })` and survives run/mode resets.
+
+Physics captures sliceable centers before movement only when fresh input exists.
+Collision checks the swept circle capsule between the old and new centers, so
+a swipe through the last rendered fruit remains valid. This is conservative
+within one simulation tick: input and simulation clocks are not synchronized to
+infer exact simultaneous contact. No historical visual trail is reused. Contacts
+resolve by input timestamp, stroke/pointer IDs, segment fraction and entity ID;
+entity-map insertion order cannot reorder a bomb and fruit. Feedback begins at
+the earliest blade surface contact.
+
+The authored spawn director derives its rhythm from mode progress and wave count.
+Hazard budgets include active and queued bombs, with conservative ballistic
+envelopes separating hazard and fruit lanes. Debug rendering shows these boxes
+and the upcoming pattern. See [systems rules](systems/README.md) for pressure and
+power-up policies.
 
 Spawn randomness and cosmetic randomness use separate seeded streams. Engines
 allocate gameplay IDs locally; effects use a separate negative-ID sequence.

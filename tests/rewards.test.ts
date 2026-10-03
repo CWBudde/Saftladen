@@ -7,7 +7,7 @@ import {
 function summary(patch: Partial<RunSummary> = {}): RunSummary {
   return {
     runId: 'session-a:1', mode: 'arcade', score: 140, durationMs: 60000,
-    stats: { fruitSliced: 10, missedFruits: 0, bombHits: 0, peakCombo: 3 },
+    stats: { fruitSliced: 10, missedFruits: 0, bombHits: 0, peakCombo: 3, strokesAttempted: 5, successfulStrokes: 4, peakStrokeCombo: 3 },
     ...patch,
   }
 }
@@ -26,8 +26,8 @@ describe('rewards reflect actual play', () => {
   })
 
   test.each([
-    { score: 0, stats: { fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0 } },
-    { score: 100, stats: { fruitSliced: 0, missedFruits: 0, bombHits: 1, peakCombo: 0 } },
+    { score: 0, stats: { fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0, strokesAttempted: 5, successfulStrokes: 0, peakStrokeCombo: 0 } },
+    { score: 100, stats: { fruitSliced: 0, missedFruits: 0, bombHits: 1, peakCombo: 0, strokesAttempted: 5, successfulStrokes: 0, peakStrokeCombo: 0 } },
     { durationMs: MIN_REWARDED_RUN_DURATION_MS - 1 },
   ])('empty, power-up-only and instant-loss runs earn nothing: %j', (patch) => {
     const initial = createDefaultRewardProfile()
@@ -87,7 +87,7 @@ describe('reward settlement is idempotent', () => {
     for (let index = 0; index < 8; index++) {
       const result = applyRunRewards(profile, summary({
         runId: `objectives:${index}`, score: 350,
-        stats: { fruitSliced: 12, missedFruits: 1, bombHits: 0, peakCombo: 6 },
+        stats: { fruitSliced: 12, missedFruits: 1, bombHits: 0, peakCombo: 6, strokesAttempted: 5, successfulStrokes: 4, peakStrokeCombo: 3 },
       }))
       profile = result.profile
       completed.push(...result.rewards.objectiveCompletions)

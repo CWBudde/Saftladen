@@ -153,6 +153,7 @@
 
 .result-stats dt { font-size: 0.75rem; color: #f5d8aa; }
 .result-stats dd { margin: 4px 0 0; font-size: 1.5rem; font-weight: 800; }
+.result-stats dd small { display: block; font-size: 0.85rem; font-weight: 600; }
 
 .menu-home {
   pointer-events: auto;

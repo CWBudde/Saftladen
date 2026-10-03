@@ -2,21 +2,21 @@
 
 ## Start here
 
-**Next implementation:** separate same-stroke combos from timed streaks in
-**Phase 17**. Viewport geometry, decoded artwork readiness and the existing-mode
-browser baseline are implemented; build stroke IDs and deterministic scoring on
-that foundation before adding combo presentation or expanded results.
+**Next implementation:** onboarding and the remaining slice/audio polish in
+**Phase 16**. Phase 17 now implements gesture combos, capped timed streaks,
+authored spawn patterns, hazard clearance, power-up policies and swept contact.
+Human playtests are still needed to tune pressure and rewards from run statistics.
 
 Use this execution queue; phase numbers remain stable reference IDs and do not
 represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Same-stroke scoring and fair spawn patterns](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Deterministic scoring, stroke IDs, hazard clearance and power-up rules |
-| 2 | [Onboarding and remaining slice/audio polish](#phase-16--signature-slice-feel-and-presentation-p1) | Decoded assets available; scoring rules from Phase 17 before combo feedback |
-| 3 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke stats before expanded results |
-| 4 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
-| 5 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Add new scoring/equip cases as implemented; offline/update and physical-device checks remain |
+| 1 | [Onboarding and remaining slice/audio polish](#phase-16--signature-slice-feel-and-presentation-p1) | Scoring and decoded artwork available; add practice/countdown and listening QA |
+| 2 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
+| 3 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
+| 4 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
+| 5 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
 | 6 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
 
 Physical input calibration in **Phase 15** and device QA in **Phase 12** can run
@@ -36,9 +36,11 @@ last. Completed tasks and the original review are archived below the backlog.
 - Run statistics, validated saved data and exactly-once settlement for recent run IDs.
 - Adaptive playfield with a uniform input/render scale and safe live/pending resize.
 - Decoded artwork loading, retry and explicit simple-artwork fallback before first run.
-- 90 Bun tests / 2,446 assertions; lint, typecheck and production build passed in the latest batch.
-- Eight permanent Playwright checks passed for existing modes, viewport contact,
-  keyboard/settings flows, muted launch and artwork retry/fallback; CI now runs them.
+- Gesture combos, capped timed streaks, authored spawn rhythms and safe hazard lanes.
+- Swept moving-fruit contact, independent pickup clocks and explicit Frenzy bomb retirement.
+- 134 Bun tests / 2,652 assertions; lint, typecheck and production build passed in the latest batch.
+- Nine permanent Playwright checks cover existing modes, horizontal viewport contact,
+  held-gesture combos/results, keyboard/settings, muted launch and artwork retry/fallback.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -47,35 +49,39 @@ through RAF and a fixed timestep. Keep Canvas2D; measure before considering WebG
 
 ## Phase 17 — Skill, Fairness, and Mode Depth (P1 / P2)
 
-- [ ] **Separate same-stroke combos from timed streaks.** Introduce stroke IDs,
-      configurable bonuses for cutting three-plus fruit in one gesture, and a
-      separately capped streak multiplier. Current `10 × nextCombo` per fruit
-      rewards a 320ms time chain with quadratic growth; label each mechanic
-      clearly and make scoring independent of candidate enumeration order.
-- [ ] **Clarify power-up rules and stacking.** Explicit duration/refresh policy,
-      Freeze clock semantics, and queued/existing bomb behavior during Frenzy.
-      Start/expiry events already exist; document and test refresh/stacking policy.
-      Readable tints/audio must not mask hazards.
-- [ ] **Build a spawn director.** Author fans, ladders, alternating-side
-      launches, grouped combo windows, and recovery beats. Give Classic a
-      survival ramp, Arcade a timed crescendo, and Zen a relaxed rhythm.
-- [ ] **Guarantee a fair opening.** Start with fruit-only teaching waves;
-      the original review found bomb-only first waves. Add hazard budgets
-      and trajectory clearance so intended fruit groups have a readable safe
-      cut route; expose debug envelopes and test representative seeds.
-      First three Classic waves are now fruit-only, verified over 100 seeds;
-      broader hazard budgets and clearance remain.
-- [ ] **Evaluate moving-fruit contact between fixed steps.** Collision currently
-      checks after physics against the fruit's updated circle. The browser probe
-      observed an ascending fruit moving about 28 CSS pixels in 32ms with a
-      roughly 14.5-pixel sprite radius; a horizontal swipe through its previous
-      drawn center can miss. Add swept-motion regressions and evaluate continuous
-      contact detection while preserving deterministic scoring and bomb order.
-- [ ] **Balance with run statistics.** Record fruit sliced/missed, bomb hits,
-      stroke accuracy, peak same-stroke combo, streak, and per-mode scores;
-      use measured playtests to tune wave pressure, duration, and reward rates.
-      Authoritative fruit/miss/bomb/peak-streak counters and results are implemented;
-      stroke accuracy and measured balancing remain.
+- [x] **Separate same-stroke combos from timed streaks.** Pointer-down IDs survive
+      input chunks and close on release/cancellation. Three fruit earn 15 bonus
+      points, then 5 per additional fruit; separate gestures cannot share bonuses.
+      The 320ms timed streak raises the multiplier by 0.25 every five hits after
+      the first, capped at ×2. Engine options configure validated defaults; HUD,
+      results, feedback and audio distinguish the mechanics. Contact ordering is
+      independent of entity-map and input-array enumeration.
+- [x] **Clarify power-up rules and stacking.** Independent fixed-duration refresh;
+      Freeze slows physics/FX aging while round, spawn and pickup clocks continue.
+      Frenzy retires existing/queued bombs and suppresses future hazards. Double
+      Points applies immediately to subsequent ordered hits and stroke bonuses.
+      Policies and exact budgets are documented in `src/game/systems/README.md`.
+- [x] **Build a spawn director.** Fans, ladders, alternating launches, grouped
+      combo windows and recovery beats follow a deterministic six-beat rhythm.
+      Classic ramps survival pressure, Arcade builds a timed crescendo, and Zen
+      uses a relaxed cadence; active/pending entity budgets bound pressure.
+- [x] **Guarantee a fair opening.** Every mode starts with three fruit-only solo
+      waves. Active/queued bomb budgets and conservative trajectory envelopes
+      protect a safe fruit corridor. Debug shows envelopes and the next pattern;
+      representative seed and portrait/landscape tests cover openings and clearance.
+- [x] **Evaluate moving-fruit contact between fixed steps.** Fresh blade segments
+      now hit the swept circle capsule from the pre-physics to post-physics pose.
+      This conservatively accepts contact anywhere within one fixed tick, without
+      reusing old visual trails. Geometry, stale/stationary input, contact ownership
+      and Classic bomb ordering have regressions; browser contact uses a horizontal
+      swipe through the previous rendered center before and after rotation.
+- [x] **Record authoritative balancing statistics.** Results now include moving
+      stroke attempts, fruit-hitting strokes, accuracy and peak stroke combo;
+      fruit/miss/bomb counters, peak timed streak and per-mode best remain.
+- [ ] **Tune from measured human playtests.** Record per-mode scores, accuracy,
+      survival and reward rates on mouse/touch devices, then adjust director
+      pressure, duration and rewards. Seeded pressure checks establish repeatable
+      automated baselines; they do not establish human difficulty or reward balance.
 
 **Acceptance:** same seed/mode gives the intended repeatable spawn schedule
 independent of cosmetic random calls and FX quality. Separate swipes cannot
@@ -95,7 +101,8 @@ tests show fruit before bombs, and every mode has documented pressure budgets.
       and strong bomb punctuation. Effects must preserve mode timer rules and
       honor reduced-motion/flash preferences (Phases 11/14.4).
       Larger outlined score/combo feedback and motion/flash suppression are done;
-      same-stroke scoring and optional extra punctuation remain.
+      stroke-bonus labels and event-driven combo cues are now implemented;
+      optional extra punctuation remains.
 - [ ] **Design action audio.** Layer swipe/cut/splatter sounds with a few
       variations; add combo escalation, bomb explosion, music ducking, and
       separate power-up activation/expiry cues. Cap simultaneous voices.
@@ -123,7 +130,7 @@ and mode goal. Reduced-motion play retains clear feedback without shake/flash.
 - [ ] **Improve results.** Show per-mode personal best, fruit/miss/bomb counts,
       best stroke combo, objective progress, and a clear replay/equip next action.
       Fruit/miss/bomb counts, peak timed streak, per-mode best and reward status
-      are implemented; same-stroke statistics and equip actions remain.
+      and best stroke/accuracy are implemented; equip actions remain.
 - [ ] **Extend goals beyond the three static objectives.** Add mode-specific
       achievements, a rotating small challenge set, and useful next-goal prompts
       without punishing missed days.
@@ -157,15 +164,15 @@ independent of gameplay RNG and validate scoring/spawns at every quality tier.
 ## Phase 19 — Mobile, Performance, and Release Confidence (P1 / P2)
 
 The first pass implements viewport geometry, asset readiness and a browser
-baseline for existing modes. Extend scoring tests after Phase 17 and equip-flow
+baseline for existing modes. Phase 17 adds scoring/contact smoke; extend equip-flow
 smoke after Phase 18. Device measurements and final release checks remain shared work;
 completing the entire phase is not a prerequisite for starting Phase 17.
 
 - [ ] **Extend browser smoke coverage as new features land.** The production
       suite covers menu → each mode → pause/resume → natural completion/results/
       replay, portrait/landscape fruit contact, profile focus/settings/scroll,
-      fresh muted launch and artwork retry/fallback. Add same-stroke scoring
-      after Phase 17 and profile equip after Phase 18. Physical iOS/Android
+      fresh muted launch, artwork retry/fallback, held-gesture combos, stroke
+      results and horizontal moving-fruit contact. Add profile equip after Phase 18. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
 - [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
@@ -173,7 +180,8 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       Implemented input/lifecycle/contact/persistence/audio/controller regressions
       with Bun's built-in runner, including migrations, reward settlement,
       cosmetic RNG/ID independence, event delivery and renderer regressions.
-      Same-stroke scoring/stacking tests remain. Vitest/RTL are optional later tooling.
+      Same-stroke scoring, canonical contact ordering and stacking/pressure tests
+      are now implemented. Vitest/RTL are optional later tooling.
 - [ ] **Complete accessible settings/flows** using Phase 14.6: dialog focus
       move/restore, inert closed panels, discrete live announcements, menu/pause
       settings, functioning sensitivity, OS reduced-motion defaults, and
@@ -242,9 +250,10 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 
 ### 14.5 Gameplay logic gaps
 
-- [ ] **Clarify the two "freeze" concepts** with the Phase 17 power-up rules:
+- [x] **Clarify the two "freeze" concepts** with the Phase 17 power-up rules:
       global `TimeScalePreset.freeze` stops simulation, while the Arcade pickup
-      slows entity motion/aging. Decide and document timer/spawn behavior there.
+      slows entity motion/aging while round/spawn/pickup clocks continue.
+      Documented and tested with refresh/stacking rules in the systems README.
 
 ### 14.7 Tooling / CI / Deploy
 
@@ -265,7 +274,7 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4341 KiB.
+      precache was 8174.48 KiB; the latest improvement build is about 4349 KiB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
       artifacts).
 
@@ -290,13 +299,13 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
 
 ## Phase 12 — Testing / QA
 
-- [ ] Extend Bun unit coverage (Vitest is optional)
-  - [ ] Segment-vs-circle intersection edge cases
-  - [ ] Combo scoring tests
-  - [ ] Spawn bounds tests
-  - [ ] Time scaling tests (freeze)
-- [ ] Extend the Phase 19 browser suite for new scoring/equip features;
-      existing menu, pause/resume and settings flows are automated with Playwright.
+- [x] Extend Bun unit coverage (Vitest is optional)
+  - [x] Segment-vs-circle/capsule intersection edge cases
+  - [x] Stroke combo and capped timed-streak scoring tests
+  - [x] Spawn bounds, hazard clearance and pressure-budget tests
+  - [x] Time scaling tests (global freeze and pickup clock/stacking rules)
+- [ ] Extend the Phase 19 browser suite for equip features;
+      menu, pause/resume, settings, moving contact and gesture scoring are automated.
 - [ ] Manual QA checklist
   - [ ] Mobile Safari: touch trails, no scroll conflicts
   - [ ] Multi-touch: two independent trails
@@ -612,7 +621,7 @@ Historical findings below describe the build reviewed at the time. They are not
 a current defect list or a fresh rating; use the active backlog above for next work.
 
 <details>
-<summary>Original review and the three improvement batches (2026-10-03)</summary>
+<summary>Original review and the four improvement batches (2026-10-03)</summary>
 
 **Initial product review (2026-10-03, before the improvements below):**
 **4.5/10 as a Fruit Ninja clone.** Recognizable
@@ -700,5 +709,33 @@ suite and targeted reruns after test-clock fixes. The unit suite has 90 tests /
 2,446 assertions;
 same-stroke scoring is now next. Physical touch, listening, device frame times
 and interrupted/offline service-worker updates remain open.
+
+**Fourth improvement batch (2026-10-03):** three implementation subagents
+delivered Phase 17 gesture scoring, the spawn/power-up director and swept collision;
+an independent review checked lifecycle and ordering. Pointer-down IDs persist
+across movement chunks and close on release/cancellation. Three fruit in one
+stroke earn a configurable bonus; separately capped timed streaks replace the
+previous quadratic points. Ordered contacts, immediate Double Points and causal
+Frenzy/bomb behavior are tested independently of candidate enumeration. HUD,
+results, canvas labels, audio and announcements distinguish stroke combos and
+streaks; results include stroke accuracy and peak gesture size.
+
+Every mode opens with three safe solo fruit, then follows a six-beat pattern
+with fans, ladders, alternating throws, combo groups and recovery. Active/queued
+fruit and bomb budgets, whole-group admission and conservative trajectory lanes
+bound pressure; debug displays envelopes and the upcoming pattern. Seeded
+60-second simulations across 30 seeds, three layouts and every mode found zero
+clearance/budget violations; documented mean launches were 118 Classic, 259.5
+Arcade and 74 Zen fruit. These are automated pressure measurements, not human
+difficulty or reward validation. Power-up refresh, independent clocks and
+existing/queued Frenzy bomb retirement are documented and tested.
+
+Fresh horizontal swipes now hit the swept pre/post-physics fruit capsule, while
+stationary pointers and historical visuals cannot cut. The production browser
+suite adds a held-gesture fruit group, combo/accuracy results and horizontal
+contact before/after rotation. Validation: 134 Bun tests / 2,652 assertions, nine
+browser checks, lint, application/browser typechecking and production build.
+Phase 16 onboarding/presentation is next; Phase 17 human balance tuning remains
+unchecked alongside physical input, listening, performance and offline/update QA.
 
 </details>

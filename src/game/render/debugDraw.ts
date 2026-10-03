@@ -1,6 +1,34 @@
 import type { FrameInfo } from '../core/gameLoop'
 import type { RenderContext } from './renderer'
-import type { Vec2 } from '../types'
+import type { GameState, Vec2 } from '../types'
+import type { ViewportTransform } from '../core/viewport'
+import { getSpawnWavePlan, getTrajectoryEnvelope } from '../systems/spawnDirector'
+
+export function drawSpawnEnvelopes(
+  ctx: CanvasRenderingContext2D, state: Readonly<GameState>, viewport: ViewportTransform,
+): void {
+  ctx.save()
+  ctx.lineWidth = 1
+  ctx.setLineDash([5, 4])
+  const entities = [...Object.values(state.world.entities), ...state.world.spawn.pending.map((entry) => entry.entity)]
+  for (const entity of entities) {
+    if (entity.kind !== 'fruit' && entity.kind !== 'bomb' && entity.kind !== 'power-up') continue
+    const envelope = getTrajectoryEnvelope(entity, state.world.bounds)
+    ctx.strokeStyle = entity.kind === 'bomb' ? 'rgba(255, 90, 90, 0.7)' : 'rgba(80, 240, 150, 0.3)'
+    ctx.strokeRect(
+      viewport.offsetX + envelope.minX * viewport.scale,
+      viewport.offsetY + envelope.minY * viewport.scale,
+      (envelope.maxX - envelope.minX) * viewport.scale,
+      (envelope.maxY - envelope.minY) * viewport.scale,
+    )
+  }
+  ctx.setLineDash([])
+  const plan = getSpawnWavePlan(state)
+  ctx.fillStyle = '#b7f7c9'
+  ctx.font = "400 12px 'Segoe UI', Tahoma, sans-serif"
+  ctx.fillText(`Next wave: ${plan.pattern} · ${plan.fruitCount} fruit · budgets ${plan.fruitBudget} fruit / ${plan.hazardBudget} bombs`, 24, 130)
+  ctx.restore()
+}
 
 function drawTextLine(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
   ctx.fillText(text, x, y)

@@ -76,10 +76,15 @@ export type SliceTrailPoint = Vec2 & {
 
 export type SliceTrail = {
   pointerId: number
+  /** A fresh ID for each pointer down, retained across fixed steps. */
+  strokeId?: number
+  /** Release marker; may contain no points after movement was already drained. */
+  ended?: boolean
   points: SliceTrailPoint[]
 }
 
 export type SliceEvent = {
+  strokeId?: number
   entityId: EntityId
   pointerId: number
   atMs: number
@@ -88,6 +93,7 @@ export type SliceEvent = {
 }
 
 export type ScoreFeedbackEvent = {
+  strokeCombo?: number
   id: number
   amount: number
   combo: number
@@ -111,7 +117,31 @@ export type GameSettings = {
   timeScale: TimeScale
 }
 
+export type ScoringConfig = {
+  baseFruitPoints: number
+  strokeComboMinimum: number
+  strokeComboBonus: number
+  strokeComboExtraFruitBonus: number
+  streakFruitInterval: number
+  streakMultiplierStep: number
+  maxStreakMultiplier: number
+  streakWindowMs: number
+}
+
+export type StrokeScore = {
+  pointerId: number
+  fruitCount: number
+  bonusAwarded: number
+  blocked: boolean
+}
+
 export type GameScore = {
+  /** Legacy combo field is the timed streak count, never a gesture combo. */
+  streakMultiplier: number
+  strokeCombo: number
+  scoring: ScoringConfig
+  strokes: Record<number, StrokeScore>
+
   current: number
   combo: number
   best: number
@@ -167,6 +197,10 @@ export type RunState = {
 }
 
 export type RunStats = {
+  strokesAttempted: number
+  successfulStrokes: number
+  peakStrokeCombo: number
+
   fruitSliced: number
   missedFruits: number
   bombHits: number
@@ -175,7 +209,8 @@ export type RunStats = {
 
 export type PresentationEventPayload = { atMs: number } & (
   | { type: 'run-start'; mode: GameMode; seed: number }
-  | { type: 'fruit-slice'; entityId: EntityId; fruitType: FruitType; position: Readonly<Vec2>; direction: Readonly<Vec2>; points: number; combo: number }
+  | { type: 'stroke-combo'; strokeId: number; fruitCount: number; bonus: number; position: Readonly<Vec2> }
+  | { type: 'fruit-slice'; strokeId?: number; strokeCombo?: number; streakMultiplier?: number; entityId: EntityId; fruitType: FruitType; position: Readonly<Vec2>; direction: Readonly<Vec2>; points: number; combo: number }
   | { type: 'fruit-miss'; entityId: EntityId; position: Readonly<Vec2> }
   | { type: 'bomb-hit'; entityId: EntityId; position: Readonly<Vec2>; penalty: number }
   | { type: 'power-up-activated'; powerUp: PowerUpType; position: Readonly<Vec2>; durationMs: number }

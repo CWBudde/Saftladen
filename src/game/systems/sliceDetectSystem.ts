@@ -1,7 +1,14 @@
-import type { BombEntity, FruitEntity, GameState, PowerUpEntity, SliceTrail } from '../types'
-import { closestPointOnSegment, segmentIntersectsCircle, segmentMayHitCircleByAabb } from './collision'
+import type { BombEntity, FruitEntity, GameState, PowerUpEntity, SliceEvent, SliceTrail, Vec2 } from '../types'
+import { segmentCapsuleHitFraction, segmentMayHitSweptCircleByAabb } from './collision'
 
 type SliceCandidate = FruitEntity | BombEntity | PowerUpEntity
+
+type Contact = {
+  event: SliceEvent
+  segmentStartMs: number
+  segmentIndex: number
+  fraction: number
+}
 
 function getSliceCandidates(state: GameState): SliceCandidate[] {
   return Object.values(state.world.entities).filter(
@@ -10,55 +17,66 @@ function getSliceCandidates(state: GameState): SliceCandidate[] {
   )
 }
 
-export function detectSliceEvents(state: GameState, trails: SliceTrail[]): void {
+/**
+ * Only freshly queued, moving blade segments can cut. The optional swept centers
+ * cover one physics tick, so the fruit's last visible pose remains hittable even
+ * if physics moved it before input was consumed. A visual trail is never reused.
+ */
+export function detectSliceEvents(
+  state: GameState, trails: SliceTrail[], previousPositions?: ReadonlyMap<string, Vec2>,
+): void {
   const queue = state.world.sliceEvents
   queue.length = 0
+  const candidates = getSliceCandidates(state)
+  if (candidates.length === 0 || trails.length === 0) return
+  const contacts: Contact[] = []
 
-  const fruits = getSliceCandidates(state)
-  if (fruits.length === 0 || trails.length === 0) {
-    return
-  }
-
-  const queuedFruitIds = new Set<string>()
-
-  trails.forEach((trail) => {
-    if (trail.points.length < 2) {
-      return
-    }
-
-    for (let pointIndex = 1; pointIndex < trail.points.length; pointIndex += 1) {
+  for (const trail of trails) {
+    for (let pointIndex = 1; pointIndex < trail.points.length; pointIndex++) {
       const start = trail.points[pointIndex - 1]
       const end = trail.points[pointIndex]
-      if (start.x === end.x && start.y === end.y) continue
+      const dx = end.x - start.x
+      const dy = end.y - start.y
+      const length = Math.hypot(dx, dy)
+      if (length === 0) continue
 
-      for (const fruit of fruits) {
-        if (queuedFruitIds.has(fruit.id)) {
-          continue
-        }
-
-        if (!segmentMayHitCircleByAabb(start, end, fruit.position, fruit.radius)) {
-          continue
-        }
-
-        if (!segmentIntersectsCircle(start, end, fruit.position, fruit.radius)) {
-          continue
-        }
-
-        queuedFruitIds.add(fruit.id)
-        queue.push({
-          entityId: fruit.id,
-          pointerId: trail.pointerId,
-          atMs: end.tMs,
-          hitPosition: closestPointOnSegment(start, end, fruit.position),
-          direction: {
-            x: (end.x - start.x) / Math.hypot(end.x - start.x, end.y - start.y),
-            y: (end.y - start.y) / Math.hypot(end.x - start.x, end.y - start.y),
+      for (const entity of candidates) {
+        const previous = previousPositions?.get(entity.id) ?? entity.position
+        if (!segmentMayHitSweptCircleByAabb(start, end, previous, entity.position, entity.radius)) continue
+        const fraction = segmentCapsuleHitFraction(start, end, previous, entity.position, entity.radius)
+        if (fraction === null) continue
+        contacts.push({
+          event: {
+            entityId: entity.id,
+            pointerId: trail.pointerId,
+            strokeId: trail.strokeId,
+            atMs: start.tMs + (end.tMs - start.tMs) * fraction,
+            hitPosition: { x: start.x + dx * fraction, y: start.y + dy * fraction },
+            direction: { x: dx / length, y: dy / length },
           },
+          segmentStartMs: start.tMs,
+          segmentIndex: pointIndex,
+          fraction,
         })
-
-        // One fruit can only be scored once. If multiple pointers overlap on the same step,
-        // first hit wins deterministically by trail iteration order.
       }
     }
-  })
+  }
+
+  // Resolve in physical contact order, never entity-map or pointer-array order.
+  // Stable gesture/entity IDs break exact ties, including overlapping bombs.
+  contacts.sort((a, b) =>
+    a.event.atMs - b.event.atMs ||
+    (a.event.strokeId ?? a.event.pointerId) - (b.event.strokeId ?? b.event.pointerId) ||
+    a.event.pointerId - b.event.pointerId ||
+    a.segmentStartMs - b.segmentStartMs ||
+    a.segmentIndex - b.segmentIndex ||
+    a.fraction - b.fraction ||
+    (a.event.entityId < b.event.entityId ? -1 : a.event.entityId > b.event.entityId ? 1 : 0),
+  )
+  const queuedIds = new Set<string>()
+  for (const { event } of contacts) {
+    if (queuedIds.has(event.entityId)) continue
+    queuedIds.add(event.entityId)
+    queue.push(event)
+  }
 }

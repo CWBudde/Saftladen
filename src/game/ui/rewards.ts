@@ -58,7 +58,7 @@ const OBJECTIVE_TEMPLATES: ObjectiveTemplate[] = [
   {
     id: 'combo',
     title: 'Streak Student',
-    description: 'Reach streak x6',
+    description: 'Chain 6 fruit hits within 320ms of each other',
     target: 6,
     metric: 'max-combo',
     rewardXp: 120,

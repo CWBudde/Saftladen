@@ -85,7 +85,7 @@ describe('reward profile migrations', () => {
   test('settlement survives a page reload and cannot pay the same run twice', () => {
     const run = {
       runId: 'reload-safe:7', mode: 'zen' as const, score: 100, durationMs: 90000,
-      stats: { fruitSliced: 7, missedFruits: 0, bombHits: 0, peakCombo: 3 },
+      stats: { fruitSliced: 7, missedFruits: 0, bombHits: 0, peakCombo: 3, strokesAttempted: 5, successfulStrokes: 4, peakStrokeCombo: 3 },
     }
     const first = applyRunRewards(createDefaultRewardProfile(), run)
     saveRewardProfile(first.profile)

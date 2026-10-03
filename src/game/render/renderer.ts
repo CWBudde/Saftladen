@@ -4,7 +4,7 @@ import type { FrameInfo } from '../core/gameLoop'
 import { createViewportTransform, worldPointToCanvas } from '../core/viewport'
 import type { EngineDiagnostics } from '../engine'
 import type { GameState, ScoreFeedbackEvent, Vec2 } from '../types'
-import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawTrailStats } from './debugDraw'
+import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawSpawnEnvelopes, drawTrailStats } from './debugDraw'
 import { collectRenderBuckets, createRenderBuckets, getSpriteScale, type RenderBuckets, type SpriteScale } from './renderHelpers'
 
 export type PointerTrailDebug = {
@@ -457,6 +457,7 @@ function drawScoreFeedbackLayer(
     const alpha = 1 - lifeProgress
     const x = event.position.x * scaleX
     const y = event.position.y * scaleY - (reducedMotion ? 0 : lifeProgress * 36)
+      - ((event.strokeCombo ?? 0) >= 3 ? 42 : 0)
 
     ctx.save()
     if (!reducedMotion) {
@@ -470,7 +471,7 @@ function drawScoreFeedbackLayer(
 
     ctx.globalAlpha = alpha
     ctx.fillStyle = event.amount < 0 ? '#fecaca' : '#ecfdf5'
-    ctx.font = event.combo > 1
+    ctx.font = (event.strokeCombo ?? 0) >= 3
       ? "800 22px 'Segoe UI', Tahoma, sans-serif"
       : "800 19px 'Segoe UI', Tahoma, sans-serif"
     ctx.textAlign = 'center'
@@ -480,10 +481,12 @@ function drawScoreFeedbackLayer(
     ctx.strokeText(scoreLabel, x, y)
     ctx.fillText(scoreLabel, x, y)
 
-    if (event.combo > 1) {
+    if ((event.strokeCombo ?? 0) >= 3 || event.combo > 1) {
       ctx.font = "800 13px 'Segoe UI', Tahoma, sans-serif"
       ctx.fillStyle = '#fde047'
-      const label = 'STREAK ×' + event.combo
+      const label = (event.strokeCombo ?? 0) >= 3
+        ? 'STROKE COMBO · ' + event.strokeCombo
+        : 'STREAK · ' + event.combo + ' HITS'
       ctx.strokeText(label, x, y - 22)
       ctx.fillText(label, x, y - 22)
     }
@@ -623,6 +626,7 @@ export function createRenderer(): Renderer {
       }
 
       if (context.debug.enabled) {
+        drawSpawnEnvelopes(ctx, state, viewport)
         for (const entity of buckets.objects) {
           drawBoundingCircle(ctx, worldPointToCanvas(entity.position, viewport), entity.radius * viewport.scale)
         }

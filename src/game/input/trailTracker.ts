@@ -28,6 +28,7 @@ const DEFAULT_CONFIG: TrailTrackerConfig = {
 }
 
 type MutableTrail = {
+  strokeId: number
   pointerId: number
   points: TrailPoint[]
   smoothedPoints: TrailPoint[]
@@ -92,6 +93,7 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
   }
   const trails = new Map<number, MutableTrail>()
   let pendingSegments: SliceTrail[] = []
+  let nextStrokeId = 1
   let sensitivity = 1
   let viewportScale = 1
   const velocityThreshold = () => config.sliceVelocityThresholdPxPerS * viewportScale / sensitivity
@@ -102,7 +104,10 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
   }
 
   const beginTrail = (pointerId: number, point: TrailPoint) => {
+    // A reused pointer ID must never carry fruit into the next gesture.
+    if (trails.get(pointerId)?.active) endTrail(pointerId)
     trails.set(pointerId, {
+      strokeId: nextStrokeId++,
       pointerId,
       points: [{ ...point }],
       smoothedPoints: [{ ...point }],
@@ -127,7 +132,7 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
     }
     // Collision uses each fresh raw movement once. Smoothing is only for drawing.
     if (distance > 0 && (dtMs === 0 || distance * 1000 / dtMs >= velocityThreshold())) {
-      pendingSegments.push({ pointerId, points: [{ ...previous }, { ...point }] })
+      pendingSegments.push({ pointerId, strokeId: trail.strokeId, points: [{ ...previous }, { ...point }] })
     }
     trail.lastPoint = { ...point }
     trail.points.push({ ...point })
@@ -152,7 +157,12 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
       appendPoint(pointerId, point)
     }
     const trail = trails.get(pointerId)
-    if (trail) trail.active = false
+    if (trail?.active) {
+      trail.active = false
+      const last = [...pendingSegments].reverse().find((segment) => segment.strokeId === trail.strokeId)
+      if (last) last.ended = true
+      else pendingSegments.push({ pointerId, strokeId: trail.strokeId, ended: true, points: [] })
+    }
   }
 
   const getActiveTrails = (nowMs = performance.now()): TrailSnapshot[] => {
@@ -177,7 +187,10 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
   }
 
   const drainSliceTrails = (nowMs = performance.now()): SliceTrail[] => {
-    const segments = pendingSegments.filter((segment) => segment.points[1].tMs >= nowMs - config.maxAgeMs)
+    const segments = pendingSegments.flatMap((segment) => {
+      if (segment.points[1]?.tMs >= nowMs - config.maxAgeMs) return [segment]
+      return segment.ended ? [{ ...segment, points: [] }] : []
+    })
     pendingSegments = []
     return segments
   }

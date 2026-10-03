@@ -144,10 +144,27 @@ Architecture and React/game boundary notes are documented in `src/game/README.md
 Classic ends on a bomb or three missed fruit. Arcade lasts 60 seconds with
 power-ups and bomb score penalties. Zen is a bomb-free 90-second session.
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
-The HUD displays score, lives or time, the current timed streak, and power-up
-remaining durations. Results include fruit sliced, misses, bomb hits, and peak
-streak. A streak is a chain of cuts within 320ms; same-gesture combos remain on
-the roadmap.
+The HUD displays score, lives or time, stroke combos, timed streaks and power-up
+remaining durations. Results include fruit sliced, misses, bomb hits, best stroke
+combo, peak streak and stroke accuracy (fruit-hitting gestures / moving gestures).
+A stroke combo counts fruit cut during one held gesture; three fruit earn a
+15-point bonus, with 5 more for each additional fruit. Separate swipes never
+combine into a stroke combo. A timed streak chains cuts within 320ms and raises
+the fruit multiplier by 0.25 for every five hits after the first (sixth hit:
+×1.25), capped at ×2. Bonuses and multiplier
+limits are configurable through the headless engine's scoring options.
+
+The spawn director opens each mode with three safe solo fruit, then alternates
+fans, ladders, side launches, combo groups and recovery beats. Classic ramps
+survival pressure; Arcade builds toward a timed crescendo; Zen stays relaxed.
+Bomb budgets and separate trajectory lanes preserve a safe fruit corridor.
+
+Arcade pickups refresh their own fixed duration; different types run together.
+Freeze slows object motion while the round and pickup clocks continue. Frenzy
+removes existing and queued bombs, then suppresses new bombs until it expires.
+Double points multiplies fruit, pickup and stroke-bonus points; streaks multiply
+fruit points only.
+See [simulation rules](src/game/systems/README.md) for duration and pressure budgets.
 
 Rewards require a completed run lasting at least five seconds, at least one
 fruit sliced, and a positive score. Flawless bonuses require zero misses and zero

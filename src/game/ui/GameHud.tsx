@@ -35,7 +35,8 @@ export function GameHud({ snapshot, onPause }: { snapshot: GameUiSnapshot; onPau
           disabled={snapshot.view !== 'playing'}>Pause</button>
       </div>
       <div className="hud-effects">
-        {snapshot.combo > 1 ? <p className="hud-streak">Streak x{snapshot.combo}</p> : null}
+        {snapshot.strokeCombo >= 3 ? <p className="hud-streak">Stroke combo · {snapshot.strokeCombo} fruit</p> : null}
+        {snapshot.combo > 1 ? <p className="hud-streak">Streak · {snapshot.combo} hits · ×{snapshot.streakMultiplier} points</p> : null}
         {snapshot.activePowerUps.map((powerUp) => {
           const duration = snapshot.powerUpRemainingMs[powerUp]
           return (

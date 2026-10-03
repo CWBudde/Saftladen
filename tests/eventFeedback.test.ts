@@ -45,3 +45,14 @@ test('pickup score triggers its activation cue without a fruit cut cue', () => {
   expect(eventSounds(events)).toEqual(['power-up'])
   expect(eventAnnouncement(events)).toBe('freeze activated.')
 })
+
+test('combo audio and announcements represent a stroke bonus, while a timed streak remains a slice', () => {
+  const events: GamePresentationEvent[] = [
+    { id: 1, runId: 'run', type: 'fruit-slice', atMs: 100, entityId: 'entity_1',
+      fruitType: 'apple', position: { x: 10, y: 20 }, direction: { x: 1, y: 0 }, points: 10, combo: 5 },
+    { id: 2, runId: 'run', type: 'stroke-combo', atMs: 100, strokeId: 1,
+      fruitCount: 3, bonus: 15, position: { x: 10, y: 20 } },
+  ]
+  expect(eventSounds(events)).toEqual(['slice', 'combo'])
+  expect(eventAnnouncement(events)).toBe('Stroke combo. 3 fruit, 15 bonus points.')
+})

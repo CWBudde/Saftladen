@@ -15,6 +15,8 @@ export type GameUiSnapshot = {
   mode: GameMode
   score: number
   combo: number
+  streakMultiplier: number
+  strokeCombo: number
   bestScore: number
   strikesRemaining: number
   strikesMax: number
@@ -70,6 +72,8 @@ export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot
     mode: state.mode,
     score: state.score.current,
     combo: state.score.combo,
+    streakMultiplier: state.score.streakMultiplier,
+    strokeCombo: state.score.strokeCombo,
     bestScore: state.score.best,
     strikesRemaining: state.strikes.remaining,
     strikesMax: state.strikes.max,
@@ -91,6 +95,9 @@ export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnaps
       left.stats.missedFruits === right.stats.missedFruits &&
       left.stats.bombHits === right.stats.bombHits &&
       left.stats.peakCombo === right.stats.peakCombo &&
+      left.stats.strokesAttempted === right.stats.strokesAttempted &&
+      left.stats.successfulStrokes === right.stats.successfulStrokes &&
+      left.stats.peakStrokeCombo === right.stats.peakStrokeCombo &&
       Math.ceil(left.powerUpRemainingMs.freeze / 1000) === Math.ceil(right.powerUpRemainingMs.freeze / 1000) &&
       Math.ceil(left.powerUpRemainingMs.frenzy / 1000) === Math.ceil(right.powerUpRemainingMs.frenzy / 1000) &&
       Math.ceil(left.powerUpRemainingMs['double-points'] / 1000) === Math.ceil(right.powerUpRemainingMs['double-points'] / 1000) &&
@@ -98,6 +105,8 @@ export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnaps
       left.mode === right.mode &&
       left.score === right.score &&
       left.combo === right.combo &&
+      left.streakMultiplier === right.streakMultiplier &&
+      left.strokeCombo === right.strokeCombo &&
       left.bestScore === right.bestScore &&
       left.strikesRemaining === right.strikesRemaining &&
       left.strikesMax === right.strikesMax &&

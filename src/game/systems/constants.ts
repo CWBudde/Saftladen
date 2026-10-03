@@ -1,3 +1,5 @@
+import type { ScoringConfig } from '../types'
+
 export const WORLD_GRAVITY_PX_PER_S2 = 2200
 export const PARTICLE_GRAVITY_PX_PER_S2 = 2800
 export const OFFSCREEN_MARGIN_PX = 80
@@ -11,3 +13,14 @@ export const FREEZE_POWER_UP_DURATION_MS = 4500
 export const FRENZY_POWER_UP_DURATION_MS = 5200
 export const DOUBLE_POINTS_POWER_UP_DURATION_MS = 6500
 export const BOMB_ARCADE_SCORE_PENALTY = 25
+
+export const DEFAULT_SCORING: Readonly<ScoringConfig> = Object.freeze({
+  baseFruitPoints: BASE_FRUIT_POINTS,
+  strokeComboMinimum: 3,
+  strokeComboBonus: 15,
+  strokeComboExtraFruitBonus: 5,
+  streakFruitInterval: 5,
+  streakMultiplierStep: 0.25,
+  maxStreakMultiplier: 2,
+  streakWindowMs: 320,
+})

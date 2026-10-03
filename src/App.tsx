@@ -449,12 +449,16 @@ function App() {
                 Score {uiSnapshot.score} · Best {uiSnapshot.bestScore}
               </p>
               <p>
-                Peak Streak x{uiSnapshot.stats.peakCombo} · Time {formatDuration(uiSnapshot.elapsedMs)}
+                Peak streak · {uiSnapshot.stats.peakCombo} hits · Time {formatDuration(uiSnapshot.elapsedMs)}
               </p>
               <dl className="result-stats">
                 <div><dt>Fruit sliced</dt><dd>{uiSnapshot.stats.fruitSliced}</dd></div>
                 <div><dt>Misses</dt><dd>{uiSnapshot.stats.missedFruits}</dd></div>
                 <div><dt>Bomb hits</dt><dd>{uiSnapshot.stats.bombHits}</dd></div>
+                <div><dt>Best stroke combo</dt><dd>{uiSnapshot.stats.peakStrokeCombo} fruit</dd></div>
+                <div><dt>Stroke accuracy</dt><dd>{uiSnapshot.stats.strokesAttempted > 0
+                  ? Math.round(100 * uiSnapshot.stats.successfulStrokes / uiSnapshot.stats.strokesAttempted)
+                  : 0}%<small> ({uiSnapshot.stats.successfulStrokes}/{uiSnapshot.stats.strokesAttempted})</small></dd></div>
               </dl>
               {lastRunRewards ? (
                 <div className="reward-strip">

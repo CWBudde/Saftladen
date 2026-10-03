@@ -100,7 +100,7 @@ test.each([[1280, 720], [390, 844]])('canvas input at %p queues releases, maps r
     pointer('pointermove', 60, 160)
     pointer('pointerup', 60, 162)
     runFrame(168)
-    expect(engine.getState().score.current).toBe(30)
+    expect(engine.getState().score.current).toBe(20)
 
     addFruit()
     pointer('pointerdown', -60, 169)
@@ -109,7 +109,7 @@ test.each([[1280, 720], [390, 844]])('canvas input at %p queues releases, maps r
     expect(engine.getState().phase).toBe('paused')
     engine.resume()
     runFrame(185)
-    expect(engine.getState().score.current).toBe(30)
+    expect(engine.getState().score.current).toBe(20)
     dispose()
     dispose = undefined
     expect(listeners.size).toBe(0)

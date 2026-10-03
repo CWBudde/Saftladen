@@ -41,7 +41,7 @@ describe('presentation events', () => {
     expect(Object.isFrozen(cut.direction)).toBe(true)
     const end = events[3]
     if (end.type !== 'run-end') throw new Error('Expected end')
-    expect(end.stats).toEqual({ fruitSliced: 1, missedFruits: 1, bombHits: 0, peakCombo: 1 })
+    expect(end.stats).toEqual({ fruitSliced: 1, missedFruits: 1, bombHits: 0, peakCombo: 1, strokesAttempted: 1, successfulStrokes: 1, peakStrokeCombo: 1 })
     expect(Object.isFrozen(end.stats)).toBe(true)
     state.run.stats.fruitSliced = 500
     engine.reset()
@@ -78,7 +78,7 @@ describe('presentation events', () => {
     engine.setInputTrails([swipe])
     engine.advanceBy(100)
     expect(batches[1].map((event) => event.type)).toEqual(['bomb-hit', 'run-end'])
-    expect(state.run.stats).toEqual({ fruitSliced: 0, missedFruits: 0, bombHits: 1, peakCombo: 0 })
+    expect(state.run.stats).toEqual({ fruitSliced: 0, missedFruits: 0, bombHits: 1, peakCombo: 0, strokesAttempted: 1, successfulStrokes: 0, peakStrokeCombo: 0 })
     engine.markGameOver()
     engine.advanceBy(100)
     expect(batches).toHaveLength(2)
@@ -111,7 +111,7 @@ describe('presentation events', () => {
     engine.markGameOver()
     engine.start({ seed: 1 })
     expect(engine.getState().run.id).not.toBe(firstRun)
-    expect(engine.getState().run.stats).toEqual({ fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0 })
+    expect(engine.getState().run.stats).toEqual({ fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0, strokesAttempted: 0, successfulStrokes: 0, peakStrokeCombo: 0 })
     const other = setup('zen')
     expect(other.state.run.id).not.toBe(firstRun)
   })

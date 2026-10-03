@@ -204,15 +204,15 @@ describe('collision feedback and spawns', () => {
       }
       engine.setInputTrails([swipe])
       engine.advanceBy(100)
-      expect(state.score.best).toBe(60)
-      expect(writes).toEqual(['60'])
+      expect(state.score.best).toBe(45)
+      expect(writes).toEqual(['45'])
       engine.advanceBy(100)
-      expect(writes).toEqual(['60'])
+      expect(writes).toEqual(['45'])
       const fruit = fruitAt()
       state.world.entities[fruit.id] = fruit
       engine.setInputTrails([swipe])
       engine.stepOnce()
-      expect(writes).toEqual(['60', '100'])
+      expect(writes).toEqual(['45', '55'])
     } finally {
       if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
       else Reflect.deleteProperty(globalThis, 'localStorage')
@@ -224,7 +224,8 @@ describe('collision feedback and spawns', () => {
     const fruit = fruitAt(100, 110)
     state.world.entities[fruit.id] = fruit
     detectSliceEvents(state, [swipe])
-    expect(state.world.sliceEvents[0].hitPosition).toEqual({ x: 100, y: 100 })
+    expect(state.world.sliceEvents[0].hitPosition.x).toBeCloseTo(100 - Math.sqrt(300))
+    expect(state.world.sliceEvents[0].hitPosition.y).toBe(100)
     engine.setInputTrails([swipe])
     engine.stepOnce()
     const halves = Object.values(state.world.entities).filter((entity) => entity.kind === 'fruit-half')

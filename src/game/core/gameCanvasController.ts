@@ -127,6 +127,8 @@ export function mountGameCanvas(
       // Queue raw motion before stepping. Visual history never cuts.
       engine.setInputTrails(tracker.drainSliceTrails(frameInfo.timestampMs).map((trail) => ({
         pointerId: trail.pointerId,
+        strokeId: trail.strokeId,
+        ended: trail.ended,
         points: trail.points.map((point) => ({
           ...canvasPointToWorld(point, viewport),
           tMs: point.tMs,

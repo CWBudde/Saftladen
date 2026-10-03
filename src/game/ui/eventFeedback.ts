@@ -8,8 +8,8 @@ export function eventSounds(events: readonly GamePresentationEvent[]): AudioSfxN
     switch (event.type) {
       case 'fruit-slice':
         sounds.push('slice')
-        if (event.combo >= 5 && event.combo % 5 === 0) sounds.push('combo')
         break
+      case 'stroke-combo': sounds.push('combo'); break
       case 'fruit-miss': sounds.push('miss'); break
       case 'bomb-hit': sounds.push('bomb'); break
       case 'power-up-activated': sounds.push('power-up'); break
@@ -30,6 +30,7 @@ export function eventAnnouncement(events: readonly GamePresentationEvent[]): str
       case 'bomb-hit': messages.push(event.penalty > 0 ? `Bomb hit. Lost ${event.penalty} points.` : 'Bomb hit.'); break
       case 'power-up-activated': messages.push(`${event.powerUp.replaceAll('-', ' ')} activated.`); break
       case 'power-up-expired': messages.push(`${event.powerUp.replaceAll('-', ' ')} ended.`); break
+      case 'stroke-combo': messages.push(`Stroke combo. ${event.fruitCount} fruit, ${event.bonus} bonus points.`); break
       case 'run-end': messages.push(`Run complete. Score ${event.score}.`); break
     }
   }

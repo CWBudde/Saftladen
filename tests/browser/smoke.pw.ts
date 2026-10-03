@@ -90,13 +90,13 @@ async function swipeVisibleFruit(page: Page) {
   const canvas = await page.locator('canvas').boundingBox()
   if (!canvas) throw new Error('Canvas is missing')
   const score = Number(await page.locator('.hud-score strong').innerText())
-  // Slash along the ascent so the fruit's next physics step remains on the
-  // stroke, even while a small portrait fruit travels a radius in one frame.
+  // Horizontal contact at the last drawn center must survive the next physics
+  // step, even when an ascending portrait fruit moves farther than its radius.
   const span = Math.max(60, fruit.radius * 2)
-  await page.mouse.move(canvas.x + fruit.x, canvas.y + fruit.y + span)
+  await page.mouse.move(canvas.x + fruit.x - span, canvas.y + fruit.y)
   await page.mouse.down()
   await advance(page, 1)
-  await page.mouse.move(canvas.x + fruit.x, canvas.y + fruit.y - span)
+  await page.mouse.move(canvas.x + fruit.x + span, canvas.y + fruit.y)
   await page.mouse.up()
   await advance(page, 32)
   await expect(page.locator('.hud-score strong')).not.toHaveText(String(score))
@@ -125,6 +125,8 @@ for (const mode of ['Classic', 'Arcade', 'Zen']) {
     await expect(results).toContainText('Fruit sliced')
     await expect(results).toContainText('Misses')
     await expect(results).toContainText('Bomb hits')
+    await expect(results).toContainText('Best stroke combo')
+    await expect(results).toContainText('Stroke accuracy')
     await expect(results).toContainText('at least 5 seconds')
     await page.getByRole('button', { name: 'Run Again', exact: true }).click()
     await advance(page, 32)
@@ -151,6 +153,40 @@ test('320px fruit contact stays aligned after landscape resize', async ({ page }
   expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThan(score)
   const rect = await page.locator('.hud-main').boundingBox()
   expect(rect?.height).toBeLessThan(110)
+})
+
+test('one held gesture cuts a rendered fruit group and reports a stroke combo', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await openGame(page, true)
+  await page.getByRole('button', { name: 'Zen', exact: true }).click()
+  let group: DrawnFruit[] = []
+  for (let elapsed = 0; elapsed < 30_000 && group.length < 3; elapsed += 100) {
+    await advance(page, 100)
+    group = await page.evaluate(() => window.__browserProbe.fruit.filter((item) =>
+      item.y > 135 && item.y < innerHeight - Math.max(50, item.radius * 2) &&
+      item.x > 50 && item.x < innerWidth - 50).slice(0, 3))
+  }
+  expect(group.length, 'The Zen director should provide a visible combo group').toBe(3)
+  group.sort((a, b) => a.x - b.x)
+  const canvas = await page.locator('canvas').boundingBox()
+  if (!canvas) throw new Error('Canvas is missing')
+  await page.mouse.move(canvas.x + group[0].x - 45, canvas.y + group[0].y)
+  await page.mouse.down()
+  for (const fruit of group) {
+    await advance(page, 1)
+    await page.mouse.move(canvas.x + fruit.x, canvas.y + fruit.y)
+  }
+  await advance(page, 1)
+  await page.mouse.move(canvas.x + group[2].x + 45, canvas.y + group[2].y)
+  await page.mouse.up()
+  await advance(page, 32)
+  await expect(page.locator('.hud-effects')).toContainText('Stroke combo')
+  expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(45)
+  await advance(page, 91_000)
+  const results = page.getByRole('dialog', { name: 'Run Complete' })
+  const bestStroke = results.locator('.result-stats > div').filter({ has: page.getByText('Best stroke combo', { exact: true }) })
+  expect(Number.parseInt(await bestStroke.locator('dd').innerText(), 10)).toBeGreaterThanOrEqual(3)
+  await expect(results.locator('.result-stats')).toContainText('Stroke accuracy100% (1/1)')
 })
 
 test('profile traps focus, settings persist, and landscape controls scroll into view', async ({ page }) => {

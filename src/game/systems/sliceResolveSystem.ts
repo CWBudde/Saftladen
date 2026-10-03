@@ -2,12 +2,11 @@ import { createDecalEntity, createFruitHalfEntity, createParticleEntity } from '
 import type { FruitEntity, GameState, SliceEvent } from '../types'
 import type { SystemContext } from './systemContext'
 import {
-  BASE_FRUIT_POINTS,
   JUICE_PARTICLE_COUNT,
   JUICE_SPLAT_DECAL_COUNT,
   SCORE_FEEDBACK_LIFETIME_MS,
 } from './constants'
-import { activatePowerUp, type ModeSystemModifiers } from './modeSystem'
+import { activatePowerUp, isPowerUpActive, type ModeSystemModifiers } from './modeSystem'
 
 type RandomSource = {
   nextFloat: () => number
@@ -136,6 +135,7 @@ export function resolveSliceEvents(
 ): { bombHit: boolean; fruitSlices: number } {
   let bombHit = false
   let fruitSlices = 0
+  const scoreMultiplier = () => state.mode === 'arcade' ? (isPowerUpActive(state, 'double-points') ? 2 : 1) : modifiers.scoreMultiplier
 
   while (state.world.sliceEvents.length > 0) {
     const event = state.world.sliceEvents.shift()
@@ -151,6 +151,8 @@ export function resolveSliceEvents(
     if (entity.kind === 'bomb') {
       const penalty = state.mode === 'arcade' ? Math.floor(state.score.current / 2) : 0
       state.run.stats.bombHits += 1
+      if (event.strokeId !== undefined && state.score.strokes[event.strokeId]) state.score.strokes[event.strokeId].blocked = true
+      state.score.streakMultiplier = 1
       context?.events.push({ type: 'bomb-hit', atMs: state.world.elapsedMs, entityId: entity.id, position: { ...event.hitPosition }, penalty })
       delete state.world.entities[entity.id]
       if (state.mode === 'arcade') {
@@ -184,7 +186,7 @@ export function resolveSliceEvents(
         const durationMs = entity.powerUpType === 'freeze' ? timers.freezeMs : entity.powerUpType === 'frenzy' ? timers.frenzyMs : timers.doublePointsMs
         context?.events.push({ type: 'power-up-activated', atMs: state.world.elapsedMs, powerUp: entity.powerUpType, position: { ...event.hitPosition }, durationMs })
       }
-      const bonusPoints = Math.round(BASE_FRUIT_POINTS * 1.5 * modifiers.scoreMultiplier)
+      const bonusPoints = Math.round(state.score.scoring.baseFruitPoints * 1.5 * scoreMultiplier())
       state.score.current += bonusPoints
       state.world.scoreFeedbackEvents.push({
         id: state.world.nextScoreFeedbackId,
@@ -206,7 +208,17 @@ export function resolveSliceEvents(
       state.score.lastSliceAtMs !== null &&
       state.world.elapsedMs - state.score.lastSliceAtMs <= state.score.comboWindowMs
     const nextCombo = withinComboWindow ? state.score.combo + 1 : 1
-    const points = BASE_FRUIT_POINTS * nextCombo * modifiers.scoreMultiplier
+    const config = state.score.scoring
+    const streakMultiplier = Math.min(config.maxStreakMultiplier, 1 + Math.floor((nextCombo - 1) / config.streakFruitInterval) * config.streakMultiplierStep)
+    const points = Math.round(config.baseFruitPoints * streakMultiplier * scoreMultiplier())
+    const stroke = event.strokeId === undefined ? undefined : state.score.strokes[event.strokeId]
+    if (stroke) {
+      if (stroke.fruitCount === 0) state.run.stats.successfulStrokes += 1
+      stroke.fruitCount += 1
+      state.score.strokeCombo = stroke.fruitCount
+      state.run.stats.peakStrokeCombo = Math.max(state.run.stats.peakStrokeCombo, stroke.fruitCount)
+    }
+    state.score.streakMultiplier = streakMultiplier
 
     state.score.combo = nextCombo
     state.score.lastSliceAtMs = state.world.elapsedMs
@@ -215,7 +227,7 @@ export function resolveSliceEvents(
     fruitSlices += 1
     state.run.stats.fruitSliced += 1
     state.run.stats.peakCombo = Math.max(state.run.stats.peakCombo, nextCombo)
-    context?.events.push({ type: 'fruit-slice', atMs: state.world.elapsedMs, entityId: entity.id, fruitType: entity.fruitType, position: { ...event.hitPosition }, direction: { ...event.direction }, points, combo: nextCombo })
+    context?.events.push({ type: 'fruit-slice', atMs: state.world.elapsedMs, entityId: entity.id, fruitType: entity.fruitType, position: { ...event.hitPosition }, direction: { ...event.direction }, points, combo: nextCombo, strokeId: event.strokeId, strokeCombo: stroke?.fruitCount ?? 1, streakMultiplier })
 
     state.world.scoreFeedbackEvents.push({
       id: state.world.nextScoreFeedbackId,
@@ -226,6 +238,18 @@ export function resolveSliceEvents(
       lifetimeMs: SCORE_FEEDBACK_LIFETIME_MS,
     })
     state.world.nextScoreFeedbackId += 1
+
+    if (stroke && !stroke.blocked && stroke.fruitCount >= config.strokeComboMinimum) {
+      const nominalBonus = config.strokeComboBonus + (stroke.fruitCount - config.strokeComboMinimum) * config.strokeComboExtraFruitBonus
+      const bonus = Math.round((nominalBonus - stroke.bonusAwarded) * scoreMultiplier())
+      stroke.bonusAwarded = nominalBonus
+      state.score.current += bonus
+      context?.events.push({ type: 'stroke-combo', atMs: state.world.elapsedMs, strokeId: event.strokeId!, fruitCount: stroke.fruitCount, bonus, position: { ...event.hitPosition } })
+      state.world.scoreFeedbackEvents.push({
+        id: state.world.nextScoreFeedbackId++, amount: bonus, combo: 1, strokeCombo: stroke.fruitCount,
+        position: { ...event.hitPosition }, createdAtMs: state.world.elapsedMs, lifetimeMs: SCORE_FEEDBACK_LIFETIME_MS,
+      })
+    }
 
     if (context?.effectsEnabled !== false) {
       spawnFruitHalves(state, entity, event, random, context)
@@ -238,6 +262,7 @@ export function resolveSliceEvents(
     state.score.lastSliceAtMs !== null && state.world.elapsedMs - state.score.lastSliceAtMs > state.score.comboWindowMs
   if (comboExpired && fruitSlices === 0) {
     state.score.combo = 0
+    state.score.streakMultiplier = 1
   }
 
   return {

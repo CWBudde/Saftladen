@@ -1,9 +1,10 @@
 import { createEntityIdAllocator } from '../model'
 import { applyCoreSystems, createInitialArcadeState, createInitialZenState } from '../systems'
-import type { EntityId, GameEntity, GameMode, GamePresentationEvent, GameState, PresentationEventPayload, SliceTrail, TimeScalePreset, Vec2 } from '../types'
+import type { EntityId, GameEntity, GameMode, GamePresentationEvent, GameState, PresentationEventPayload, SliceTrail, ScoringConfig, TimeScalePreset, Vec2 } from '../types'
 import { transitionGamePhase } from './phaseMachine'
 import { createSeededRng } from './rng'
 import { resizeWorld } from './resizeWorld'
+import { DEFAULT_SCORING } from '../systems/constants'
 
 export const TIME_SCALE_FACTORS: Record<TimeScalePreset, number> = {
   normal: 1,
@@ -14,7 +15,6 @@ export const TIME_SCALE_FACTORS: Record<TimeScalePreset, number> = {
 const DEFAULT_FIXED_DT_MS = 1000 / 60
 const DEFAULT_MAX_FRAME_DELTA_MS = 100
 const MAX_FIXED_STEPS_PER_ADVANCE = 12
-const DEFAULT_COMBO_WINDOW_MS = 320
 const DEFAULT_STRIKES = 3
 const BEST_SCORE_STORAGE_KEY_PREFIX = 'saftladen.bestScore.'
 
@@ -24,6 +24,7 @@ type EngineOptions = {
   maxFrameDeltaMs?: number
   mode?: GameMode
   effectsEnabled?: boolean
+  scoring?: Partial<ScoringConfig>
 }
 
 type StartOptions = {
@@ -102,6 +103,7 @@ function createBaseState(
   maxFrameDeltaMs: number,
   bestScore = 0,
   bounds: Vec2 = { x: 1280, y: 720 },
+  scoring: ScoringConfig = { ...DEFAULT_SCORING },
 ): GameState {
   return {
     mode,
@@ -115,10 +117,14 @@ function createBaseState(
       },
     },
     score: {
+      scoring: { ...scoring },
+      strokes: {},
+      streakMultiplier: 1,
+      strokeCombo: 0,
       current: 0,
       combo: 0,
       best: bestScore,
-      comboWindowMs: DEFAULT_COMBO_WINDOW_MS,
+      comboWindowMs: scoring.streakWindowMs,
       lastSliceAtMs: null,
     },
     strikes: {
@@ -152,7 +158,7 @@ function createBaseState(
       rngCalls: 0,
       simulationSteps: 0,
       cosmeticRngCalls: 0,
-      stats: { fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0 },
+      stats: { fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0, strokesAttempted: 0, successfulStrokes: 0, peakStrokeCombo: 0 },
     },
     modeState: {
       arcade: createInitialArcadeState(),
@@ -162,6 +168,14 @@ function createBaseState(
 }
 
 export function createGameEngine(options: EngineOptions = {}): GameEngine {
+  const scoring: ScoringConfig = { ...DEFAULT_SCORING }
+  for (const key of Object.keys(scoring) as (keyof ScoringConfig)[]) {
+    const value = options.scoring?.[key]
+    if (value !== undefined && Number.isFinite(value) && value >= 0) scoring[key] = Math.min(value, 1_000_000)
+  }
+  scoring.strokeComboMinimum = Math.max(3, Math.floor(scoring.strokeComboMinimum))
+  scoring.streakFruitInterval = Math.max(1, Math.floor(scoring.streakFruitInterval))
+  scoring.maxStreakMultiplier = Math.min(100, Math.max(1, scoring.maxStreakMultiplier))
   const fixedDtMs = options.fixedDtMs ?? DEFAULT_FIXED_DT_MS
   const maxFrameDeltaMs = options.maxFrameDeltaMs ?? DEFAULT_MAX_FRAME_DELTA_MS
   const mode = options.mode ?? 'classic'
@@ -176,10 +190,11 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   const persistedBestScore = loadBestScore(mode)
   let lastSavedBestScore = persistedBestScore
 
-  let state = createBaseState(mode, rng.getSeed(), fixedDtMs, maxFrameDeltaMs, persistedBestScore)
+  let state = createBaseState(mode, rng.getSeed(), fixedDtMs, maxFrameDeltaMs, persistedBestScore, undefined, scoring)
   let accumulatorMs = 0
   let lastAdvanceSteps = 0
   let inputTrails: SliceTrail[] = []
+  let nextLegacyStrokeId = -1
   const listeners = new Set<(state: Readonly<GameState>) => void>()
   const eventListeners = new Set<(events: readonly GamePresentationEvent[]) => void>()
   let pendingEvents: GamePresentationEvent[] = []
@@ -220,11 +235,13 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       state.settings.maxFrameDeltaMs,
       bestScore,
       state.world.bounds,
+      scoring,
     )
     state.run.seed = seed
     accumulatorMs = 0
     lastAdvanceSteps = 0
     inputTrails = []
+    nextLegacyStrokeId = -1
     gameplayIds.reset()
     cosmeticIds.reset()
   }
@@ -234,6 +251,8 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     const nextPhase = transitionGamePhase(state.phase, event)
     if (nextPhase !== state.phase) {
       inputTrails = []
+      state.score.strokes = {}
+      state.score.strokeCombo = 0
       accumulatorMs = 0
     }
     state.phase = nextPhase
@@ -250,6 +269,15 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     state.run.simulationSteps += 1
     const stepTrails = inputTrails
     inputTrails = []
+    for (const trail of stepTrails) {
+      if (trail.strokeId === undefined || !trail.points.some((point, index) => index > 0 && (point.x !== trail.points[index - 1].x || point.y !== trail.points[index - 1].y)) || state.score.strokes[trail.strokeId]) continue
+      // Native input has only a handful of pointers. Bound malformed/headless streams too.
+      const ids = Object.keys(state.score.strokes)
+      if (ids.length >= 128) delete state.score.strokes[Number(ids[0])]
+      state.score.strokes[trail.strokeId] = { pointerId: trail.pointerId, fruitCount: 0, bonusAwarded: 0, blocked: false }
+      state.run.stats.strokesAttempted += 1
+      state.score.strokeCombo = 0
+    }
     const stepEvents: PresentationEventPayload[] = []
     const outcome = applyCoreSystems(
       state,
@@ -267,6 +295,9 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
         effectsEnabled: options.effectsEnabled ?? true,
       },
     )
+    for (const trail of stepTrails) {
+      if (trail.ended && trail.strokeId !== undefined) delete state.score.strokes[trail.strokeId]
+    }
     queueEvents(stepEvents)
 
     if (outcome.missedFruits > 0 && state.mode === 'classic') {
@@ -297,8 +328,10 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const setInputTrails = (trails: SliceTrail[]) => {
     if (state.phase !== 'running' || state.settings.timeScale.factor === 0) return
-    inputTrails.push(...trails.map((trail) => ({
+    inputTrails.push(...trails.slice().sort((left, right) => left.pointerId - right.pointerId || (left.points[0]?.tMs ?? 0) - (right.points[0]?.tMs ?? 0)).map((trail) => ({
       pointerId: trail.pointerId,
+      strokeId: trail.strokeId ?? nextLegacyStrokeId--,
+      ended: trail.ended ?? trail.strokeId === undefined,
       points: trail.points.map((point) => ({
         x: point.x,
         y: point.y,
@@ -322,11 +355,13 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       state.settings.maxFrameDeltaMs,
       bestScore,
       state.world.bounds,
+      scoring,
     )
     state.run.seed = seed
     accumulatorMs = 0
     lastAdvanceSteps = 0
     inputTrails = []
+    nextLegacyStrokeId = -1
     gameplayIds.reset()
     cosmeticIds.reset()
     emit()
@@ -379,6 +414,8 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const setTimeScalePreset = (preset: TimeScalePreset) => {
     inputTrails = []
+    state.score.strokes = {}
+    state.score.strokeCombo = 0
     state.settings.timeScale = {
       preset,
       factor: TIME_SCALE_FACTORS[preset],
@@ -450,12 +487,18 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     setInputTrails,
     clearInputTrails: (pointerId) => {
       inputTrails = pointerId === undefined ? [] : inputTrails.filter((trail) => trail.pointerId !== pointerId)
+      for (const [id, stroke] of Object.entries(state.score.strokes)) {
+        if (pointerId === undefined || stroke.pointerId === pointerId) delete state.score.strokes[Number(id)]
+      }
+      state.score.strokeCombo = 0
     },
     setMode,
     setWorldBounds: (bounds) => {
       if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y) || bounds.x < 128 || bounds.y < 128) return
       if (bounds.x === state.world.bounds.x && bounds.y === state.world.bounds.y) return
       inputTrails = []
+      state.score.strokes = {}
+      state.score.strokeCombo = 0
       resizeWorld(state.world, bounds)
       emit()
     },

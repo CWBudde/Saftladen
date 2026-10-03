@@ -68,6 +68,12 @@ export function activatePowerUp(state: GameState, powerUp: PowerUpType): void {
   }
   if (powerUp === 'frenzy') {
     timers.frenzyMs = Math.max(timers.frenzyMs, FRENZY_POWER_UP_DURATION_MS)
+    // Frenzy is a hazard-free window, including bombs already launched or queued.
+    // Retiring hazards is not a hit and produces no score, statistic or audio event.
+    for (const entity of Object.values(state.world.entities)) {
+      if (entity.kind === 'bomb') delete state.world.entities[entity.id]
+    }
+    state.world.spawn.pending = state.world.spawn.pending.filter(entry => entry.entity.kind !== 'bomb')
     return
   }
   timers.doublePointsMs = Math.max(timers.doublePointsMs, DOUBLE_POINTS_POWER_UP_DURATION_MS)
@@ -105,31 +111,34 @@ export function stepModeSystem(state: GameState, dtMs: number, events?: Presenta
       if (!isPowerUpActive(state, powerUp)) events?.push({ type: 'power-up-expired', atMs: state.world.elapsedMs, powerUp })
     }
 
+  } else if (state.mode === 'zen') {
+    state.modeState.zen.remainingMs = clampToNonNegative(state.modeState.zen.remainingMs - dtMs)
+  }
+  return getModeModifiers(state)
+}
+
+/** Read modifiers without advancing any clock; useful after same-step pickups. */
+export function getModeModifiers(state: GameState): ModeSystemModifiers {
+  if (state.mode === 'arcade') {
+    const { powerUpTimers: timers, remainingMs } = state.modeState.arcade
     const freezeActive = timers.freezeMs > 0
     const frenzyActive = timers.frenzyMs > 0
-    const doublePointsActive = timers.doublePointsMs > 0
-
     return {
       physicsDtScale: freezeActive ? 0.45 : 1,
       spawnRateScale: frenzyActive ? 1.85 : freezeActive ? 0.72 : 1.25,
       suppressBombSpawns: frenzyActive,
-      scoreMultiplier: doublePointsActive ? 2 : 1,
-      roundEnded: arcade.remainingMs <= 0,
+      scoreMultiplier: timers.doublePointsMs > 0 ? 2 : 1,
+      roundEnded: remainingMs <= 0,
     }
   }
-
   if (state.mode === 'zen') {
-    const zen = state.modeState.zen
-    zen.remainingMs = clampToNonNegative(zen.remainingMs - dtMs)
-
     return {
       physicsDtScale: 1,
       spawnRateScale: 0.8,
       suppressBombSpawns: true,
       scoreMultiplier: 1,
-      roundEnded: zen.remainingMs <= 0,
+      roundEnded: state.modeState.zen.remainingMs <= 0,
     }
   }
-
-  return DEFAULT_MODIFIERS
+  return { ...DEFAULT_MODIFIERS }
 }

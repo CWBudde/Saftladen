@@ -16,6 +16,15 @@ swipes, and preserves clocks, score and RNG state. Bounds survive reset and mode
 changes. Headless engines default to 1280×720; deterministic comparisons must
 use the same bounds and resize sequence.
 
+`createGameEngine({ scoring })` overrides validated scoring defaults: fruit base
+points, stroke threshold/bonuses, streak window, interval, increment and cap.
+Every newly held gesture has a stroke ID; headless trails without one are treated
+as independent completed gestures. Supply `strokeId` across input chunks and
+`ended: true` on release (an empty end marker is valid). Only moving gestures count
+as attempts. Cancellation, pause, resize and time-scale changes clear open stroke
+state. Run statistics retain attempts, successful fruit strokes and best stroke
+combo independently of the timed streak.
+
 `subscribeEvents` publishes ordered immutable batches of gameplay events after
 commands and advances. Catch-up preserves each event; game-over emits a single
 `run-end` carrying the run ID and statistics. Pausing/resuming retains the same
