@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import titleImage from './assets/title.png'
 import appleModeImage from './assets/apple1.png'
 import arcadeModeImage from './assets/orange1.png'
@@ -11,6 +11,9 @@ import { isGameDebugEnabled } from './game/debug'
 import { GameDialog } from './game/ui/GameDialog'
 import { GameHud } from './game/ui/GameHud'
 import { SettingsControls } from './game/ui/SettingsControls'
+import { OnboardingDialog } from './game/ui/OnboardingDialog'
+import { hasSeenOnboarding, rememberOnboarding } from './game/ui/onboarding'
+import { ReadyCountdown } from './game/ui/ReadyCountdown'
 import { eventAnnouncement, eventSounds } from './game/ui/eventFeedback'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
@@ -86,6 +89,9 @@ function App() {
   const [lastRunRewards, setLastRunRewards] = useState<RunRewards | null>(null)
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic')
   const [profileOpen, setProfileOpen] = useState(false)
+  const [seenOnboarding, setSeenOnboarding] = useState(hasSeenOnboarding)
+  const [help, setHelp] = useState<{ mode: GameMode; launching: boolean } | null>(null)
+  const [readyMode, setReadyMode] = useState<GameMode | null>(null)
   const [announcement, setAnnouncement] = useState({ id: 0, text: '' })
   const [musicPlaying, setMusicPlaying] = useState(false)
   const [uiSettings, updateUiSettings] = useUiSettings()
@@ -211,8 +217,22 @@ function App() {
     audio.playSfx('ui-click')
     setSelectedMode(mode)
     setLastRunRewards(null)
-    engine.setMode(mode)
+    if (!seenOnboarding) setHelp({ mode, launching: true })
+    else setReadyMode(mode)
+  }
+
+  const beginRun = useCallback(() => {
+    if (!readyMode || document.hidden) return
+    engine.setMode(readyMode)
     engine.start()
+    setReadyMode(null)
+  }, [engine, readyMode])
+
+  const finishHelp = () => {
+    rememberOnboarding()
+    setSeenOnboarding(true)
+    if (help?.launching) setReadyMode(help.mode)
+    setHelp(null)
   }
 
   const handlePause = () => {
@@ -231,11 +251,13 @@ function App() {
     audio.playSfx('ui-click')
     setLastRunRewards(null)
     engine.reset()
-    engine.start()
+    setReadyMode(selectedMode)
   }
 
   const handleReturnToMenu = () => {
     audio.playSfx('ui-click')
+    setHelp(null)
+    setReadyMode(null)
     engine.reset()
   }
 
@@ -339,6 +361,8 @@ function App() {
               </div>
 
               <div className="menu-actions">
+                <button type="button" className="ghost-button help-button" aria-haspopup="dialog"
+                  onClick={() => setHelp({ mode: selectedMode, launching: false })}>How to play</button>
                 <button
                   type="button"
                   className="profile-button"
@@ -354,6 +378,12 @@ function App() {
               </div>
             </section>
           ) : null}
+
+          {help ? <OnboardingDialog mode={help.mode} launching={help.launching}
+            sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion}
+            onContinue={finishHelp} onDismiss={() => setHelp(null)} /> : null}
+
+          {readyMode ? <ReadyCountdown mode={readyMode} onComplete={beginRun} onCancel={handleReturnToMenu} /> : null}
 
           {uiSnapshot.view === 'menu' && profileOpen ? (
             <GameDialog className="profile-panel" labelledBy="profile-heading" onDismiss={() => setProfileOpen(false)}

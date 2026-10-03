@@ -468,6 +468,25 @@
   margin-top: 0.72rem;
 }
 
+.practice-canvas {
+  display: block;
+  width: 100%;
+  height: 150px;
+  touch-action: none;
+  border: 1px solid #d6b97b;
+  border-radius: 12px;
+  background: #23160f;
+}
+.practice-swipe p { margin: 8px 0; }
+.help-mode-rules { display: grid; gap: 8px; font-size: 0.9rem; }
+.help-mode-rules > div { padding: 8px; border-radius: 8px; }
+.help-mode-rules > div[data-selected='true'] { background: #ffd78d1f; }
+.help-mode-rules dt { font-weight: 800; color: #ffe08a; }
+.help-mode-rules dd { margin: 4px 0 0; }
+.ready-card { text-align: center; }
+.ready-card .overlay-actions { justify-content: center; }
+.ready-number { margin: 16px 0; font-size: 3rem; font-weight: 800; color: #ffe08a; }
+
 .reward-strip {
   margin-top: 0.55rem;
   padding: 0.5rem 0.56rem;

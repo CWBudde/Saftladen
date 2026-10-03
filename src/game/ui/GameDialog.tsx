@@ -20,6 +20,9 @@ export function GameDialog({ children, className, labelledBy, onDismiss, returnF
     return () => {
       dialog.close()
       requestAnimationFrame(() => {
+        // A help → countdown transition may already have opened another modal.
+        // Let its native autofocus keep focus inside the new dialog.
+        if (document.querySelector('dialog[open]')) return
         const target = (returnFocusSelector ? document.querySelector<HTMLElement>(returnFocusSelector) : null)
           ?? (previousFocus instanceof HTMLElement && previousFocus.isConnected
           && !previousFocus.matches(':disabled')

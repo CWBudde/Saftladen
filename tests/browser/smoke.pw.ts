@@ -22,9 +22,10 @@ const test = base.extend<{ runtimeErrors: string[] }>({
   }, { auto: true }],
 })
 
-async function openGame(page: Page, muted = false) {
-  await page.addInitScript(({ muted }) => {
+async function openGame(page: Page, muted = false, seenOnboarding = true) {
+  await page.addInitScript(({ muted, seenOnboarding }) => {
     window.__browserProbe = { fruit: [], audibleSfxStarts: 0, musicVolumes: [] }
+    if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
     // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
     // on the real clock. Keep input age/velocity on the same simulated clock.
     Object.defineProperty(Event.prototype, 'timeStamp', {
@@ -64,7 +65,7 @@ async function openGame(page: Page, muted = false) {
       if (/music-.*\.mp3/.test(this.src)) window.__browserProbe.musicVolumes.push(this.volume)
       return originalPlay.call(this)
     }
-  }, { muted })
+  }, { muted, seenOnboarding })
   await page.clock.install({ time: new Date('2025-01-01T00:00:00Z') })
   await page.goto('./')
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
@@ -74,6 +75,12 @@ async function openGame(page: Page, muted = false) {
 
 async function advance(page: Page, ms: number) {
   await page.clock.runFor(ms)
+}
+
+async function startMode(page: Page, mode: string) {
+  await page.getByRole('button', { name: mode, exact: true }).click()
+  await expect(page.getByRole('dialog', { name: `Ready for ${mode}?`, exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Start now', exact: true }).click()
 }
 
 async function swipeVisibleFruit(page: Page) {
@@ -105,7 +112,7 @@ async function swipeVisibleFruit(page: Page) {
 for (const mode of ['Classic', 'Arcade', 'Zen']) {
   test(`${mode}: menu, pause/resume, natural results and replay`, async ({ page }) => {
     await openGame(page)
-    await page.getByRole('button', { name: mode, exact: true }).click()
+    await startMode(page, mode)
     await advance(page, 32)
     await expect(page.locator('.hud-score strong')).toHaveText('0')
     if (mode === 'Classic') await expect(page.locator('.hud-lives span:not(.lost)')).toHaveCount(3)
@@ -129,6 +136,7 @@ for (const mode of ['Classic', 'Arcade', 'Zen']) {
     await expect(results).toContainText('Stroke accuracy')
     await expect(results).toContainText('at least 5 seconds')
     await page.getByRole('button', { name: 'Run Again', exact: true }).click()
+    await page.getByRole('button', { name: 'Start now', exact: true }).click()
     await advance(page, 32)
     await expect(results).toHaveCount(0)
     await expect(page.locator('.hud-score strong')).toHaveText('0')
@@ -142,7 +150,7 @@ test('320px fruit contact stays aligned after landscape resize', async ({ page }
   await page.setViewportSize({ width: 320, height: 568 })
   await openGame(page)
   await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 320)
-  await page.getByRole('button', { name: 'Zen', exact: true }).click()
+  await startMode(page, 'Zen')
   await swipeVisibleFruit(page)
   const score = Number(await page.locator('.hud-score strong').innerText())
   expect(score).toBeGreaterThan(0)
@@ -158,7 +166,7 @@ test('320px fruit contact stays aligned after landscape resize', async ({ page }
 test('one held gesture cuts a rendered fruit group and reports a stroke combo', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await openGame(page, true)
-  await page.getByRole('button', { name: 'Zen', exact: true }).click()
+  await startMode(page, 'Zen')
   let group: DrawnFruit[] = []
   for (let elapsed = 0; elapsed < 30_000 && group.length < 3; elapsed += 100) {
     await advance(page, 100)
@@ -209,7 +217,7 @@ test('profile traps focus, settings persist, and landscape controls scroll into 
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
   await expect(page.locator('main')).toHaveAttribute('data-reduced-motion', 'true')
   await page.setViewportSize({ width: 844, height: 390 })
-  await page.getByRole('button', { name: 'Zen', exact: true }).click()
+  await startMode(page, 'Zen')
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   const motion = page.getByRole('checkbox', { name: 'Reduce motion and flashes' })
   await motion.scrollIntoViewIfNeeded()
@@ -223,7 +231,7 @@ test('profile traps focus, settings persist, and landscape controls scroll into 
 
 test('saved zero volume applies before the first gesture and music playback', async ({ page }) => {
   await openGame(page, true)
-  await page.getByRole('button', { name: 'Classic', exact: true }).click()
+  await startMode(page, 'Classic')
   await advance(page, 250)
   expect(await page.evaluate(() => window.__browserProbe.audibleSfxStarts)).toBe(0)
   expect(await page.evaluate(() => window.__browserProbe.musicVolumes)).toEqual([])
@@ -235,6 +243,7 @@ test('saved zero volume applies before the first gesture and music playback', as
 })
 
 test('loading artwork gates start and a failed sprite can be retried', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('saftladen.onboarding.v1', 'seen'))
   let release: () => void = () => {}
   const held = new Promise<void>((resolve) => { release = resolve })
   await page.route('**/bomb-*.png', async (route) => {
@@ -253,10 +262,12 @@ test('loading artwork gates start and a failed sprite can be retried', async ({ 
   await page.getByRole('button', { name: 'Retry artwork', exact: true }).click()
   await expect(classic).toBeEnabled()
   await classic.click()
+  await page.getByRole('button', { name: 'Start now', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
 })
 
 test('simple artwork fallback is an explicit choice after loading fails', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('saftladen.onboarding.v1', 'seen'))
   await page.route('**/bomb-*.png', (route) => route.abort())
   await page.goto('./')
   const classic = page.getByRole('button', { name: 'Classic', exact: true })
@@ -264,5 +275,163 @@ test('simple artwork fallback is an explicit choice after loading fails', async 
   await page.getByRole('button', { name: 'Play with simple artwork', exact: true }).click()
   await expect(classic).toBeEnabled()
   await classic.click()
+  await page.getByRole('button', { name: 'Start now', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
 })
+
+async function practiceGesture(page: Page, gesture: 'stationary' | 'miss' | 'slice') {
+  const canvas = page.getByLabel('Practice slicing canvas', { exact: true })
+  await canvas.scrollIntoViewIfNeeded()
+  const box = await canvas.boundingBox()
+  if (!box) throw new Error('Practice canvas is missing')
+  const y = box.y + (gesture === 'miss' ? 18 : box.height / 2)
+  const startX = box.x + box.width / 2 - (gesture === 'stationary' ? 0 : 60)
+  await page.mouse.move(startX, y)
+  await page.mouse.down()
+  await advance(page, 1)
+  if (gesture !== 'stationary') await page.mouse.move(box.x + box.width / 2 + 60, y)
+  await page.mouse.up()
+}
+
+test('first-run practice teaches slicing without changing rewards and remains available later', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await openGame(page, false, false)
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).not.toBeNull()
+  const profileBefore = await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))
+  await page.getByRole('button', { name: 'Zen', exact: true }).click()
+  const help = page.getByRole('dialog', { name: 'How to play', exact: true })
+  await expect(help).toBeVisible()
+  await expect(help).toContainText('3 or more fruit in one held swipe')
+  await expect(help).toContainText('Three missed fruit')
+  await expect(help).toContainText('60 seconds')
+  await expect(help).toContainText('90 seconds')
+  await advance(page, 5_000)
+  await expect(page.locator('.hud-score')).toHaveCount(0)
+  await practiceGesture(page, 'stationary')
+  await expect(help.locator('.practice-feedback')).toHaveText('Try again: swipe across the apple.')
+  await practiceGesture(page, 'miss')
+  await expect(help.locator('.practice-feedback')).toHaveText('Try again: swipe across the apple.')
+  await page.getByRole('button', { name: 'Practice again', exact: true }).click()
+  await expect(help.locator('.practice-feedback')).toHaveText('Swipe across the apple.')
+  await practiceGesture(page, 'slice')
+  await expect(help.locator('.practice-feedback')).toHaveText('Nice slice! Ready for the game.')
+  await page.getByRole('button', { name: 'Practice again', exact: true }).click()
+  await expect(help.locator('.practice-feedback')).toHaveText('Swipe across the apple.')
+  await practiceGesture(page, 'slice')
+  await expect(help.locator('.practice-feedback')).toHaveText('Nice slice! Ready for the game.')
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).toBe(profileBefore)
+  await page.getByRole('button', { name: 'Play Zen', exact: true }).click()
+  const ready = page.getByRole('dialog', { name: 'Ready for Zen?', exact: true })
+  await expect(ready).toBeVisible()
+  await advance(page, 32)
+  expect(await ready.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true)
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.onboarding.v1'))).toBe('seen')
+  await page.getByRole('button', { name: 'Back to menu', exact: true }).click()
+  await page.getByRole('button', { name: 'How to play', exact: true }).click()
+  await expect(help).toBeVisible()
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await advance(page, 32)
+  await expect(page.getByRole('button', { name: 'How to play', exact: true })).toBeFocused()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Arcade', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Arcade', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Ready for Arcade?', exact: true })).toBeVisible()
+  await expect(help).toHaveCount(0)
+  await page.getByRole('button', { name: 'Back to menu', exact: true }).click()
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).toBe(profileBefore)
+})
+
+test('short landscape onboarding supports reduced motion, keyboard focus, cancel and skip', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await openGame(page, true, false)
+  await page.getByRole('button', { name: 'Classic', exact: true }).click()
+  const help = page.getByRole('dialog', { name: 'How to play', exact: true })
+  await expect(help).toBeVisible()
+  await expect(page.locator('main')).toHaveAttribute('data-reduced-motion', 'true')
+  for (let i = 0; i < 10; i += 1) {
+    await page.keyboard.press('Tab')
+    expect(await help.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true)
+  }
+  const back = page.getByRole('button', { name: 'Back to menu', exact: true })
+  await back.scrollIntoViewIfNeeded()
+  const backBox = await back.boundingBox()
+  expect(backBox && backBox.y >= 0 && backBox.y + backBox.height <= 390).toBe(true)
+  await back.focus()
+  await page.keyboard.press('Enter')
+  await advance(page, 32)
+  await expect(help).toHaveCount(0)
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.onboarding.v1'))).toBeNull()
+  await page.getByRole('button', { name: 'Arcade', exact: true }).click()
+  await expect(help).toBeVisible()
+  const skip = page.getByRole('button', { name: 'Skip practice', exact: true })
+  await skip.scrollIntoViewIfNeeded()
+  await skip.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog', { name: 'Ready for Arcade?', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.onboarding.v1'))).toBe('seen')
+  await page.keyboard.press('Escape')
+  await advance(page, 32)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.locator('.hud-score')).toHaveCount(0)
+})
+
+for (const mode of ['Arcade', 'Zen']) {
+  test(`${mode}: countdown cancels and suspends in the background without spending run time`, async ({ page }) => {
+    await openGame(page, true)
+    const ready = page.getByRole('dialog', { name: `Ready for ${mode}?`, exact: true })
+    await page.getByRole('button', { name: mode, exact: true }).click()
+    await expect(ready.locator('.ready-number')).toHaveText('3')
+    await advance(page, 1_000)
+    await expect(ready.locator('.ready-number')).toHaveText('2')
+    await expect(page.locator('.hud-score')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Back to menu', exact: true }).click()
+    await advance(page, 5_000)
+    await expect(ready).toHaveCount(0)
+    await expect(page.locator('.hud-score')).toHaveCount(0)
+
+    await page.getByRole('button', { name: mode, exact: true }).click()
+    await advance(page, 1_000)
+    await expect(ready.locator('.ready-number')).toHaveText('2')
+    if (mode === 'Arcade') {
+      await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    } else {
+      // Model document visibility at the browser boundary; no engine state is changed.
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+    }
+    await advance(page, 10_000)
+    await expect(ready).toContainText('Countdown paused.')
+    await expect(page.locator('.hud-score')).toHaveCount(0)
+    if (mode === 'Zen') {
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+    } else await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    // Returning to the foreground requires the user's explicit continuation.
+    await advance(page, 5_000)
+    await expect(page.getByRole('button', { name: 'Continue countdown', exact: true })).toBeVisible()
+    await expect(page.locator('.hud-score')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Continue countdown', exact: true }).click()
+    await advance(page, 1_000)
+    await expect(ready.locator('.ready-number')).toHaveText('1')
+    await advance(page, 1_000)
+    await expect(ready).toHaveCount(0)
+    await expect(page.locator('.hud-score strong')).toHaveText('0')
+    await expect(page.locator('.hud-timer')).toContainText(mode === 'Arcade' ? '60s' : '90s')
+
+    await page.getByRole('button', { name: 'Pause', exact: true }).click()
+    await page.getByRole('button', { name: 'Main Menu', exact: true }).click()
+    await page.getByRole('button', { name: mode, exact: true }).click()
+    await expect(ready.locator('.ready-number')).toHaveText('3')
+    for (const remaining of ['2', '1']) {
+      await advance(page, 1_000)
+      await expect(ready.locator('.ready-number')).toHaveText(remaining)
+    }
+    await advance(page, 1_000)
+    await expect(ready).toHaveCount(0)
+    await expect(page.locator('.hud-timer')).toContainText(mode === 'Arcade' ? '60s' : '90s')
+  })
+}

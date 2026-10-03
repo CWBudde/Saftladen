@@ -2,8 +2,9 @@
 
 ## Start here
 
-**Next implementation:** onboarding and the remaining slice/audio polish in
-**Phase 16**. Phase 17 now implements gesture combos, capped timed streaks,
+**Next implementation:** the remaining hit feedback, audio and visual identity
+in **Phase 16**. Onboarding now includes safe practice, repeatable/skippable help
+and a foreground-only ready countdown. Phase 17 implements gesture combos, capped timed streaks,
 authored spawn patterns, hazard clearance, power-up policies and swept contact.
 Human playtests are still needed to tune pressure and rewards from run statistics.
 
@@ -12,7 +13,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Onboarding and remaining slice/audio polish](#phase-16--signature-slice-feel-and-presentation-p1) | Scoring and decoded artwork available; add practice/countdown and listening QA |
+| 1 | [Remaining slice/audio and presentation polish](#phase-16--signature-slice-feel-and-presentation-p1) | Onboarding complete; optional hit punctuation, layered audio/listening QA and visual identity remain |
 | 2 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
 | 3 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
 | 4 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
@@ -38,9 +39,11 @@ last. Completed tasks and the original review are archived below the backlog.
 - Decoded artwork loading, retry and explicit simple-artwork fallback before first run.
 - Gesture combos, capped timed streaks, authored spawn rhythms and safe hazard lanes.
 - Swept moving-fruit contact, independent pickup clocks and explicit Frenzy bomb retirement.
-- 134 Bun tests / 2,652 assertions; lint, typecheck and production build passed in the latest batch.
-- Nine permanent Playwright checks cover existing modes, horizontal viewport contact,
-  held-gesture combos/results, keyboard/settings, muted launch and artwork retry/fallback.
+- Optional first-run practice, repeatable help and a three-second ready countdown that suspends on backgrounding.
+- 139 Bun tests / 2,680 assertions; lint, typecheck and production build passed in the latest batch.
+- Thirteen permanent Playwright checks cover existing modes, horizontal viewport contact,
+  held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
+  practice isolation, remembered/skipped help and foreground-only countdowns.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -92,10 +95,14 @@ tests show fruit before bombs, and every mode has documented pressure budgets.
 
 ## Phase 16 — Signature Slice Feel and Presentation (P1)
 
-- [ ] **Add concise onboarding.** Mode descriptions, a safe practice swipe,
+- [x] **Add concise onboarding.** Mode descriptions, a safe practice swipe,
       bomb/miss rules, and a short ready countdown; repeatable/skippable help.
-      Menu mode descriptions and swipe/pause instructions are implemented;
-      practice and countdown remain.
+      First-run help can be skipped and reopened from the menu. A separate static
+      practice canvas shares swipe detection and saved sensitivity without starting
+      a run or changing statistics, best scores, objectives or rewards. Every
+      launch/replay has a three-second countdown with Start now/cancel; blur/hidden
+      pages suspend it until explicit continuation. The round timer starts afterward.
+      Keyboard focus, reduced motion and scrollable portrait/landscape help are checked.
 - [ ] **Celebrate meaningful hits.** Larger same-stroke combo labels, distinct
       critical/bonus feedback if introduced, tiny optional hit-stop or shake,
       and strong bomb punctuation. Effects must preserve mode timer rules and
@@ -172,7 +179,8 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       suite covers menu → each mode → pause/resume → natural completion/results/
       replay, portrait/landscape fruit contact, profile focus/settings/scroll,
       fresh muted launch, artwork retry/fallback, held-gesture combos, stroke
-      results and horizontal moving-fruit contact. Add profile equip after Phase 18. Physical iOS/Android
+      results, horizontal moving-fruit contact, isolated practice, remembered/repeat
+      help and countdown cancellation/background suspension. Add profile equip after Phase 18. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
 - [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
@@ -274,7 +282,7 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4349 KiB.
+      precache was 8174.48 KiB; the latest improvement build is about 4358 KiB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
       artifacts).
 
@@ -621,7 +629,7 @@ Historical findings below describe the build reviewed at the time. They are not
 a current defect list or a fresh rating; use the active backlog above for next work.
 
 <details>
-<summary>Original review and the four improvement batches (2026-10-03)</summary>
+<summary>Original review and the five improvement batches (2026-10-03)</summary>
 
 **Initial product review (2026-10-03, before the improvements below):**
 **4.5/10 as a Fruit Ninja clone.** Recognizable
@@ -737,5 +745,26 @@ contact before/after rotation. Validation: 134 Bun tests / 2,652 assertions, nin
 browser checks, lint, application/browser typechecking and production build.
 Phase 16 onboarding/presentation is next; Phase 17 human balance tuning remains
 unchecked alongside physical input, listening, performance and offline/update QA.
+
+**Fifth improvement batch (2026-10-03):** completed the first remaining Phase 16
+task, concise onboarding. Independent subagents implemented practice and browser
+coverage; a separate review checked rule copy and lifecycle/accessibility risks.
+First-time mode selection offers optional safe practice, mode rules and combo
+instructions; completion/skip is remembered, and menu help remains repeatable.
+The static practice controller shares fresh-input tracking, sensitivity and
+collision helpers, with no engine, RAF loop, scoring, RNG or reward settlement.
+It supports coalesced/release-only swipes, retry, DPR/resize and input cleanup.
+
+Every launch and replay now prepares in an idle three-second countdown with
+Start now and cancellation. Backgrounding/lost focus suspends it until explicit
+continuation, preserving the full timed round. Native dialog transitions keep
+focus inside the current modal and restore the correct menu/play control.
+Validation: 139 Bun tests / 2,680 assertions, thirteen production browser checks,
+lint, application/browser typechecking and build. New browser checks cover
+practice miss/stationary/success/retry, unchanged rewards, remembered/repeat help,
+keyboard skip/cancel, short-screen scrolling, reduced motion, countdown cleanup,
+background suspension and full Arcade/Zen timer budgets. Remaining Phase 16 hit
+punctuation, layered audio/listening and visual identity are next; physical input,
+human balance, performance and offline/update QA remain pending.
 
 </details>

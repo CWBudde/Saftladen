@@ -51,6 +51,20 @@ live and pending launches, preserves exterior margins, and adjusts velocity to
 preserve normalized ballistic arcs. Flight time scales with the square root of
 the world-height change; mode clocks and spawn deadlines remain unchanged.
 
+`core/practiceCanvasController.ts` owns a static practice apple, event-driven
+rendering and fresh pointer movement through the same tracker/collision helpers.
+`ui/PracticeSwipe` mounts it and displays discrete success/miss feedback. It has
+no game engine, frame loop, gameplay RNG, scoring or reward settlement. Its
+velocity threshold follows the full playfield scale and saved sensitivity.
+
+`ui/OnboardingDialog` offers optional first-run practice and repeatable menu
+help. A separate versioned acknowledgement remembers completed/skipped help;
+blocked storage still permits play and retains acknowledgement for the session.
+`ui/ReadyCountdown` keeps the engine idle for three seconds before `App` sends
+`setMode`/`start`. Blur/hidden pages suspend it until explicit continuation;
+cancellation/unmount discards pending timers. Replay and restart use the same
+preparation flow, leaving the full mode duration available to the real run.
+
 ## Events, Statistics and Determinism
 
 The engine exposes `subscribeEvents` alongside UI snapshot subscriptions. It

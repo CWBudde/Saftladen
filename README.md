@@ -65,6 +65,12 @@ The shared flag check lives in `src/game/debug.ts`.
 - `Esc`: pause/resume run or close the current dialog
 - Backgrounding the page pauses automatically; resume explicitly
 
+The first mode selection opens skippable help with a safe practice apple and
+the rules for each mode. Revisit it with **How to play** on the menu. Practice
+does not change scores, objectives or rewards. Each new run has a three-second
+ready countdown; **Start now** skips the wait. Leaving the page suspends the
+countdown until you explicitly continue. The full round timer starts after it.
+
 ## Input Notes
 
 The canvas sets `touch-action: none` in `src/App.css` so pointer events are not interrupted by browser pan/zoom gestures while playing.
