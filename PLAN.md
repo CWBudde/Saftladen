@@ -2,8 +2,12 @@
 
 ## Start here
 
-**Next implementation:** reconcile release documentation and public metadata in
-**Phases 19 / 14.9**. Offline installation/update coverage is now automated;
+**Next implementation:** finish keyboard/settings acceptance in **Phase 19 / 14.6**.
+Audit remaining focus/shortcut flows, verify saved preferences and resolve whether
+the combined motion/flash control meets the intended acceptance criteria.
+Release documentation and English public metadata are reconciled; current
+regression/equipment and production-preview checks are complete.
+Offline installation/update coverage is now automated;
 updates wait for a deliberate menu/results action and preserve active tabs.
 The first performance pass adds a reproducible production renderer benchmark
 and caches complete static dojo boards. Physical-device latency, actual Frenzy
@@ -29,7 +33,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Finish release documentation and coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact, equipment, progression and offline/update checks added; documentation/metadata and physical checks remain |
+| 1 | [Finish automated release acceptance](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Current regression, equipment, offline/update and documentation checks complete; keyboard/settings acceptance next; physical checks remain |
 | 2 | [Validate device performance and select further optimizations](#phase-11--performance--polish) | Host renderer baseline/cache done; measure physical latency/memory before pooling or quality tiers |
 | 3 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
 | 4 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
@@ -72,6 +76,10 @@ last. Completed tasks and the original review are archived below the backlog.
   reproducible native-RAF production renderer benchmark at DPR 1/3 with an effects stress load.
 - Deliberate menu/results PWA updates, no automatic reload of active/paused tabs,
   reconnect recovery after interrupted first installs and retained caches after failed updates.
+- Current player/contributor guides describe actual modes, shortcuts, audio, local
+  saves, deployment and mutable system/state contracts. English HTML/Open Graph/
+  install descriptions match; share URLs use the production base and install
+  colors match the current ink palette.
 - 185 Bun tests / 3,701 assertions; lint, typecheck and production build passed in the latest batch.
 - Twenty-five permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
@@ -279,7 +287,7 @@ baseline for existing modes. Phase 17 adds scoring/contact smoke; Phase 18 adds
 equipment and progression flows. Device measurements and final release checks remain shared work;
 completing the entire phase is not a prerequisite for starting Phase 17.
 
-- [ ] **Extend browser smoke coverage as new features land.** The production
+- [x] **Extend browser smoke coverage for the shipped features.** The production
       suite covers menu → each mode → pause/resume → natural completion/results/
       replay, portrait/landscape fruit contact, profile focus/settings/scroll,
       fresh muted launch, artwork retry/fallback, held-gesture combos, stroke
@@ -293,7 +301,8 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       a real completed challenge, board rotation, saved progress without expiry,
       reload and keyboard next-goal launches from profile/results. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
-- [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
+      Add future feature cases alongside their implementation.
+- [x] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
       migration, exactly-once rewards, and presentation RNG independence.
       Implemented input/lifecycle/contact/persistence/audio/controller regressions
@@ -317,9 +326,15 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       activation failures offer retry. `docs/PWA.md` records the policy, test
       method and transition limitation for already-open older auto-update clients.
       Installed iOS/Android behavior remains physical-device QA.
-- [ ] **Reconcile documentation** via Phase 14.9, including actual mode status,
+- [x] **Reconcile documentation** via Phase 14.9, including actual mode status,
       keyboard shortcuts, audio, deployment, and mutable systems contracts.
-      README/runtime architecture updated; public metadata language remains.
+      README, contributor/engine/system/asset guides now match the implemented
+      runtime and Bun/Playwright tooling. Borrowed state views, fixed-step/system
+      ordering, public keyboard behavior and pending physical QA are explicit.
+      HTML/Open Graph/install descriptions share English copy; canonical/share
+      URLs target `/Saftladen/`, install language is English and theme colors
+      match the current palette. Production metadata and 28 local documentation
+      links verified; all 25 production browser checks pass.
 - [ ] **Profile before renderer upgrades.** Establish production frame-time and
       input-latency budgets on agreed midrange mobile devices during Frenzy and
       multitouch; measure p95 frame time and long-session memory. Apply Phases
@@ -412,14 +427,16 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4361 KiB.
+      precache was 8174.48 KiB; the latest improvement build is about 4085 KiB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
       artifacts).
 
 ### 14.9 Documentation
 
-- [ ] Fix language inconsistency in public metadata (`index.html` OG description
-      is German while the rest is English).
+- [x] Fix language inconsistency in public metadata. HTML description, Open Graph
+      and install manifest now share English copy; HTML/manifest language is `en`.
+      Canonical/share URLs are absolute and deployment-scoped; the existing
+      512px icon supplies the share image. Install/browser colors match the ink palette.
 
 ---
 
@@ -444,8 +461,9 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
   - [x] Stroke combo and capped timed-streak scoring tests
   - [x] Spawn bounds, hazard clearance and pressure-budget tests
   - [x] Time scaling tests (global freeze and pickup clock/stacking rules)
-- [ ] Extend the Phase 19 browser suite for equip features;
-      menu, pause/resume, settings, moving contact and gesture scoring are automated.
+- [x] Extend the Phase 19 browser suite for equip features. Every blade/dojo pair,
+      locked/stale IDs, keyboard equip, real canvas visuals, saved selections,
+      actual earned unlock/results/equip/replay and narrow layouts are automated.
 - [ ] Manual QA checklist
   - [ ] Mobile Safari: touch trails, no scroll conflicts
   - [ ] Multi-touch: two independent trails
@@ -455,8 +473,12 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
 
 ## Phase 13 — Deployment (and optional analytics)
 
-- [ ] Confirm `vite build` output works via `vite preview`
-- [ ] Build-time feature flags (`VITE_DEBUG`, `VITE_ANALYTICS`)
+- [x] Confirm production build output works via `vite preview`. Twenty-five
+      Chromium checks run against `dist` under `/Saftladen/`; five real-worker
+      checks use the production-serving fault fixture. CI runs both before deploy.
+- [ ] Build-time feature flags (`VITE_DEBUG`, `VITE_ANALYTICS`). The implemented
+      debug flag controls initial overlay visibility; `D` also works in production.
+      Documentation now states this behavior. Analytics remains optional/unimplemented.
 
 ---
 
@@ -859,6 +881,28 @@ typechecking and production build passed. Test controls are tooling only and are
 not bundled into the deployed game. Release documentation/public metadata is the
 next implementation; physical device, listening, balance and performance QA
 remain open.
+
+**Fourteenth improvement batch (2026-10-03):** completed release documentation
+and public metadata reconciliation in Phases 19/14.9. README now separates mode
+rules, equipment, feedback, goals and release behavior, with precise keyboard
+actions, browser-local save limits and the production preview URL. Contributor
+guidance describes the playable runtime and current toolchain instead of a
+Phase 1 scaffold/planned Vitest suite. Engine/system guides document borrowed
+mutable state, accumulator bounds, execution order and separate RNG/ID contexts;
+the asset guide records the 18-image manifest without a removed title bitmap.
+HTML/Open Graph/install descriptions share English copy, canonical/share URLs
+target the actual deployment, the existing icon provides a valid share image,
+and browser/install colors match the ink palette. No new raster assets are needed.
+
+Validation: 185 Bun tests / 3,701 assertions; all twenty-five production Chromium
+checks passed in one full run. Lint, application/browser/tooling typechecking and
+production build passed. A production-output inspection verified matching
+descriptions/language/colors, base-scoped manifest/icons, canonical/share paths
+and all install assets; 28 local documentation file/heading links resolve.
+The build precaches 30 entries / 4084.54 KiB. Existing regression/equipment and
+preview checklist items are reconciled against that evidence. Keyboard/settings
+acceptance is next; physical input/device performance, listening and human
+balance QA remain open.
 
 </details>
 

@@ -1,4 +1,36 @@
-# Spawn and power-up rules
+# Simulation systems and gameplay rules
+
+## System contracts
+
+Systems mutate the engine-owned `GameState` in place. They are deterministic for
+the same state, step duration, bounds, fresh input, seeded random sources and ID allocator state;
+they are not pure functions. Pure collision/geometry helpers remain separate.
+The engine alone advances ticks/time and invokes `applyCoreSystems`; React never
+steps systems or edits the world.
+
+Each step runs this order:
+
+1. `stepModeSystem`: advance round/pickup clocks, expire effects and derive modifiers.
+2. `stepSpawnSystem`: admit deterministic groups and pending launches within budgets.
+3. `stepPhysicsSystem`: move entities, retaining pre-motion sliceable centers when fresh segments exist.
+4. `detectSliceEvents`: collect swept contacts from this step's input.
+5. `resolveSliceEvents`: resolve canonical contact order, score hits and apply pickups.
+6. `stepDespawnSystem`: retire out-of-bounds entities and count misses.
+
+The outcome reports fruit/misses/bombs/round completion to the engine, which
+updates Classic strikes, transitions to game-over and publishes events. The
+engine consumes queued input once, even when one advance catches up several
+steps. Resolver order and current pickup state determine subsequent contacts in
+the same step; it does not reuse the initial modifier snapshot for scoring.
+
+`SystemContext` supplies separate cosmetic RNG, gameplay/effect ID allocators,
+the event sink and the effects switch. Normal runtime calls always supply it.
+Low-level headless calls that omit the context use the shared random fallback;
+use `createGameEngine({ effectsEnabled: false })` for comparisons that require
+cosmetic independence. Audio/rendering consume events and state outside this
+pipeline and never call gameplay RNG.
+
+## Spawn director
 
 The spawn director is deterministic from mode, simulation elapsed time and
 `wavesSpawned`. Gameplay RNG varies fruit identity, radius, rotation, wave apex,

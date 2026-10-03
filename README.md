@@ -1,7 +1,9 @@
 # Saftladen
 
 A Fruit Ninja-style browser game built with React + TypeScript + Vite.
-Current state: playable prototype with engine-driven canvas simulation and React UI overlays.
+Play Classic, Arcade or Zen, earn cosmetic blades/dojos and complete persistent
+goals. Supports mouse/touch input and offline play after a completed installation.
+Simulation/rendering run on an imperative canvas; React owns menus and overlays.
 
 **[Play online](https://cwbudde.github.io/Saftladen/)**
 
@@ -27,11 +29,6 @@ bun dev
 
 Open `http://localhost:5173`.
 
-## Tooling Decision (Phase 0)
-
-The project keeps Vite scripts in `package.json` (`"dev": "vite"` and friends) and runs them through Bun (`bun dev`, `bun run ...`).
-We are not switching to `bunx --bun vite` right now because the direct script form is simpler and already works consistently.
-
 ## Scripts
 
 - `bun dev` - start the Vite dev server
@@ -56,20 +53,25 @@ for results, reproduction instructions and pending physical-device checks.
 
 ## Debug Mode Toggle
 
-Use `VITE_DEBUG=1` during development to enable debug overlays and instrumentation as systems are added:
+Use `VITE_DEBUG=1` to show the debug overlay initially:
 
 ```bash
 VITE_DEBUG=1 bun dev
 ```
 
-The shared flag check lives in `src/game/debug.ts`.
+The shared flag check lives in `src/game/debug.ts`. The overlay shows timing,
+trails, hazard envelopes and the next spawn pattern. `D` toggles it at runtime,
+including production; the environment flag controls its initial state.
+No analytics adapter or `VITE_ANALYTICS` behavior is implemented.
 
-## Dev Controls
+## Controls and Help
 
 - Drag on canvas: slice fruit (multi-touch supported on touch devices)
-- `Space`: pause/resume run
+- `Space`: pause/resume when focus is outside buttons and form controls
 - `D`: toggle debug overlay at runtime
-- `Esc`: pause/resume run or close the current dialog
+- `Esc`: pause a run; dismissing the pause dialog resumes it. In help/profile
+  it closes the dialog, in ready it cancels launch, and in results it returns to menu.
+- `Tab` / `Shift+Tab`: navigate controls; `Enter` or `Space`: activate focused buttons
 - Backgrounding the page pauses automatically; resume explicitly
 
 The first mode selection opens skippable help with a safe practice apple and
@@ -92,75 +94,32 @@ edge is 720 world units. Rendering, pointer mapping and circular hit areas share
 that scale. Resizing preserves live and queued launches, clears pending swipes,
 and keeps the current run and timer.
 
-## Current Project Structure
+## Architecture
 
-```text
-src/
-  game/
-    README.md
-    assets/
-      manifest.ts
-      preload.ts
-      index.ts
-    core/
-      gameLoop.ts
-      GameCanvasLayer.tsx
-      gameCanvasController.ts
-      canvasStage.ts
-      viewport.ts
-    engine/
-      gameEngine.ts
-      phaseMachine.ts
-      rng.ts
-      resizeWorld.ts
-    input/
-      coordinates.ts
-      trailTracker.ts
-    model/
-      entityId.ts
-      entities.ts
-    render/
-      renderer.ts
-      debugDraw.ts
-      renderHelpers.ts
-    systems/
-      applySystems.ts
-      systemContext.ts
-      collision.ts
-      constants.ts
-      sliceDetectSystem.ts
-      sliceResolveSystem.ts
-      spawnSystem.ts
-      physicsSystem.ts
-      despawnSystem.ts
-      modeSystem.ts
-    audio/
-      audioService.ts
-      tone.ts
-      sfxMix.ts
-      voicePool.ts
-    ui/
-      viewModel.ts
-      useGameUiState.ts
-      rewards.ts
-      GameDialog.tsx
-      SettingsControls.tsx
-      GameHud.tsx
-      eventFeedback.ts
-    debug.ts
-    index.ts
-    types.ts
-  App.tsx
-  main.tsx
-```
+`src/game/core` owns canvas/input/RAF lifecycle; `engine` owns the fixed-step
+simulation and transitions. `systems` mutate engine-owned state in place;
+`model` defines entities, `input` captures fresh gestures, and `render` draws
+Canvas2D art/effects. `assets` owns decoded image readiness, `audio` owns sound
+generation/playback, and `ui` adapts snapshots, commands and saved progression.
+`App.tsx` composes menus, dialogs and high-level actions.
 
-Architecture and React/game boundary notes are documented in `src/game/README.md`.
+See [runtime architecture](src/game/README.md), [engine API](src/game/engine/README.md)
+and [system contracts](src/game/systems/README.md#system-contracts) for ownership,
+mutation, event ordering and determinism rules.
 
 ## Modes and Settings
 
-Classic ends on a bomb or three missed fruit. Arcade lasts 60 seconds with
-power-ups and bomb score penalties. Zen is a bomb-free 90-second session.
+| Mode | Goal and ending | Hazards / pickups |
+| --- | --- | --- |
+| Classic | Survive for a high score; ends on a bomb or three missed fruit | Bombs end the run; no pickups |
+| Arcade | Score within 60 seconds | Bombs subtract up to 25 points; Freeze, Frenzy and Double Points pickups |
+| Zen | Relaxed, timed 90-second session | No bombs or pickups; misses do not end the run |
+
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
+Preferences persist locally; the initial motion preference follows the OS.
+
+## Equipment and Rewards
+
 Cosmetics unlock automatically from lifetime rewards: Comet Blade at 40 earned
 Starfruit and Dragon Fang at 110; Sunset Harbor Dojo at Level 3 (560 XP) and
 Storm Temple Dojo at Level 5 (1120 XP). Bamboo Blade and Great Wave Dojo start
@@ -170,6 +129,9 @@ payouts. Equip an unlocked blade or dojo to change the live trail or background;
 both choices survive reload. New rewards appear on the results screen with an
 equip button, followed by replay or a shortcut to all equipment. These choices
 change appearance only.
+
+## Audio and Slice Feedback
+
 Action audio layers a blade sweep, cut and juice droplets, with three cut
 variations and two explosions. Larger gesture combos raise a short chord;
 power-up activation and expiry use separate rising/falling cues. Eight active
@@ -177,6 +139,7 @@ effects share a voice budget, and bomb/game-over cues briefly duck music.
 For listening QA, run `bun run audio:preview` and open the generated page.
 It uses the default effects mix; also check rapid groups with music in the game
 on headphones and phone speakers. Generated WAVs and the page are ignored by Git.
+
 The HUD displays score, lives or time, stroke combos, timed streaks and power-up
 remaining durations. Results include fruit sliced, misses, bomb hits, best stroke
 combo, peak streak and stroke accuracy (fruit-hitting gestures / moving gestures).
@@ -186,6 +149,8 @@ combine into a stroke combo. A timed streak chains cuts within 320ms and raises
 the fruit multiplier by 0.25 for every five hits after the first (sixth hit:
 ×1.25), capped at ×2. Bonuses and multiplier
 limits are configurable through the headless engine's scoring options.
+
+## Spawn and Power-up Rules
 
 The spawn director opens each mode with three safe solo fruit, then alternates
 fans, ladders, side launches, combo groups and recovery beats. Classic ramps
@@ -199,6 +164,8 @@ Double points multiplies fruit, pickup and stroke-bonus points; streaks multiply
 fruit points only.
 See [simulation rules](src/game/systems/README.md) for duration and pressure budgets.
 
+## Saved Progress and Goals
+
 Rewards require a completed run lasting at least five seconds, at least one
 fruit sliced, and a positive score. Flawless bonuses require zero misses and zero
 bomb hits in every mode. Recent run IDs prevent duplicate payouts; versioned
@@ -210,6 +177,12 @@ cuts, Arcade score/stroke combos and Zen harvest/accuracy. Three challenges
 three finish. They have no expiry or daily streak, and partial progress survives
 time away. Each achievement pays once; each challenge pays once per set.
 Profile and results suggest a next goal with a button to play its mode.
+
+Progress, settings, best scores, help acknowledgement and equipment use validated
+browser-local storage. Clearing site data removes them; they do not sync between
+devices. If storage is blocked, play and in-session choices remain available.
+
+## Artwork and Presentation
 
 Saftladen uses a citrus fruit-stall wordmark, cream/citrus/coral/leaf colors,
 matching UI/canvas typography and consistent controls. Opaque panels and a
@@ -226,7 +199,11 @@ music continues to load on demand.
 Pull requests run lint, unit and browser regression tests, and a production build. Passing builds
 on `main` deploy to GitHub Pages under `/Saftladen/`. Gameplay artwork is
 precached for offline reload; music is cached after its first requested playback.
-Run `bun run preview` to check the production build locally.
+Run `bun run build`, then `bun run preview` and open
+`http://localhost:4173/Saftladen/` to check the production build locally. The
+development server uses `/`; the production base, manifest scope and worker
+registration use `/Saftladen/`. When changing deployment location, update
+`vite.config.ts` and the canonical/Open Graph URLs in `index.html` together.
 
 Updates wait for **Update game** on the menu or results screen. Runs, pauses,
 practice and ready countdowns never reload automatically, including when another
@@ -235,4 +212,11 @@ An interrupted first install retries registration on reconnect or return to the
 page; failed artwork still offers **Retry artwork**. Offline reload requires a
 completed initial cache installation. See [offline/update checks](docs/PWA.md).
 
-See `PLAN.md` for the remaining gameplay, presentation, progression, and QA work.
+The automated suite currently has 185 Bun tests and 25 production Chromium
+checks. It covers lifecycle/contact/scoring, saved rewards/equipment/goals,
+keyboard/dialog flows, audio decoding and real offline/update recovery. Installed
+iOS/Android behavior, physical touch calibration, headphone/phone listening,
+human mode/reward balance and long-session device performance remain pending.
+The host renderer benchmark records variable repeat timings, not validated mobile
+FPS or input latency. See [performance evidence](docs/PERFORMANCE.md),
+[offline verification](docs/PWA.md) and [the active backlog](PLAN.md).

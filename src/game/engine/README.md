@@ -1,14 +1,27 @@
-# Engine Notes (Phase 1)
+# Engine API notes
 
 - Fixed step is `16.67ms` (`60Hz`) for deterministic simulation pacing.
 - Per-frame delta is clamped to `100ms` before accumulation to avoid large catch-up spikes after tab/background delays.
-- A step cap is applied per frame to avoid spiral-of-death behavior on very slow devices.
+- At most 12 fixed steps execute per advance; excess whole-step backlog is dropped.
 - Gameplay and cosmetic RNG streams are seeded independently (`createSeededRng`).
 - Gameplay and effect IDs are engine-local, reset per run; cosmetic entity counts do not affect gameplay IDs.
   - Default behavior: `start()` reuses current seed for reproducible runs.
   - Pass `start({ seed })` or `reset({ seed })` to intentionally re-seed.
 
 The engine is headless and can be advanced without canvas rendering via `advanceBy(...)` and `stepOnce(...)`.
+
+`getState()` and `subscribe` expose borrowed state references with shallow
+TypeScript `Readonly` typing. Systems mutate nested fields and some commands
+replace the root state, so consumers must read synchronously or copy the values
+they need. React uses the UI snapshot selector; external consumers must issue
+engine commands rather than modifying the state.
+
+`advanceBy` requires a running phase, accumulates clamped elapsed time and applies
+the global time scale. `stepOnce` runs an explicit positive step while running,
+even with the global freeze preset; pause prevents both paths. Arcade/Zen clamp
+the final step to their remaining duration. Catch-up stops immediately on
+game-over. [System contracts](../systems/README.md#system-contracts) describe the
+in-place pipeline and its ordering.
 
 `setWorldBounds({ x, y })` adapts the simulation to the viewport without starting
 a new run. It remaps live/pending entities and score feedback, clears queued

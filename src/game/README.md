@@ -1,7 +1,7 @@
 # Game Layer Architecture
 
-This folder contains all non-React game code for the Fruit Ninja clone.
-React should only mount the canvas, render overlay UI, and forward user intents to the game API.
+This folder contains the imperative game runtime and its React UI adapters.
+React mounts the canvas, renders overlay UI, and forwards user intents to the game API.
 
 ## Folder Roles
 
@@ -13,6 +13,7 @@ React should only mount the canvas, render overlay UI, and forward user intents 
 - `input/`: pointer/touch trail capture and coordinate conversion.
 - `ui/`: React-facing adapter helpers for HUD/menu state.
 - `assets/`: game asset manifests and loading metadata.
+- `audio/`: layered sound generation, playback, voice limits and music mixing.
 
 ## React Boundary
 
@@ -28,8 +29,25 @@ React components must not:
 
 ## Debug Flag Convention
 
-Use `VITE_DEBUG=1` to enable debug-only overlays/instrumentation in later phases.
-Phase 0 exposes `isGameDebugEnabled()` in `src/game/debug.ts` as the shared check.
+`VITE_DEBUG=1` sets the initial overlay state through `isGameDebugEnabled()` in
+`src/game/debug.ts`. The `D` shortcut toggles it at runtime, including production.
+The overlay shows timing, trails, trajectory envelopes and the next spawn pattern.
+The build retains runtime instrumentation. Analytics remains optional backlog.
+
+## Simulation contracts
+
+The RAF controller passes elapsed time to the headless engine; the engine owns
+the fixed-step accumulator, phase transitions and system ordering. Systems mutate
+engine-owned state in place. Geometry helpers are pure, but the system pipeline
+is not; deterministic behavior comes from explicit clocks, inputs and seeded RNG.
+See [system contracts](systems/README.md#system-contracts) and
+[engine API notes](engine/README.md) before changing the simulation.
+
+`getState()` and state subscription payloads are borrowed views of mutable state,
+not immutable snapshots. Renderers read them synchronously. React uses
+`selectGameUiSnapshot` to copy the relevant primitive values and counters, and
+retains the prior snapshot when visible values do not change. Presentation-event
+batches are copied/frozen separately and are safe to retain across steps.
 
 ## Input and Runtime Ownership
 
@@ -189,6 +207,8 @@ XP and reward settlement rules remain in `ui/rewards.ts`; recent run IDs prevent
 duplicate payouts. The profile displays lifetime totals, exact unlock thresholds,
 remaining XP/Starfruit and objective payouts.
 
+## Progression goals
+
 `ui/progression.ts` defines six permanent mode achievements and a completion-driven
 challenge board. Three slots (one per mode) cycle through 20 cumulative fruit,
 two eligible runs and a three-fruit stroke. Progress never expires; there are
@@ -212,3 +232,12 @@ Both later dojos still unlock by run eight, without streak/score starter-objecti
 bonuses. This verifies a repeatable
 progression route under those inputs; measured human playtests must establish
 whether these scores and unlock times feel attainable on mouse/touch devices.
+
+## Installation and updates
+
+`ui/pwaUpdates.ts` owns native production service-worker registration, reconnect
+recovery and discrete update availability. React subscribes to those values and
+offers deliberate acceptance on menu/results. Controller changes never reload an
+active or paused run; acceptance blocks launches and waits for activation before
+the safe UI boundary reloads. This is independent of engine state and reward
+settlement. See [PWA policy and verification](../../docs/PWA.md).

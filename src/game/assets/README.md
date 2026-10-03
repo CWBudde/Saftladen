@@ -1,7 +1,8 @@
 # Game Assets
 
-`manifest.ts` imports the actual gameplay sprites, background and menu title from
+`manifest.ts` imports 18 required images (gameplay sprites and background) from
 `src/assets`. Vite supplies fingerprinted URLs using the deployment base. The
+wordmark is semantic text and an inline SVG; it requires no title image. The
 manifest has no placeholder atlases or unused audio URLs.
 
 `gameAssets` is a shared, module-level image loader. React subscribes to its
@@ -20,6 +21,10 @@ background while its required artwork is being prepared.
 
 Music remains loaded on demand by the audio service. No image-loading operation
 starts music or waits for audio.
+
+The production worker precaches every required image; music uses a runtime cache
+after playback is requested. A completed first installation is required for full
+offline reload. See [offline/update policy](../../../docs/PWA.md).
 
 `preload.ts` exports the generic loader with injectable image creation and timeout
 for deterministic loading, decode-failure, retry and timeout tests.

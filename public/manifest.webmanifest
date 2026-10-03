@@ -1,13 +1,14 @@
 {
   "name": "Saftladen",
   "short_name": "Saftladen",
-  "description": "A Fruit Ninja-style browser game",
+  "description": "Slice fruit, dodge bombs and unlock blades and dojos in Classic, Arcade and Zen. A free browser game with offline play after installation.",
+  "lang": "en",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
-  "background_color": "#3a2015",
-  "theme_color": "#3a2015",
+  "background_color": "#19100c",
+  "theme_color": "#19100c",
   "icons": [
     {
       "src": "./pwa-192x192.png",
