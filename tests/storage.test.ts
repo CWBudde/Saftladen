@@ -35,13 +35,63 @@ afterEach(() => {
 })
 
 describe('reward profile migrations', () => {
+  test('v2 migration preserves earned totals, settled runs and paid objectives without retroactive goal rewards', () => {
+    const old = { ...createDefaultRewardProfile(), schemaVersion: 2,
+      xp: 1120, starfruit: 110, totalRuns: 25, bestScore: 700, settledRunIds: ['old:1'],
+      achievements: undefined, challenges: undefined }
+    old.objectives = old.objectives.map(goal => ({ ...goal, progress: goal.target, completed: true }))
+    values.set(REWARD_PROFILE_STORAGE_KEY, JSON.stringify(old))
+    const profile = loadRewardProfile()
+    expect(profile).toMatchObject({ schemaVersion: 3, xp: 1120, starfruit: 110,
+      totalRuns: 25, bestScore: 700, settledRunIds: ['old:1'], objectives: old.objectives })
+    expect(profile.achievements.every(goal => !goal.completed && goal.progress === 0)).toBe(true)
+    expect(profile.challenges.goals.every(goal => goal.progress === 0)).toBe(true)
+    expect(getCosmeticUnlock(BLADE_UNLOCKS[2], profile).unlocked).toBe(true)
+    expect(getCosmeticUnlock(DOJO_UNLOCKS[2], profile).unlocked).toBe(true)
+  })
+
+  test('partial goals and paid challenge slots survive time away and duplicate settlement after reload', () => {
+    let profile = createDefaultRewardProfile()
+    const summary = { runId: 'board:paid', mode: 'arcade' as const, score: 100, durationMs: 60000,
+      stats: { fruitSliced: 20, missedFruits: 1, bombHits: 1, peakCombo: 3,
+        strokesAttempted: 15, successfulStrokes: 10, peakStrokeCombo: 3 } }
+    profile = applyRunRewards(profile, summary).profile
+    profile = applyRunRewards(profile, { ...summary, runId: 'board:partial', mode: 'zen',
+      stats: { ...summary.stats, fruitSliced: 10 } }).profile
+    saveRewardProfile(profile)
+    // No timestamps enter this policy; old calendar fields cannot expire progress.
+    const raw = JSON.parse(values.get(REWARD_PROFILE_STORAGE_KEY)!)
+    raw.challenges.expiresAt = '2000-01-01'
+    values.set(REWARD_PROFILE_STORAGE_KEY, JSON.stringify(raw))
+    expect(loadRewardProfile()).toEqual(profile)
+    expect(loadRewardProfile().challenges.goals.map(goal => goal.progress)).toEqual([0, 20, 10])
+    const repeated = applyRunRewards(loadRewardProfile(), summary)
+    expect(repeated.rewards.status).toBe('already-settled')
+    expect(repeated.profile).toEqual(profile)
+  })
+
+  test('new goal fields repair malformed siblings and retain completed achievements', () => {
+    values.set(REWARD_PROFILE_STORAGE_KEY, JSON.stringify({ schemaVersion: 3, xp: 1120, starfruit: 110,
+      achievements: [null, { id: 'zen-fruit', completed: true, rewardXp: 999999 }],
+      challenges: { cycle: 2, goals: [false, { id: 'gesture-classic', progress: 2 },
+        { id: 'gesture-zen', progress: -1 }] } }))
+    const profile = loadRewardProfile()
+    expect(profile.achievements.find(goal => goal.id === 'zen-fruit')).toMatchObject({
+      completed: true, progress: 40, rewardXp: 100 })
+    expect(profile.challenges.goals.map(goal => goal.progress)).toEqual([2, 0, 0])
+    saveRewardProfile(profile)
+    expect(loadRewardProfile()).toEqual(profile)
+    expect(profile.xp).toBe(1120)
+    expect(profile.starfruit).toBe(110)
+  })
+
   test('legacy valid counters survive malformed objective siblings', () => {
     values.set(REWARD_PROFILE_STORAGE_KEY, JSON.stringify({
       xp: 621, starfruit: 48, totalRuns: 3, bestScore: 420,
       objectives: [null, false, 5, { id: 'combo', progress: 4 }, { id: 'score', progress: 350, completed: false }],
     }))
     const profile = loadRewardProfile()
-    expect(profile.schemaVersion).toBe(2)
+    expect(profile.schemaVersion).toBe(3)
     expect(profile.xp).toBe(621)
     expect(profile.starfruit).toBe(48)
     expect(profile.totalRuns).toBe(3)
@@ -102,7 +152,7 @@ describe('reward profile migrations', () => {
     expect(repeated.rewards.status).toBe('already-settled')
     expect(loaded.xp).toBe(first.profile.xp)
     expect(loaded.totalRuns).toBe(1)
-    expect(JSON.parse(values.get(REWARD_PROFILE_STORAGE_KEY)!).schemaVersion).toBe(2)
+    expect(JSON.parse(values.get(REWARD_PROFILE_STORAGE_KEY)!).schemaVersion).toBe(3)
   })
 })
 

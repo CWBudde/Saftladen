@@ -197,7 +197,13 @@ Rewards require a completed run lasting at least five seconds, at least one
 fruit sliced, and a positive score. Flawless bonuses require zero misses and zero
 bomb hits in every mode. Recent run IDs prevent duplicate payouts; versioned
 storage migrates existing profiles/preferences and validates fields independently.
-Results show per-mode best scores and progress for all three objectives.
+Results show per-mode best scores, starter objectives, mode achievements and
+challenge progress. Six permanent achievements reward Classic survival/safe
+cuts, Arcade score/stroke combos and Zen harvest/accuracy. Three challenges
+(one per mode) rotate through harvest, practice and stroke-combo sets after all
+three finish. They have no expiry or daily streak, and partial progress survives
+time away. Each achievement pays once; each challenge pays once per set.
+Profile and results suggest a next goal with a button to play its mode.
 
 Saftladen uses a citrus fruit-stall wordmark, cream/citrus/coral/leaf colors,
 matching UI/canvas typography and consistent controls. Opaque panels and a

@@ -53,11 +53,12 @@ describe('earned cosmetic milestones', () => {
         if (getCosmeticUnlock(item, previous).unlocked) expect(getCosmeticUnlock(item, profile).unlocked).toBe(true)
       }
     }
-    expect(firstUnlocked.get('comet')).toBe(8)
-    expect(firstUnlocked.get('dragon-fang')).toBe(25)
+    const expected = { classic: [2, 17, 144], arcade: [7, 24, 114], zen: [5, 20, 132] }[mode]
+    expect(firstUnlocked.get('comet')).toBe(expected[0])
+    expect(firstUnlocked.get('dragon-fang')).toBe(expected[1])
     expect(firstUnlocked.get('storm-temple')).toBeLessThanOrEqual(8)
     expect(profile.objectives.filter((objective) => objective.completed).map((objective) => objective.id)).toEqual(['runs'])
-    expect(profile.starfruit).toBe(110)
+    expect(profile.starfruit).toBe(expected[2])
     expect(catalog.every((item) => getCosmeticUnlock(item, profile).unlocked)).toBe(true)
   })
 })

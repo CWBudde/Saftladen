@@ -18,6 +18,8 @@ import { eventAnnouncement, eventSounds } from './game/ui/eventFeedback'
 import { BLADE_UNLOCKS, DOJO_UNLOCKS, getCosmeticUnlock, getNewCosmeticUnlocks,
   loadCosmeticSelection, normalizeCosmeticSelection, saveCosmeticSelection, type CosmeticUnlock } from './game/ui/cosmetics'
 import { CosmeticCard } from './game/ui/CosmeticCard'
+import { GoalList } from './game/ui/GoalList'
+import { getNextGoal, MODE_NAMES } from './game/ui/progression'
 import { createGameEngine } from './game/engine'
 import type { GameMode } from './game/types'
 import {
@@ -158,6 +160,8 @@ function App() {
         rewardProfileRef.current = applied.profile
         setRewardProfile(applied.profile)
         setLastRunRewards(applied.rewards)
+        if (applied.rewards.goalCompletions.length) unlockMessage += ` Goals completed: ${applied.rewards.goalCompletions.join(', ')}.`
+        if (applied.rewards.challengesRotated) unlockMessage += ' A fresh challenge set is ready.'
       }
     }
     if (message || unlockMessage) setAnnouncement(previous => ({ id: previous.id + 1,
@@ -248,7 +252,12 @@ function App() {
     engine.reset()
   }
 
-  const nextObjective = rewardProfile.objectives.find((objective) => !objective.completed) ?? null
+  const nextGoal = getNextGoal(rewardProfile, selectedMode)
+  const playGoal = () => {
+    setProfileOpen(false)
+    engine.reset()
+    startMode(nextGoal.mode)
+  }
 
   const equipCosmetic = (item: CosmeticUnlock) => {
     if (!getCosmeticUnlock(item, rewardProfile).unlocked) return
@@ -427,6 +436,25 @@ function App() {
                 </ul>
               </section>
 
+              <section className="profile-card" aria-label="Next goal">
+                <h3>Next goal: {nextGoal.title}</h3>
+                <p>{nextGoal.description} ({nextGoal.progress}/{nextGoal.target}{nextGoal.metric === 'accuracy' ? '%' : ''})</p>
+                <button type="button" className="primary-button" onClick={playGoal} disabled={!assetsReady}>
+                  Play {MODE_NAMES[nextGoal.mode]} goal
+                </button>
+              </section>
+              <section className="profile-card" aria-label="Rotating challenges">
+                <h3>Challenge set {rewardProfile.challenges.cycle + 1} of 3</h3>
+                <p className="meta-subtle">No expiry or daily streak. Progress stays until all three finish,
+                  then a fresh set begins. Each challenge pays once per set.</p>
+                <GoalList goals={rewardProfile.challenges.goals} label="Challenge progress" />
+              </section>
+              <section className="profile-card" aria-label="Mode achievements">
+                <h3>Mode achievements</h3>
+                <p className="meta-subtle">Permanent milestones with one-time rewards.</p>
+                <GoalList goals={rewardProfile.achievements} label="Achievement progress" />
+              </section>
+
               <section className="profile-card unlock-panel">
                 <div>
                   <p className="meta-subheading">Dojos</p>
@@ -503,6 +531,9 @@ function App() {
                   {lastRunRewards.objectiveCompletions.length > 0 ? (
                     <p>Objectives: {lastRunRewards.objectiveCompletions.join(', ')}</p>
                   ) : null}
+                  {lastRunRewards.goalCompletions.length > 0
+                    ? <p>Goals completed: {lastRunRewards.goalCompletions.join(', ')}</p> : null}
+                  {lastRunRewards.challengesRotated ? <p>A fresh challenge set is ready!</p> : null}
                 </div>
               ) : null}
               {newUnlocks.length ? <section className="unlock-celebration" aria-label="New cosmetic unlocks">
@@ -513,14 +544,13 @@ function App() {
                     selection={cosmetics} onEquip={equipCosmetic} />)}
                 </ul>
               </section> : null}
-              {nextObjective ? (
-                <p className="next-objective">
-                  Next Objective: {nextObjective.title} ({Math.min(nextObjective.progress, nextObjective.target)}/
-                  {nextObjective.target})
-                </p>
-              ) : (
-                <p className="next-objective">All objectives completed.</p>
-              )}
+              <section aria-label="Next goal">
+                <p className="next-objective">Next goal: {nextGoal.title} ({nextGoal.progress}/{nextGoal.target}{nextGoal.metric === 'accuracy' ? '%' : ''})</p>
+                <p>{nextGoal.description}</p>
+                <button type="button" className="primary-button" onClick={playGoal}>Play {MODE_NAMES[nextGoal.mode]} goal</button>
+              </section>
+              <GoalList goals={rewardProfile.challenges.goals} label="Challenge progress" />
+              <GoalList goals={rewardProfile.achievements.filter(goal => goal.mode === selectedMode)} label="Mode achievement progress" />
               <ul className="objective-list" aria-label="Objective progress">
                 {rewardProfile.objectives.map(objective => <li key={objective.id}
                   className={objective.completed ? 'done' : ''}>

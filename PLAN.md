@@ -2,7 +2,10 @@
 
 ## Start here
 
-**Next implementation:** extend goals beyond the three static objectives in **Phase 18**.
+**Next implementation:** measure production frame times and select useful
+optimizations in **Phases 11/19** before adding pooling or quality tiers.
+Phase 18 now adds six permanent mode achievements, a completion-driven rotating
+challenge set and actionable next-goal prompts. Saved progress has no expiry.
 Equippable blades/dojos now have visual previews, saved selections and live
 trail/background treatments. Results celebrate new unlocks with direct equip,
 all objective progress, per-mode best and an equipment shortcut.
@@ -22,11 +25,10 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Extend progression goals](#phase-18--rewards-that-change-the-experience-p2) | Build mode-specific achievements, rotating challenges and next-goal prompts on the completed reward/equipment system |
-| 2 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
-| 3 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
-| 4 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
-| 5 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
+| 1 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
+| 2 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact, equipment and progression smoke added; offline/update and physical checks remain |
+| 3 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
+| 4 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
 
 Physical input calibration in **Phase 15**, listening QA in **Phase 16** and
 device QA in **Phase 12** can run alongside implementation. Record device/browser evidence; pending device access
@@ -60,8 +62,10 @@ last. Completed tasks and the original review are archived below the backlog.
   selections, reload persistence and once-per-settlement unlock celebrations.
 - Results show per-mode best, all objective progress, direct reward equip and
   an equipment shortcut alongside replay.
-- 167 Bun tests / 3,447 assertions; lint, typecheck and production build passed in the latest batch.
-- Nineteen permanent Playwright checks cover existing modes, horizontal viewport contact,
+- Six permanent mode achievements and three rotating challenges with no expiry,
+  bounded saved state, once-per-goal payouts and useful next-mode launch actions.
+- 183 Bun tests / 3,681 assertions; lint, typecheck and production build passed in the latest batch.
+- Twenty permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
   combo bursts, real layered WAV decoding/headroom and bomb impact expiry
@@ -70,6 +74,8 @@ last. Completed tasks and the original review are archived below the backlog.
   checks cover milestone boundaries, reload persistence and unchanged earned totals.
   Equipment checks cover locked/stale selections, keyboard actions, actual canvas
   pixels/trail colors, new-unlock results/equip/replay and portrait/landscape bounds.
+  Progression checks cover retained saved progress, real challenge completion,
+  set rotation, reload and keyboard next-mode actions from profile/results.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -188,16 +194,17 @@ and mode goal. Reduced-motion play retains clear feedback without shake/flash.
       (0/560/1120 XP). Shared catalog IDs/requirements derive permanent ownership
       from saved totals; existing saves need no ownership migration. Profile shows
       remaining progress, unlock requirements and one-time objective payouts.
-      A 210-point/peak-streak-three/one-miss repeated-run baseline reaches Comet
-      at eight runs and Dragon Fang at 25 in all modes without skill-objective
-      bonuses. Human reward-rate/attainability tuning remains in Phase 17.
+      The expanded-goal 210-point/20-fruit/peak-streak-three/one-miss baseline
+      reaches Comet at 2/7/5 runs and Dragon Fang at 17/24/20 in Classic/Arcade/Zen,
+      without initial streak/score objective bonuses. Human reward-rate and
+      attainability tuning remains in Phase 17.
 - [x] **Implement equippable blades and dojos.** Show names, previews,
       requirements, unlock celebrations, and equip actions; persist selection
       and apply it to actual trails/backgrounds. Unlocks remain cosmetic.
       Shared canvas art supplies three blade palettes and static wood/wave,
       sunset harbor and moonlit temple dojos without new raster assets. A separate
-      version-1 save validates each slot against earned totals, preserving reward
-      schema v2 and repairing locked/stale IDs independently. Results celebrate
+      version-1 save validates each slot against earned totals, preserving earned
+      reward counters and repairing locked/stale IDs independently. Results celebrate
       newly crossed thresholds with direct equip; selections survive reload and
       leave input, spawning, scoring and reduced-motion behavior intact.
 - [x] **Improve results.** Show per-mode personal best, fruit/miss/bomb counts,
@@ -207,9 +214,21 @@ and mode goal. Reduced-motion play retains clear feedback without shake/flash.
       show all objective progress, offer direct equip for new unlocks and a
       Choose equipment shortcut alongside replay. Browser checks cover a real
       earned unlock, equip, replay and no repeated celebration/extra reward.
-- [ ] **Extend goals beyond the three static objectives.** Add mode-specific
+- [x] **Extend goals beyond the three static objectives.** Add mode-specific
       achievements, a rotating small challenge set, and useful next-goal prompts
       without punishing missed days.
+      Six permanent achievements cover Classic safe cuts/survival, Arcade
+      score/stroke combos and Zen harvest/accuracy. Three slots (one per mode)
+      rotate through harvest, two-run practice and stroke-combo sets only when
+      all finish. No deadlines, daily streaks or escalating targets; progress
+      persists through time away. Reward schema v3 preserves legacy totals,
+      paid starter objectives and recent settlement IDs while independently
+      validating new progress/payout metadata. Eligible settlement pays each
+      achievement once and each challenge once per set; the closing run cannot
+      credit the next set. Profile/results suggest and launch a pending goal's
+      mode through the normal countdown. Tests cover thresholds, accuracy sample
+      size/ratio, safe cuts, mode isolation, repeated rotations, duplicate and
+      ineligible runs, reload, malformed saves and real browser completion.
 
 **Acceptance:** earning/equipping a cosmetic visibly changes play and survives
 reload. Bomb-hit runs cannot receive a flawless bonus; rewards are applied once.
@@ -240,8 +259,8 @@ independent of gameplay RNG and validate scoring/spawns at every quality tier.
 ## Phase 19 — Mobile, Performance, and Release Confidence (P1 / P2)
 
 The first pass implements viewport geometry, asset readiness and a browser
-baseline for existing modes. Phase 17 adds scoring/contact smoke; extend equip-flow
-smoke after Phase 18. Device measurements and final release checks remain shared work;
+baseline for existing modes. Phase 17 adds scoring/contact smoke; Phase 18 adds
+equipment and progression flows. Device measurements and final release checks remain shared work;
 completing the entire phase is not a prerequisite for starting Phase 17.
 
 - [ ] **Extend browser smoke coverage as new features land.** The production
@@ -254,7 +273,9 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       Real WebAudio decoding verifies layered cut/combo playback and sample headroom.
       Equipment smoke now covers every blade/dojo pair, real trail/background
       drawing, locked/stale IDs, keyboard equip, reload, real unlock results and
-      replay, with narrow portrait/landscape controls. Physical iOS/Android
+      replay, with narrow portrait/landscape controls. Progression smoke covers
+      a real completed challenge, board rotation, saved progress without expiry,
+      reload and keyboard next-goal launches from profile/results. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
 - [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
@@ -731,6 +752,29 @@ milestones, equips from results and replays without another unlock celebration.
 Screenshot review corrected narrow preview overflow; generated browser/audio
 artifacts are excluded from lint scanning as well as Git. Extend progression
 goals next; human/device/listening/performance and offline/update QA remain open.
+
+**Eleventh improvement batch (2026-10-03):** completed extended Phase 18 goals.
+Six mode achievements and three rotating challenge slots provide goals after the
+starter objectives finish. Rotation follows completion, never the calendar;
+partial progress and paid slots survive time away. The board cycles through
+harvest, eligible-run practice and gesture combos with bounded targets/state.
+Achievement and challenge bonuses share eligible, exactly-once settlement;
+new boards receive no credit from the closing run. Version-3 rewards preserve
+legacy currency/unlocks, objective completion and recent run IDs, while validating
+new metadata against canonical templates. Profile/results show descriptions,
+progress, payouts, completion announcements and next-goal mode launch buttons.
+
+Validation: 183 Bun tests / 3,681 assertions; all twenty production browser cases
+passed in one full-suite run. Lint, application/browser/tooling typechecking and
+production build passed. New regression checks cover every achievement's mode
+and payout, sample-size/accuracy thresholds, bomb-safe fruit, repeated rotations
+and wraparound, duplicate/ineligible runs, malformed fields, v2 migration and
+reload. The new browser check retains old saved progress, completes a challenge
+by slicing actual fruit, celebrates/rotates once and launches suggested modes
+from profile/results by keyboard. Portrait/landscape screenshots were inspected.
+New goal bonuses accelerate the arithmetic unlock baseline; human reward balance
+still needs playtesting. Performance measurement is next; physical devices,
+listening, balance and offline/update QA remain open.
 
 </details>
 

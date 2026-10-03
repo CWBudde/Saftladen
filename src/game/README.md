@@ -153,7 +153,9 @@ Unlocks are automatic, cumulative and cosmetic; resolving ownership never
 mutates the profile. Existing version-2 and migrated unversioned profiles retain
 their counters and therefore their unlocks, without a second ownership ledger.
 Equipment uses a separate version-1 `saftladen.cosmetics.selection` save, leaving
-reward schema/version-2 counters unchanged. Each blade/dojo ID is validated
+earned reward counters unchanged. Reward schema v3 adds progression fields and
+migrates v2/legacy profiles without re-awarding completed starter objectives.
+Each blade/dojo ID is validated
 against the catalog and earned totals on load/save; unknown or locked IDs fall
 back independently to Bamboo/Great Wave. Missing, malformed or blocked storage
 leaves usable starter equipment, and blocked saves retain in-session choices.
@@ -179,9 +181,26 @@ XP and reward settlement rules remain in `ui/rewards.ts`; recent run IDs prevent
 duplicate payouts. The profile displays lifetime totals, exact unlock thresholds,
 remaining XP/Starfruit and objective payouts.
 
-An automated arithmetic baseline repeats 210-point runs with peak timed streak
-three and one miss: four Starfruit per run, plus ten on the fifth run. In every
-mode this reaches Comet at run eight, Dragon Fang at run 25 and both later dojos
-by run eight, without streak/score objective bonuses. This verifies a repeatable
+`ui/progression.ts` defines six permanent mode achievements and a completion-driven
+challenge board. Three slots (one per mode) cycle through 20 cumulative fruit,
+two eligible runs and a three-fruit stroke. Progress never expires; there are
+no date/streak gates. Completing all slots rotates the board after settlement;
+the closing run does not contribute to the next board. Targets and payouts are
+rehydrated from canonical templates. Only bounded board index/progress and
+permanent achievements are stored, alongside the existing recent-run ledger.
+Achievement/challenge bonuses join the same eligible, exactly-once settlement,
+and duplicate/ineligible runs cannot progress or rotate goals. Accuracy requires
+20 fruit and 10 successful strokes; its threshold uses the unrounded ratio.
+Classic safe cuts reject bomb-hit runs; survival requires 20 fruit. Base reward
+formulas are unchanged. `getNextGoal` prefers pending goals in the selected mode,
+then other modes when that mode's goals are done. React displays progress and
+dispatches ordinary mode/countdown commands; goals never mutate simulation.
+
+An automated arithmetic baseline repeats 210-point/20-fruit runs with peak timed
+streak three, one miss, 10/12 successful strokes and a three-fruit stroke combo:
+four base Starfruit per run, plus ten on the fifth run. With new goal bonuses,
+Classic reaches Comet/Dragon Fang at runs 2/17, Arcade at 7/24, and Zen at 5/20.
+Both later dojos still unlock by run eight, without streak/score starter-objective
+bonuses. This verifies a repeatable
 progression route under those inputs; measured human playtests must establish
 whether these scores and unlock times feel attainable on mouse/touch devices.

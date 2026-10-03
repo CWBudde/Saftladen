@@ -1,4 +1,6 @@
 import type { GameMode, RunStats } from '../types'
+import { applyProgression, normalizeAchievements, normalizeChallengeBoard,
+  type ChallengeBoard, type ProgressionGoal } from './progression'
 
 export type RewardObjectiveId = 'runs' | 'combo' | 'score'
 export type RewardObjectiveMetric = 'runs' | 'max-combo' | 'best-score'
@@ -16,7 +18,7 @@ export type RewardObjective = {
 }
 
 export type RewardProfile = {
-  schemaVersion: 2
+  schemaVersion: 3
   settledRunIds: string[]
   xp: number
   /** Lifetime earned Starfruit; cosmetic thresholds never deduct this total. */
@@ -26,6 +28,8 @@ export type RewardProfile = {
   bestCombo: number
   bestScore: number
   objectives: RewardObjective[]
+  achievements: ProgressionGoal[]
+  challenges: ChallengeBoard
 }
 
 export type RunSummary = {
@@ -42,6 +46,8 @@ export type RunRewards = {
   xpEarned: number
   starfruitEarned: number
   objectiveCompletions: string[]
+  goalCompletions: string[]
+  challengesRotated: boolean
 }
 
 type ObjectiveTemplate = Omit<RewardObjective, 'progress' | 'completed'>
@@ -77,7 +83,7 @@ const OBJECTIVE_TEMPLATES: ObjectiveTemplate[] = [
 ]
 
 export const REWARD_PROFILE_STORAGE_KEY = 'saftladen.rewards.profile'
-export const REWARD_PROFILE_SCHEMA_VERSION = 2
+export const REWARD_PROFILE_SCHEMA_VERSION = 3
 export const SETTLED_RUN_HISTORY_LIMIT = 128
 export const MIN_REWARDED_RUN_DURATION_MS = 5000
 export const XP_PER_LEVEL = 280
@@ -102,6 +108,8 @@ export function createDefaultRewardProfile(): RewardProfile {
     bestCombo: 0,
     bestScore: 0,
     objectives: createDefaultObjectives(),
+    achievements: normalizeAchievements(undefined),
+    challenges: normalizeChallengeBoard(undefined),
   }
 }
 
@@ -147,6 +155,8 @@ function normalizeRewardProfile(value: unknown): RewardProfile {
     bestCombo: safeInteger(parsed.bestCombo),
     bestScore: safeInteger(parsed.bestScore),
     objectives: OBJECTIVE_TEMPLATES.map((template) => coerceObjective(objectiveById.get(template.id) ?? {}, template)),
+    achievements: normalizeAchievements(parsed.achievements),
+    challenges: normalizeChallengeBoard(parsed.challenges),
   }
 }
 
@@ -227,6 +237,7 @@ export function applyRunRewards(
 ): { profile: RewardProfile; rewards: RunRewards } {
   const noRewards = (status: RunRewards['status']): RunRewards => ({
     status, flawless: false, xpEarned: 0, starfruitEarned: 0, objectiveCompletions: [],
+    goalCompletions: [], challengesRotated: false,
   })
   if (!validRunId(summary.runId)) return { profile, rewards: noRewards('ineligible') }
   if (profile.settledRunIds.includes(summary.runId)) {
@@ -237,6 +248,9 @@ export function applyRunRewards(
   const validValues = counts.every((value) => Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER)
     && ['classic', 'arcade', 'zen'].includes(summary.mode)
     && Object.values(summary.stats).every(Number.isInteger)
+    && summary.stats.successfulStrokes <= summary.stats.strokesAttempted
+    && summary.stats.successfulStrokes <= summary.stats.fruitSliced
+    && summary.stats.peakStrokeCombo <= summary.stats.fruitSliced
   if (!validValues || summary.durationMs < MIN_REWARDED_RUN_DURATION_MS
     || summary.stats.fruitSliced < 1 || summary.score <= 0) {
     return { profile: { ...profile, settledRunIds }, rewards: noRewards('ineligible') }
@@ -256,8 +270,9 @@ export function applyRunRewards(
     return next
   })
 
-  const xpEarned = safeInteger(baseRewards.xp + bonusXp)
-  const starfruitEarned = safeInteger(baseRewards.starfruit + bonusStarfruit)
+  const progression = applyProgression(profile, summary)
+  const xpEarned = safeInteger(baseRewards.xp + bonusXp + progression.bonusXp)
+  const starfruitEarned = safeInteger(baseRewards.starfruit + bonusStarfruit + progression.bonusStarfruit)
 
   return {
     profile: {
@@ -270,6 +285,8 @@ export function applyRunRewards(
       bestCombo: Math.max(profile.bestCombo, summary.stats.peakCombo),
       bestScore: Math.max(profile.bestScore, summary.score),
       objectives,
+      achievements: progression.achievements,
+      challenges: progression.challenges,
     },
     rewards: {
       status: 'earned',
@@ -277,6 +294,8 @@ export function applyRunRewards(
       xpEarned,
       starfruitEarned,
       objectiveCompletions,
+      goalCompletions: progression.completions,
+      challengesRotated: progression.challengesRotated,
     },
   }
 }
