@@ -5,6 +5,7 @@ import { createViewportTransform, worldPointToCanvas } from '../core/viewport'
 import type { EngineDiagnostics } from '../engine'
 import type { GamePresentationEvent, GameState, ScoreFeedbackEvent, Vec2 } from '../types'
 import { createImpactFeedback } from './impactFeedback'
+import { createBoardCache } from './boardCache'
 import { drawBladeSegment, drawDojoScenery } from './cosmeticArt'
 import { DEFAULT_COSMETIC_SELECTION, type CosmeticSelection } from '../ui/cosmetics'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawSpawnEnvelopes, drawTrailStats } from './debugDraw'
@@ -551,6 +552,7 @@ function readFruitImages(): FruitImages {
 
 export function createRenderer(): Renderer {
   let woodTextureCache: WoodTextureCache | null = null
+  const boardCache = createBoardCache()
   const buckets = createRenderBuckets()
   const impacts = createImpactFeedback()
   let observedRunId: string | null = null
@@ -580,22 +582,24 @@ export function createRenderer(): Renderer {
       if (state.run.id !== observedRunId || state.phase === 'idle') impacts.reset()
       observedRunId = state.run.id
       if (state.phase !== 'idle') impacts.consume(context.presentationEvents ?? [], frameInfo.timestampMs, state.world.bounds)
-      if (cosmetics.dojo === 'great-wave') woodTextureCache = drawBackgroundLayer(
-        ctx,
-        widthCssPx,
-        heightCssPx,
-        woodTextureCache,
-        preferredBackgroundImage,
-        preferredBackgroundReady,
-      )
-      else ctx.clearRect(0, 0, widthCssPx, heightCssPx)
-      drawDojoScenery(ctx, widthCssPx, heightCssPx, cosmetics.dojo, cosmetics.dojo === 'great-wave')
-      // Shade the board behind the HUD; draw objects afterward to retain bright art.
-      const boardShade = ctx.createLinearGradient(0, 0, 0, Math.min(200, heightCssPx * 0.45))
-      boardShade.addColorStop(0, 'rgba(25, 16, 12, 0.88)')
-      boardShade.addColorStop(1, 'rgba(25, 16, 12, 0)')
-      ctx.fillStyle = boardShade
-      ctx.fillRect(0, 0, widthCssPx, heightCssPx)
+      boardCache.draw(ctx, context.metrics, cosmetics.dojo, preferredBackgroundImage, (boardCtx) => {
+        if (cosmetics.dojo === 'great-wave') woodTextureCache = drawBackgroundLayer(
+          boardCtx,
+          widthCssPx,
+          heightCssPx,
+          woodTextureCache,
+          preferredBackgroundImage,
+          preferredBackgroundReady,
+        )
+        else boardCtx.clearRect(0, 0, widthCssPx, heightCssPx)
+        drawDojoScenery(boardCtx, widthCssPx, heightCssPx, cosmetics.dojo, cosmetics.dojo === 'great-wave')
+        // Shade the board behind the HUD; draw objects afterward to retain bright art.
+        const boardShade = boardCtx.createLinearGradient(0, 0, 0, Math.min(200, heightCssPx * 0.45))
+        boardShade.addColorStop(0, 'rgba(25, 16, 12, 0.88)')
+        boardShade.addColorStop(1, 'rgba(25, 16, 12, 0)')
+        boardCtx.fillStyle = boardShade
+        boardCtx.fillRect(0, 0, widthCssPx, heightCssPx)
+      })
       ctx.save()
       ctx.translate(viewport.offsetX, viewport.offsetY)
       drawDecalLayer(ctx, buckets.decals, scaleX, scaleY)

@@ -42,11 +42,16 @@ We are not switching to `bunx --bun vite` right now because the direct script fo
 - `bun run test` - run input/gameplay, event, rendering, reward/storage, and audio regressions
 - `bun run audio:preview` - generate a local listening page at `output/audio-preview/index.html`
 - `bun run test:browser` - run the browser smoke suite against a production build
+- `bun run profile:render` - build and measure a separate production renderer fixture
 
 For browser checks, install Chromium once with `bunx playwright install chromium`,
 then run `bun run build` and `bun run test:browser`. The suite covers loading,
 game modes, pause/resume, results/replay and compact-screen dialogs. CI runs
 these checks before deployment.
+
+The optional renderer benchmark uses the native browser clock at DPR 1 and 3,
+with all dojos and a fixed effects load. See [performance measurements](docs/PERFORMANCE.md)
+for results, reproduction instructions and pending physical-device checks.
 
 ## Debug Mode Toggle
 

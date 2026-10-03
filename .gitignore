@@ -48,3 +48,5 @@ output/imagegen/
 
 # Generated listening artifacts
 output/audio-preview/
+output/performance/
+output/performance-reports/

@@ -2,8 +2,10 @@
 
 ## Start here
 
-**Next implementation:** measure production frame times and select useful
-optimizations in **Phases 11/19** before adding pooling or quality tiers.
+**Next implementation:** extend offline/update browser coverage in **Phase 19**.
+The first performance pass adds a reproducible production renderer benchmark
+and caches complete static dojo boards. Physical-device latency, actual Frenzy
+multitouch and long-session memory remain pending before pooling/quality tiers.
 Phase 18 now adds six permanent mode achievements, a completion-driven rotating
 challenge set and actionable next-goal prompts. Saved progress has no expiry.
 Equippable blades/dojos now have visual previews, saved selections and live
@@ -25,8 +27,8 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
-| 2 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact, equipment and progression smoke added; offline/update and physical checks remain |
+| 1 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact, equipment and progression smoke added; offline/update and physical checks remain |
+| 2 | [Validate device performance and select further optimizations](#phase-11--performance--polish) | Host renderer baseline/cache done; measure physical latency/memory before pooling or quality tiers |
 | 3 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
 | 4 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
 
@@ -64,7 +66,9 @@ last. Completed tasks and the original review are archived below the backlog.
   an equipment shortcut alongside replay.
 - Six permanent mode achievements and three rotating challenges with no expiry,
   bounded saved state, once-per-goal payouts and useful next-mode launch actions.
-- 183 Bun tests / 3,681 assertions; lint, typecheck and production build passed in the latest batch.
+- Complete static dojo/background/HUD-shade cache with geometry, DPR, equip and asset invalidation;
+  reproducible native-RAF production renderer benchmark at DPR 1/3 with an effects stress load.
+- 185 Bun tests / 3,701 assertions; lint, typecheck and production build passed in the latest batch.
 - Twenty permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
@@ -246,7 +250,12 @@ independent of gameplay RNG and validate scoring/spawns at every quality tier.
   - [ ] Reuse trail point buffers (or store in typed arrays)
   - [ ] Avoid per-frame temporary object churn in hot paths
 - [ ] Render optimizations
-  - [ ] Background cached to an offscreen canvas (if useful)
+  - [x] Background cached to an offscreen canvas (if useful). One renderer-owned
+        surface includes the selected dojo and HUD shade, invalidated on CSS/
+        backing dimensions, DPR, dojo or decoded background changes. Direct fallback
+        remains usable. Native-RAF production measurements show variable DPR 3
+        timing across repeats; see `docs/PERFORMANCE.md` for exact results, the
+        removed static drawing work and extra backing-store memory tradeoff.
   - [ ] Minimize state changes (lineWidth, strokeStyle, globalAlpha)
   - [ ] Limit particle counts dynamically on low-end devices
 - [ ] Input feel tuning
@@ -299,6 +308,16 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       input-latency budgets on agreed midrange mobile devices during Frenzy and
       multitouch; measure p95 frame time and long-session memory. Apply Phases
       11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work.
+      - [x] Add a reproducible production renderer benchmark and record a host
+            baseline before optimization. Separate minified fixture tests three
+            dojos, DPR 1/3, empty and stationary Frenzy-sized effects/two trails;
+            60 warm-up + 120 native RAF samples per case. Reports retain CPU p95,
+            RAF p95 and missed-frame percentages; full state remains unchanged.
+            `docs/PERFORMANCE.md` records before/cache results and provisional
+            8ms renderer / 20ms RAF / 50ms input budgets. No timing CI gate.
+      - [ ] Validate physical midrange devices, actual Frenzy/touch latency,
+            ten-minute memory behavior and foreground menu/pause work; use those
+            findings to choose additional pooling, FX/DPR tiers or idle scheduling.
 - [ ] Verify physical touch scrolling.
 
 **Acceptance:** agreed phone/desktop flows work with no clipped controls or
@@ -775,6 +794,30 @@ from profile/results by keyboard. Portrait/landscape screenshots were inspected.
 New goal bonuses accelerate the arithmetic unlock baseline; human reward balance
 still needs playtesting. Performance measurement is next; physical devices,
 listening, balance and offline/update QA remain open.
+
+**Twelfth improvement batch (2026-10-03):** implemented the first measured
+performance optimization in Phases 11/19. A separate production renderer fixture
+uses native RAF, decoded assets, all three dojos, DPR 1/3 and a stationary effects
+load with two trails. Named JSON reports and generated fixture bundles stay
+ignored and outside deployment. Complete static backgrounds/scenery/HUD shading
+now share one renderer-owned surface, refreshed on geometry, DPR, dojo or asset
+changes, with a direct-drawing fallback. At DPR 3 under the fixed effects load,
+Great Wave/Sunset Harbor missed-frame percentages fell from 37.5%/27.5% to
+0.8%/1.7% in the initial before/cache run; Storm Temple improved but still missed
+frames. A repeat cached run measured 31.7%/23.3%/5.0% missed frames for Great
+Wave/Sunset Harbor/Storm Temple, so this does not establish stable FPS gains.
+`docs/PERFORMANCE.md` records both runs, limits, provisional budgets and the
+cache's memory tradeoff. No pooling or quality tiers were inferred from short
+host measurements.
+
+Validation: 185 Bun tests / 3,701 assertions; all twenty production browser
+cases passed in one full run. Lint, application/browser/tooling typechecking
+and production build passed. Cache tests cover invalidation, in-place surface
+reuse and unavailable contexts; profiling asserts unchanged complete game state.
+Existing browser checks confirm live cosmetic pixels, equip/replay, viewport
+contact, art retry/fallback and all progression flows. Physical phone latency,
+actual Frenzy multitouch, long-session memory and idle scheduling measurements
+remain open. Offline/update coverage is the next independent implementation.
 
 </details>
 

@@ -169,6 +169,14 @@ expiry, input geometry and scoring remain shared. Static canvas scenery adds no
 bitmap downloads or gameplay random calls. Reduced motion retains the selected
 appearance without introducing animations or flashes.
 
+`render/boardCache.ts` retains one complete static board surface per renderer:
+background, dojo scenery and HUD shade. CSS/backing dimensions, DPR, dojo and
+decoded background identity invalidate it; changing size/equipment reuses the
+same surface. The cache keeps native backing-store resolution, consumes no RNG
+and leaves simulation untouched. If offscreen drawing is unavailable, direct
+drawing remains usable. The separate production fixture and measured memory
+tradeoff are documented in `docs/PERFORMANCE.md`; it is excluded from deployment.
+
 Run settlement compares earned totals before/after to celebrate newly crossed
 milestones once. Results offer direct equip buttons, per-mode best, all objective
 progress, replay and a shortcut to the full equipment panel. Equipping never

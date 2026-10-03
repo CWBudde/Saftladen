@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "test": "bun test",
     "test:browser": "tsc -p tsconfig.browser.json && playwright test",
+    "profile:render": "tsc -p tsconfig.browser.json && bun scripts/performance-build.ts && playwright test --config playwright.performance.config.ts",
     "audio:preview": "bun scripts/audio-preview.ts",
     "preview": "vite preview"
   },
