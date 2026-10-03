@@ -2,9 +2,11 @@
 
 ## Start here
 
-**Next implementation:** continue `App.tsx` decomposition in **Phase 14.4**.
-Renderer decomposition is complete: background/wood, entity and feedback drawing
-now live in focused modules, with shared renderer types and preserved layer order.
+**Next implementation:** remove dead simulation state/constants in **Phase 14.4**.
+App decomposition is complete: menu, profile, pause and results UI live in focused
+components, with global shortcuts in a dedicated hook. App retains launch,
+settlement, equipment and safe update orchestration. Renderer decomposition is
+also complete, with focused draw modules and preserved layer order.
 Automated keyboard/settings acceptance in Phase 19 / 14.6 is complete. Continue
 independent code cleanup while physical input, performance, listening and human
 balance checks remain open; device measurements still precede further optimization.
@@ -80,6 +82,10 @@ last. Completed tasks and the original review are archived below the backlog.
 - Renderer orchestration is separated from background/wood, entity and feedback
   layers; shared types keep draw modules independent of the renderer factory.
   Existing cache ownership, draw order, fallback art and reduced-motion behavior are preserved.
+- Menu, profile, pause and results components receive UI snapshots and command
+  callbacks; global keyboard handling has its own hook. App retains ordered
+  audio/reward event handling, launch preparation, equipment and update gating.
+  Dialog focus, live announcements and held-key suppression are preserved.
 - Deliberate menu/results PWA updates, no automatic reload of active/paused tabs,
   reconnect recovery after interrupted first installs and retained caches after failed updates.
 - Current player/contributor guides describe actual modes, shortcuts, audio, local
@@ -418,10 +424,15 @@ in the completion record below. Coordinate overlapping work with Phases 11,
       layer order, geometry and reduced-motion behavior are preserved. Moved
       code matches the original after export normalization; all 186 unit tests
       and 28 production browser checks, lint, typechecking and build pass.
-- [ ] **Continue decomposing `App.tsx`.** `GameHud` is extracted; remaining
-      candidates include `MenuScreen`,
-      `PauseOverlay`, `GameOverOverlay`, `ProfilePanel`, and hooks
-      `useAudioReactions`, `useRewardTracking`, `useGameKeyboard`.
+- [x] **Continue decomposing `App.tsx`.** Extracted `MenuScreen`, `ProfilePanel`,
+      `PauseOverlay`, `GameOverOverlay`, `useGameKeyboard` and shared time formatting.
+      App is now 301 lines instead of 632; it retains engine/audio ownership,
+      launch preparation, ordered audio/reward event handling, equipment commands
+      and safe update gating. Components preserve DOM structure, native dialogs,
+      focus anchors, live announcements and controls. Keyboard handling preserves
+      held-key state, capture-phase keyup, blur cleanup and interactive-target
+      guards. Source comparison and all 186 unit tests / 28 production browser
+      checks pass, along with lint, typechecking and build.
 - [ ] **Remove dead simulation state/constants:** `FruitEntity.sliced` (set,
       read, never becomes true), `BOMB_ARCADE_SCORE_PENALTY` (defined, never
       used — reconcile with the actual half-score penalty), the
@@ -973,6 +984,27 @@ All ten local architecture-guide links resolve. The build retains 30 precache
 entries / 4085.32 KiB. `App.tsx` decomposition is the next independent code task;
 physical input/device performance, screen-reader/listening and human balance QA
 remain open.
+
+**Seventeenth improvement batch (2026-10-03):** completed App decomposition in
+Phase 14.4. Four focused components own the menu, profile, pause and results
+markup; `useGameKeyboard` owns global shortcuts and held-key suppression. The
+unchanged duration formatter is shared by pause/results. App shrinks from 632
+to 301 lines and retains service ownership, launch/onboarding/countdown commands,
+ordered audio/reward settlement, equipment commands and safe update acceptance.
+Native dialog structure, focus return selectors, live announcement placement,
+saved settings, artwork gates and replay behavior are preserved. The architecture
+guide documents the new boundaries. No assets or dependencies were added.
+
+Validation: moved JSX matches the original after indentation and callback/prop
+substitution; keyboard logic, duration formatting, settlement and launch/equipment
+commands match the original. All 186 Bun tests / 3,703 assertions and all 28
+production Chromium checks passed, including modal focus, held Space/Escape,
+native controls/modifiers, saved settings/practice, equipment/results/replay and
+real-worker offline/update flows. Lint, application/browser/tooling typechecking
+and production build passed; all 16 local architecture-guide links resolve.
+The build has 30 precache entries / 4086.60 KiB. Dead simulation state/constants
+are the next independent code task. Physical input/device performance,
+screen-reader/listening and human balance QA remain open.
 
 </details>
 

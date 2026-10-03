@@ -27,6 +27,18 @@ React components must not:
 - mutate world state directly
 - perform per-frame entity rendering logic
 
+`App.tsx` owns the engine/audio services, launch preparation, reward settlement,
+equipment commands and safe update acceptance. [MenuScreen](ui/MenuScreen.tsx),
+[ProfilePanel](ui/ProfilePanel.tsx), [PauseOverlay](ui/PauseOverlay.tsx) and
+[GameOverOverlay](ui/GameOverOverlay.tsx) receive copied UI values and command
+callbacks. They preserve the existing DOM structure and share native
+[GameDialog](ui/GameDialog.tsx) focus handling. App supplies live announcements
+inside profile/results dialogs and gates update notices before passing them in.
+[useGameKeyboard](ui/useGameKeyboard.ts) owns global shortcuts, interactive-target
+guards and held Space/Escape suppression across modal autofocus, including
+capture-phase keyup and blur cleanup. It sends engine commands without running
+simulation or subscribing to gameplay events.
+
 ## Debug Flag Convention
 
 `VITE_DEBUG=1` sets the initial overlay state through `isGameDebugEnabled()` in
