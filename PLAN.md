@@ -2,8 +2,9 @@
 
 ## Start here
 
-**Next implementation:** action audio, followed by visual identity
-in **Phase 16**. Hit feedback now includes contact-centered combo/bomb bursts
+**Next implementation:** unify visual identity in **Phase 16**.
+Layered action audio and variations are implemented; subjective listening QA
+remains pending, with a generated audition page available. Hit feedback includes contact-centered combo/bomb bursts
 and readable bomb penalties with reduced-motion support.
 Onboarding includes safe practice, repeatable/skippable help
 and a foreground-only ready countdown. Phase 17 implements gesture combos, capped timed streaks,
@@ -15,7 +16,7 @@ represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Action audio and presentation polish](#phase-16--signature-slice-feel-and-presentation-p1) | Onboarding/hit feedback complete; layered audio/listening QA and visual identity remain |
+| 1 | [Unify presentation](#phase-16--signature-slice-feel-and-presentation-p1) | Onboarding, hit feedback and action audio implemented; visual identity and physical listening QA remain |
 | 2 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke statistics now available |
 | 3 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
 | 4 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Scoring/contact smoke added; equip, offline/update and physical checks remain |
@@ -44,11 +45,14 @@ last. Completed tasks and the original review are archived below the backlog.
 - Optional first-run practice, repeatable help and a three-second ready countdown that suspends on backgrounding.
 - Bounded combo/bomb impact bursts and bomb labels that expire on presentation time,
   including after game-over; reduced motion retains readable static text.
-- 146 Bun tests / 2,724 assertions; lint, typecheck and production build passed in the latest batch.
+- Layered cut/juice and explosion variations, capped combo pitch escalation,
+  distinct activation/expiry chords, with a local listening page generator.
+- 150 Bun tests / 2,834 assertions; lint, typecheck and production build passed in the latest batch.
 - Fifteen permanent Playwright checks cover existing modes, horizontal viewport contact,
   held-gesture combos/results, keyboard/settings, muted launch, artwork retry/fallback,
   practice isolation, remembered/skipped help, foreground-only countdowns,
-  combo bursts and bomb impact expiry with reduced motion enabled/disabled.
+  combo bursts, real layered WAV decoding/headroom and bomb impact expiry
+  with reduced motion enabled/disabled.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
@@ -121,15 +125,26 @@ tests show fruit before bombs, and every mode has documented pressure budgets.
       Rotation preserves normalized impact positions, and reduced motion keeps
       static text while suppressing rings/flash. Local bursts supply the extra
       punctuation without moving hit geometry or stopping simulation clocks.
-- [ ] **Design action audio.** Layer swipe/cut/splatter sounds with a few
+- [x] **Design action audio.** Layer swipe/cut/splatter sounds with a few
       variations; add combo escalation, bomb explosion, music ducking, and
       separate power-up activation/expiry cues. Cap simultaneous voices.
-      Slice and bomb use richer swept/noise synthesis, with pitch variation;
-      event precision, expiry cues, streak milestones, music ducking and eight-voice
-      limits are implemented; richer layered samples/variations and listening QA remain.
+      Three blade/cut/juice variants and two explosion transient/body/tail variants
+      are baked into mono WAVs on unlock. Growing stroke combos raise a layered
+      chord by up to four semitones; timed streaks retain ordinary cut cues.
+      Rising activation and falling expiry chords remain separate. Layers share
+      one voice per cue, eight voices total including queued decode. Sample peaks
+      retain 12% headroom; master mute, music ducking and disposal are preserved.
+      Asset-local noise and round-robin variation never consume gameplay RNG.
+      Automated signal/browser checks pass; subjective listening remains below.
 - [ ] **Unify presentation.** Consistent typography, button treatment, lighting,
       and fruit scale; choose an original Saftladen identity and retain readable
       contrast against the wood background.
+- [ ] **Complete listening QA.** Generate `bun run audio:preview`, then listen
+      on headphones and physical phone speakers. Check cut/juice separation,
+      repetition fatigue, combo escalation, bomb clarity, activation/expiry
+      distinction and rapid-group comfort with music. Confirm ducking restores
+      the current volume and master zero remains silent during a real run.
+      Record devices and findings before claiming audio quality is validated.
 
 **Acceptance:** each fruit gives distinct colored feedback and complementary
 halves at its actual location. Blades fade after release; audio corresponds to
@@ -193,6 +208,7 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       results, horizontal moving-fruit contact, isolated practice, remembered/repeat
       help and countdown cancellation/background suspension. Combo bursts and
       bomb impact/expiry are checked with reduced motion enabled/disabled.
+      Real WebAudio decoding verifies layered cut/combo playback and sample headroom.
       Add profile equip after Phase 18. Physical iOS/Android
       multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
 - [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
@@ -295,7 +311,7 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4360 KiB.
+      precache was 8174.48 KiB; the latest improvement build is about 4361 KiB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
       artifacts).
 
@@ -644,7 +660,7 @@ Historical findings below describe the build reviewed at the time. They are not
 a current defect list or a fresh rating; use the active backlog above for next work.
 
 <details>
-<summary>Original review and the six improvement batches (2026-10-03)</summary>
+<summary>Original review and the seven improvement batches (2026-10-03)</summary>
 
 **Initial product review (2026-10-03, before the improvements below):**
 **4.5/10 as a Fruit Ninja clone.** Recognizable
@@ -799,5 +815,26 @@ edge-label placement, terminal expiry and unchanged engine state. Browser checks
 observe real canvas combo bursts and swipe actual Arcade bombs with motion on/off,
 then confirm impact expiry while paused. Action audio and visual identity are
 next; subjective listening and physical-device checks remain pending.
+
+**Seventh improvement batch (2026-10-03):** implemented layered Phase 16 action
+audio. Three cuts combine blade sweep, cut body and delayed juice/droplet layers;
+two explosions combine a transient, descending bass body and warm noise tail.
+Growing stroke combos raise a chord by up to four semitones; activation and
+expiry have distinct ascending/descending cues. Eleven WAV variants are baked
+on unlock, with audio-local deterministic noise and round-robin variation.
+Each layered cue consumes one of eight voice slots. Master updates reach every
+variant; playback resets rates, and disposal unloads/revokes all generated sounds.
+Sample headroom, master silence and existing music ducking are retained.
+
+Validation: 150 Bun tests / 2,834 assertions, fifteen production browser checks,
+lint, application/browser/tooling typechecking and production build. Signal
+regressions check non-silent bodies, zero-valued edges, bounded peaks, repeatable
+PCM, WAV headers/payloads, variation cycling and capped gesture pitch. Browser
+checks observe real decoded cut/combo buffers and fresh-launch mute. The generated
+`bun run audio:preview` page provides individual variants and combo pitches at
+the default mix; its WAVs/page are ignored by Git. Subjective headphones/phone
+listening and in-game mix comfort remain unchecked. Visual identity is the next
+implementation task; physical input, human balance, performance and offline/update
+QA remain pending.
 
 </details>

@@ -40,6 +40,7 @@ We are not switching to `bunx --bun vite` right now because the direct script fo
 - `bun run preview` - preview the production build locally
 - `bun run lint` - run ESLint
 - `bun run test` - run input/gameplay, event, rendering, reward/storage, and audio regressions
+- `bun run audio:preview` - generate a local listening page at `output/audio-preview/index.html`
 - `bun run test:browser` - run the browser smoke suite against a production build
 
 For browser checks, install Chromium once with `bunx playwright install chromium`,
@@ -154,6 +155,13 @@ Architecture and React/game boundary notes are documented in `src/game/README.md
 Classic ends on a bomb or three missed fruit. Arcade lasts 60 seconds with
 power-ups and bomb score penalties. Zen is a bomb-free 90-second session.
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
+Action audio layers a blade sweep, cut and juice droplets, with three cut
+variations and two explosions. Larger gesture combos raise a short chord;
+power-up activation and expiry use separate rising/falling cues. Eight active
+effects share a voice budget, and bomb/game-over cues briefly duck music.
+For listening QA, run `bun run audio:preview` and open the generated page.
+It uses the default effects mix; also check rapid groups with music in the game
+on headphones and phone speakers. Generated WAVs and the page are ignored by Git.
 The HUD displays score, lives or time, stroke combos, timed streaks and power-up
 remaining durations. Results include fruit sliced, misses, bomb hits, best stroke
 combo, peak streak and stroke accuracy (fruit-hitting gestures / moving gestures).

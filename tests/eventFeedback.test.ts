@@ -23,7 +23,7 @@ test('audio preserves cuts even when a bomb makes the batch score fall', () => {
   engine.setInputTrails([{ pointerId: 1, points: [{ x: 450, y: 300, tMs: 0 }, { x: 650, y: 300, tMs: 10 }] }])
   engine.advanceBy(100)
   expect(state.score.current).toBeLessThan(100)
-  expect(eventSounds(events)).toEqual(['slice', 'bomb'])
+  expect(eventSounds(events)).toEqual([{ name: 'slice' }, { name: 'bomb' }])
   expect(eventAnnouncement(events)).toContain('Bomb hit.')
 })
 
@@ -42,7 +42,7 @@ test('pickup score triggers its activation cue without a fruit cut cue', () => {
   engine.setInputTrails([{ pointerId: 1, points: [{ x: 450, y: 300, tMs: 0 }, { x: 550, y: 300, tMs: 10 }] }])
   engine.stepOnce()
   expect(state.score.current).toBeGreaterThan(0)
-  expect(eventSounds(events)).toEqual(['power-up'])
+  expect(eventSounds(events)).toEqual([{ name: 'power-up' }])
   expect(eventAnnouncement(events)).toBe('freeze activated.')
 })
 
@@ -53,6 +53,6 @@ test('combo audio and announcements represent a stroke bonus, while a timed stre
     { id: 2, runId: 'run', type: 'stroke-combo', atMs: 100, strokeId: 1,
       fruitCount: 3, bonus: 15, position: { x: 10, y: 20 } },
   ]
-  expect(eventSounds(events)).toEqual(['slice', 'combo'])
+  expect(eventSounds(events)).toEqual([{ name: 'slice' }, { name: 'combo', rate: 1 }])
   expect(eventAnnouncement(events)).toBe('Stroke combo. 3 fruit, 15 bonus points.')
 })

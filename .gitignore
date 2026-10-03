@@ -45,3 +45,6 @@ blob-report/
 
 # imagegen
 output/imagegen/
+
+# Generated listening artifacts
+output/audio-preview/

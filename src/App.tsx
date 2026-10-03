@@ -156,7 +156,7 @@ function App() {
   }, [rewardProfile])
 
   useEffect(() => engine.subscribeEvents((events) => {
-    eventSounds(events).forEach((sound) => audio.playSfx(sound))
+    eventSounds(events).forEach((sound) => audio.playSfx(sound.name, sound.rate))
     const message = eventAnnouncement(events)
     if (message) setAnnouncement((previous) => ({ id: previous.id + 1, text: message }))
     for (const event of events) {

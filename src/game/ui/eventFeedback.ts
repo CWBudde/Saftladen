@@ -1,20 +1,20 @@
-import type { AudioSfxName } from '../audio/sfxMix'
+import { comboPlaybackRate, type AudioCue } from '../audio/soundDesign'
 import type { GamePresentationEvent } from '../types'
 
 /** Map every event in a catch-up batch; score changes are never used as a proxy. */
-export function eventSounds(events: readonly GamePresentationEvent[]): AudioSfxName[] {
-  const sounds: AudioSfxName[] = []
+export function eventSounds(events: readonly GamePresentationEvent[]): AudioCue[] {
+  const sounds: AudioCue[] = []
   for (const event of events) {
     switch (event.type) {
       case 'fruit-slice':
-        sounds.push('slice')
+        sounds.push({ name: 'slice' })
         break
-      case 'stroke-combo': sounds.push('combo'); break
-      case 'fruit-miss': sounds.push('miss'); break
-      case 'bomb-hit': sounds.push('bomb'); break
-      case 'power-up-activated': sounds.push('power-up'); break
-      case 'power-up-expired': sounds.push('power-up-expired'); break
-      case 'run-end': sounds.push('game-over'); break
+      case 'stroke-combo': sounds.push({ name: 'combo', rate: comboPlaybackRate(event.fruitCount) }); break
+      case 'fruit-miss': sounds.push({ name: 'miss' }); break
+      case 'bomb-hit': sounds.push({ name: 'bomb' }); break
+      case 'power-up-activated': sounds.push({ name: 'power-up' }); break
+      case 'power-up-expired': sounds.push({ name: 'power-up-expired' }); break
+      case 'run-end': sounds.push({ name: 'game-over' }); break
     }
   }
   return sounds

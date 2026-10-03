@@ -8,6 +8,7 @@ type BrowserProbe = {
   impactRings: string[]
   impactLabels: string[]
   audibleSfxStarts: number
+  sfxSamples: { duration: number; peak: number; rate: number }[]
   musicVolumes: number[]
 }
 
@@ -27,7 +28,7 @@ const test = base.extend<{ runtimeErrors: string[] }>({
 
 async function openGame(page: Page, muted = false, seenOnboarding = true) {
   await page.addInitScript(({ muted, seenOnboarding }) => {
-    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], audibleSfxStarts: 0, musicVolumes: [] }
+    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], audibleSfxStarts: 0, sfxSamples: [], musicVolumes: [] }
     if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
     // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
     // on the real clock. Keep input age/velocity on the same simulated clock.
@@ -76,7 +77,15 @@ async function openGame(page: Page, muted = false, seenOnboarding = true) {
     }
     const originalStart = AudioBufferSourceNode.prototype.start
     AudioBufferSourceNode.prototype.start = function (...args) {
-      if (this.buffer && this.buffer.duration > 0.01) window.__browserProbe.audibleSfxStarts += 1
+      if (this.buffer && this.buffer.duration > 0.01) {
+        window.__browserProbe.audibleSfxStarts += 1
+        let peak = 0
+        for (const sample of this.buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(sample))
+        const entry = { duration: this.buffer.duration, peak, rate: this.playbackRate.value }
+        window.__browserProbe.sfxSamples.push(entry)
+        if (window.__browserProbe.sfxSamples.length > 32) window.__browserProbe.sfxSamples.shift()
+        queueMicrotask(() => { entry.rate = this.playbackRate.value })
+      }
       return originalStart.apply(this, args)
     }
     const originalPlay = HTMLMediaElement.prototype.play
@@ -210,6 +219,14 @@ test('one held gesture cuts a rendered fruit group and reports a stroke combo', 
   await expect(page.locator('.hud-effects')).toContainText('Stroke combo')
   expect(await page.evaluate(() => window.__browserProbe.impactRings.filter(color => color === '#fde047').length)).toBeGreaterThan(0)
   expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(45)
+  // Real WebAudio decoding/playback covers the generated layered WAVs, including
+  // the combo chord. Headroom is measured before the user's master gain.
+  await expect.poll(async () => page.evaluate(() =>
+    window.__browserProbe.sfxSamples.some(sample => Math.abs(sample.duration - 0.248) < 0.001))).toBe(true)
+  const samples = await page.evaluate(() => window.__browserProbe.sfxSamples)
+  expect(samples.length).toBeGreaterThanOrEqual(4)
+  expect(samples.every(sample => sample.peak > 0 && sample.peak <= 0.881)).toBe(true)
+  expect(samples.every(sample => sample.rate >= 0.8 && sample.rate <= 1.4)).toBe(true)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete' })
   const bestStroke = results.locator('.result-stats > div').filter({ has: page.getByText('Best stroke combo', { exact: true }) })

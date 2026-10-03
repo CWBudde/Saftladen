@@ -73,6 +73,21 @@ slice, miss, bomb, power-up activation/expiry and run-end events across catch-up
 steps. Audio and rewards consume these payloads; `App` does not read simulation
 world fields. Run-end includes a unique run ID and copied authoritative counters.
 
+`ui/eventFeedback.ts` maps ordered events into audio cues; growing stroke combos
+carry a playback rate rising by one semitone per additional fruit, capped at four.
+Timed streaks retain the ordinary slice cue. `audio/soundDesign.ts` defines layered
+recipes: blade/cut/juice, explosion transient/body/tail, and rising/falling chords.
+The audio service bakes eleven mono PCM WAVs on first unlock and selects cut/bomb
+variants round-robin. Layers are premixed into one voice per cue, with 12% sample
+headroom and click-free envelopes. All noise streams and selection state are
+audio-local, independent of engine RNG; there are no external sample downloads.
+The shared eight-voice limit also counts sounds awaiting decode. Every variant
+receives master-volume updates, every playback resets its rate, and `stopAll`
+stops voices, unloads variants, revokes URLs and resets selection/ducking.
+Bomb/game-over duck music to 35% for 650ms, then restore the current saved volume.
+`bun run audio:preview` generates ignored WAVs and a page for subjective listening;
+automated signal/browser checks do not establish comfort on physical speakers.
+
 `score.combo` remains the legacy field name for timed streak hits;
 `score.strokeCombo` counts fruit in the latest moving gesture, and
 `score.streakMultiplier` holds the capped fruit multiplier. Three fruit in one
