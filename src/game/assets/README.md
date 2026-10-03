@@ -1,18 +1,25 @@
 # Game Assets
 
-Store original project assets and their metadata here.
-Do not import copyrighted Fruit Ninja assets.
+`manifest.ts` imports the actual gameplay sprites, background and menu title from
+`src/assets`. Vite supplies fingerprinted URLs using the deployment base. The
+manifest has no placeholder atlases or unused audio URLs.
 
-Current Phase 7 scaffolding:
-- `manifest.ts`: image/audio key maps and expected file paths
-- `preload.ts`: image preload helper with decode completion and optional `createImageBitmap` usage
+`gameAssets` is a shared, module-level image loader. React subscribes to its
+readiness snapshots and starts loading once at startup. Images become ready only
+after the request, decoding and positive-dimension checks succeed. Loading and
+decoding have a 20-second timeout. Concurrent requests and StrictMode remounts
+share the same promise and decoded images.
 
-Planned runtime flow:
-1. Load `IMAGE_ASSET_MANIFEST` at startup
-2. Decode images before gameplay (`preloadImageAssets`)
-3. Prefer `ImageBitmap` on supported browsers; fallback to `HTMLImageElement`
+The mode buttons stay disabled while artwork loads or fails. A failed attempt
+shows retry and an explicit simple-artwork option. Retry retains successful images
+and requests only failures. Procedural fallback gameplay requires the user's
+simple-artwork choice; it never silently replaces failed required images. The
+renderer draws the same decoded HTMLImageElements held by this loader and does
+not issue independent image requests. The idle menu can render a procedural
+background while its required artwork is being prepared.
 
-Future additions:
-- concrete atlas metadata (frame rectangles)
-- audio decoding/preload service
-- cache/versioning strategy
+Music remains loaded on demand by the audio service. No image-loading operation
+starts music or waits for audio.
+
+`preload.ts` exports the generic loader with injectable image creation and timeout
+for deterministic loading, decode-failure, retry and timeout tests.

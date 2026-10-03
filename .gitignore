@@ -40,6 +40,8 @@ dist-ssr/
 # Tests
 coverage/
 test-results/
+playwright-report/
+blob-report/
 
 # imagegen
 output/imagegen/

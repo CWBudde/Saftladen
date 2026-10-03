@@ -2,20 +2,21 @@
 
 ## Start here
 
-**Next implementation:** fix the shared viewport transform in **Phase 19**.
-Positions currently stretch independently on each axis, while fruit radii scale
-only with width. Fix this before tuning touch input or fruit size.
+**Next implementation:** separate same-stroke combos from timed streaks in
+**Phase 17**. Viewport geometry, decoded artwork readiness and the existing-mode
+browser baseline are implemented; build stroke IDs and deterministic scoring on
+that foundation before adding combo presentation or expanded results.
 
 Use this execution queue; phase numbers remain stable reference IDs and do not
 represent the order of work:
 
 | Order | Work | Dependency / completion check |
 | --- | --- | --- |
-| 1 | [Viewport geometry and browser baseline](#phase-19--mobile-performance-and-release-confidence-p1--p2) | One transform for input/render/collision/spawns; portrait, landscape and resize regressions |
-| 2 | [Same-stroke scoring and fair spawn patterns](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Geometry first; deterministic scoring, stroke IDs, hazard clearance and power-up rules |
-| 3 | [Onboarding and remaining slice/audio polish](#phase-16--signature-slice-feel-and-presentation-p1) | Asset readiness from Phase 19; scoring rules from Phase 17 before combo feedback |
-| 4 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke stats before expanded results |
-| 5 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
+| 1 | [Same-stroke scoring and fair spawn patterns](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Deterministic scoring, stroke IDs, hazard clearance and power-up rules |
+| 2 | [Onboarding and remaining slice/audio polish](#phase-16--signature-slice-feel-and-presentation-p1) | Decoded assets available; scoring rules from Phase 17 before combo feedback |
+| 3 | [Equippable cosmetics and progression](#phase-18--rewards-that-change-the-experience-p2) | Define currency policy before equip/unlock flows; stroke stats before expanded results |
+| 4 | [Measure and optimize performance](#phase-11--performance--polish) | Measure device frame times first; FX tiers must preserve gameplay RNG and scoring |
+| 5 | [Extend browser and release coverage](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Add new scoring/equip cases as implemented; offline/update and physical-device checks remain |
 | 6 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
 
 Physical input calibration in **Phase 15** and device QA in **Phase 12** can run
@@ -33,60 +34,16 @@ last. Completed tasks and the original review are archived below the backlog.
 - Playable Classic, Arcade and Zen with fixed-step simulation and fresh queued input.
 - Directional cuts, fruit-colored juice, tapered trails, event-driven audio and a compact HUD.
 - Run statistics, validated saved data and exactly-once settlement for recent run IDs.
-- 76 Bun tests / 2,325 assertions; lint, typecheck and production build passed in the latest batch.
+- Adaptive playfield with a uniform input/render scale and safe live/pending resize.
+- Decoded artwork loading, retry and explicit simple-artwork fallback before first run.
+- 90 Bun tests / 2,446 assertions; lint, typecheck and production build passed in the latest batch.
+- Eight permanent Playwright checks passed for existing modes, viewport contact,
+  keyboard/settings flows, muted launch and artwork retry/fallback; CI now runs them.
 - Chrome checks cover 320×568 and 390×844 portrait, 844×390 landscape, dialogs,
   rewards/replay and offline art. Physical touch, listening and device performance remain unverified.
 
 **Architecture:** React owns UI/overlays; simulation/rendering run imperatively
 through RAF and a fixed timestep. Keep Canvas2D; measure before considering WebGL.
-
-## Phase 19 — Mobile, Performance, and Release Confidence (P1 / P2)
-
-First pass: viewport geometry, asset readiness and a browser baseline for the
-existing modes. Extend scoring tests after Phase 17 and equip-flow smoke after
-Phase 18. Device measurements and final release checks remain shared work;
-completing the entire phase is not a prerequisite for starting Phase 17.
-
-- [ ] **Share a consistent viewport transform.** Current positions scale X/Y
-      independently while radii scale only with width. Choose an aspect-preserving
-      playfield or an explicitly adaptive world; renderer, input, collision, and
-      spawn bounds must agree across portrait/landscape and resize.
-- [ ] **Ship a real asset readiness flow.** Replace the dead manifest scaffold,
-      decode required sprites before first run, expose loading/retry/fallbacks,
-      and finish image optimization via Phases 14.4/14.7/14.8. Music already
-      loads/caches on demand and required JPG/PNG art is precached.
-- [ ] **Add browser smoke coverage.** Menu → each mode → pause/resume → timed
-      completion/results/replay; profile equip/scroll; fresh muted launch; short
-      viewport controls. Keep physical iOS/Android multitouch QA in Phase 12.
-- [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
-      15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
-      migration, exactly-once rewards, and presentation RNG independence.
-      Implemented input/lifecycle/contact/persistence/audio/controller regressions
-      with Bun's built-in runner, including migrations, reward settlement,
-      cosmetic RNG/ID independence, event delivery and renderer regressions.
-      Same-stroke scoring/stacking tests remain. Vitest/RTL are optional later tooling.
-- [ ] **Complete accessible settings/flows** using Phase 14.6: dialog focus
-      move/restore, inert closed panels, discrete live announcements, menu/pause
-      settings, functioning sensitivity, OS reduced-motion defaults, and
-      optional flash suppression. Dialog focus, saved settings, reduced-motion
-      defaults and discrete announcements are implemented; verify every keyboard
-      flow and decide whether a separate flash-suppression control is needed.
-- [ ] Verify interrupted first loads and safe service-worker updates.
-- [ ] **Reconcile documentation** via Phase 14.9, including actual mode status,
-      keyboard shortcuts, audio, deployment, and mutable systems contracts.
-      README/runtime architecture updated; public metadata language remains.
-- [ ] **Profile before renderer upgrades.** Establish production frame-time and
-      input-latency budgets on agreed midrange mobile devices during Frenzy and
-      multitouch; measure p95 frame time and long-session memory. Apply Phases
-      11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work.
-- [ ] Verify physical touch scrolling.
-
-**Acceptance:** agreed phone/desktop flows work with no clipped controls or
-geometry mismatch. Production performance is measured against stated budgets;
-FX quality cannot change scoring/spawns. CI verifies regressions before deploy;
-required assets work on offline reload without silently falling back.
-
----
 
 ## Phase 17 — Skill, Fairness, and Mode Depth (P1 / P2)
 
@@ -108,6 +65,12 @@ required assets work on offline reload without silently falling back.
       cut route; expose debug envelopes and test representative seeds.
       First three Classic waves are now fruit-only, verified over 100 seeds;
       broader hazard budgets and clearance remain.
+- [ ] **Evaluate moving-fruit contact between fixed steps.** Collision currently
+      checks after physics against the fruit's updated circle. The browser probe
+      observed an ascending fruit moving about 28 CSS pixels in 32ms with a
+      roughly 14.5-pixel sprite radius; a horizontal swipe through its previous
+      drawn center can miss. Add swept-motion regressions and evaluate continuous
+      contact detection while preserving deterministic scoring and bomb order.
 - [ ] **Balance with run statistics.** Record fruit sliced/missed, bomb hits,
       stroke accuracy, peak same-stroke combo, streak, and per-mode scores;
       use measured playtests to tune wave pressure, duration, and reward rates.
@@ -191,6 +154,49 @@ independent of gameplay RNG and validate scoring/spawns at every quality tier.
 
 ---
 
+## Phase 19 — Mobile, Performance, and Release Confidence (P1 / P2)
+
+The first pass implements viewport geometry, asset readiness and a browser
+baseline for existing modes. Extend scoring tests after Phase 17 and equip-flow
+smoke after Phase 18. Device measurements and final release checks remain shared work;
+completing the entire phase is not a prerequisite for starting Phase 17.
+
+- [ ] **Extend browser smoke coverage as new features land.** The production
+      suite covers menu → each mode → pause/resume → natural completion/results/
+      replay, portrait/landscape fruit contact, profile focus/settings/scroll,
+      fresh muted launch and artwork retry/fallback. Add same-stroke scoring
+      after Phase 17 and profile equip after Phase 18. Physical iOS/Android
+      multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
+- [ ] **Add regression coverage immediately.** Extend Phase 12 with the Phase
+      15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
+      migration, exactly-once rewards, and presentation RNG independence.
+      Implemented input/lifecycle/contact/persistence/audio/controller regressions
+      with Bun's built-in runner, including migrations, reward settlement,
+      cosmetic RNG/ID independence, event delivery and renderer regressions.
+      Same-stroke scoring/stacking tests remain. Vitest/RTL are optional later tooling.
+- [ ] **Complete accessible settings/flows** using Phase 14.6: dialog focus
+      move/restore, inert closed panels, discrete live announcements, menu/pause
+      settings, functioning sensitivity, OS reduced-motion defaults, and
+      optional flash suppression. Dialog focus, saved settings, reduced-motion
+      defaults and discrete announcements are implemented; verify every keyboard
+      flow and decide whether a separate flash-suppression control is needed.
+- [ ] Verify interrupted first loads and safe service-worker updates.
+- [ ] **Reconcile documentation** via Phase 14.9, including actual mode status,
+      keyboard shortcuts, audio, deployment, and mutable systems contracts.
+      README/runtime architecture updated; public metadata language remains.
+- [ ] **Profile before renderer upgrades.** Establish production frame-time and
+      input-latency budgets on agreed midrange mobile devices during Frenzy and
+      multitouch; measure p95 frame time and long-session memory. Apply Phases
+      11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work.
+- [ ] Verify physical touch scrolling.
+
+**Acceptance:** agreed phone/desktop flows work with no clipped controls or
+geometry mismatch. Production performance is measured against stated budgets;
+FX quality cannot change scoring/spawns. CI verifies regressions before deploy;
+required assets work on offline reload without silently falling back.
+
+---
+
 ## Phase 15 — Restore Trust in the Blade (P0 / P1)
 
 The correctness fixes are implemented and regression-tested. The remaining
@@ -221,13 +227,8 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 
 ### 14.4 Dead code / cleanup
 
-- [ ] **Delete the dead asset-manifest scaffold.** `src/game/assets/manifest.ts`
-      + `preload.ts` reference `/assets/images/*` paths that don't exist,
-      `preloadImageAssets` is never called, and the barrel re-exports it as if it
-      were live. Delete (real loading is `import.meta.glob` in `renderer.ts`) or
-      rewrite to reference the real assets and actually use it.
 - [ ] **Continue splitting `renderer.ts`.** `renderHelpers.ts` is extracted;
-      remaining candidates include `assetLoader.ts`,
+      shared asset loading now lives in `assets/`; remaining candidates include
       `woodTexture.ts` (the ~120-line procedural generator that only paints
       pre-decode), and `drawHelpers.ts`.
 - [ ] **Continue decomposing `App.tsx`.** `GameHud` is extracted; remaining
@@ -264,7 +265,7 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 - [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
       lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
       and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the latest improvement build is about 4339 KiB.
+      precache was 8174.48 KiB; the latest improvement build is about 4341 KiB.
 - [ ] Move or remove `goal.md` (29 KB stale German draft with raw `citeturn…`
       artifacts).
 
@@ -294,11 +295,8 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
   - [ ] Combo scoring tests
   - [ ] Spawn bounds tests
   - [ ] Time scaling tests (freeze)
-- [ ] Automate UI flows (React Testing Library or the Phase 19 browser suite)
-  - [ ] Menu → start flow
-  - [ ] Pause/resume flow
-  - [ ] Settings persistence
-- [ ] Implement the Phase 19 browser smoke checklist (Playwright is one option)
+- [ ] Extend the Phase 19 browser suite for new scoring/equip features;
+      existing menu, pause/resume and settings flows are automated with Playwright.
 - [ ] Manual QA checklist
   - [ ] Mobile Safari: touch trails, no scroll conflicts
   - [ ] Multi-touch: two independent trails
@@ -335,13 +333,40 @@ asset/presentation decisions; implement their outcome with Phase 14 hygiene.
 
 ## Completed work — reference only
 
-Phases 0–6 and 8–10 are mostly complete. The checked tasks below were already
-complete before this reordering; they are kept here for traceability. Their
+Phases 0–6 and 8–10 are mostly complete. Checked tasks, including later batches,
+are kept here for traceability. Their
 original defect descriptions are historical. Remaining acceptance work stays
 in the active backlog.
 
 <details>
 <summary>Completed checklist by original phase</summary>
+
+### Phase 19 — Viewport and browser foundation
+
+- [x] **Share a consistent viewport transform.** Adaptive 720-unit shorter edge;
+      renderer, pointer mapping, circular collisions/debug and spawn bounds
+      agree. Resize preserves live/pending launches and clears old gestures.
+- [x] **Ship a real asset readiness flow.** Actual imported sprites/background/
+      title decode into a shared cache before play, with progress, timeout,
+      failed-only retries and explicit fallback. Further image optimization is
+      still open in Phase 14.8.
+- [x] **Add browser smoke coverage for existing modes.** Production-build
+      Playwright checks cover lifecycle/results/replay, portrait/resize contact,
+      dialogs/settings, muted launch and artwork errors. CI gates deployment on
+      these tests; new scoring/equip cases remain in the active Phase 19 backlog.
+
+### Phase 14.4 — Asset scaffold cleanup
+
+- [x] **Delete the dead asset-manifest scaffold.** Rewritten to reference real
+      imported artwork and used by both menu readiness and renderer. Placeholder
+      atlas/audio URLs and the separate renderer image loader are removed.
+
+### Phase 12 — Browser UI automation
+
+- [x] Automate UI flows with the Phase 19 Playwright suite
+  - [x] Menu → start flow
+  - [x] Pause/resume flow
+  - [x] Settings persistence
 
 ### Phase 7 — Rendering (assets)
 
@@ -587,7 +612,7 @@ Historical findings below describe the build reviewed at the time. They are not
 a current defect list or a fresh rating; use the active backlog above for next work.
 
 <details>
-<summary>Original review and the two improvement batches (2026-10-03)</summary>
+<summary>Original review and the three improvement batches (2026-10-03)</summary>
 
 **Initial product review (2026-10-03, before the improvements below):**
 **4.5/10 as a Fruit Ninja clone.** Recognizable
@@ -660,5 +685,20 @@ The suite now has 76 tests; lint/typecheck/production build pass. Device frame t
 physical swipe calibration, uniform viewport geometry, same-stroke scoring and
 real equippable cosmetics remain priorities. No new numeric rating has been
 assigned; the table above remains the original assessment.
+
+**Third improvement batch (2026-10-03):** three implementation subagents
+completed the Phase 19 foundation. The adaptive playfield keeps the shorter edge
+at 720 world units, uses one uniform renderer/input transform, and preserves
+live/pending launches on resize without replaying old gestures. A shared loader
+decodes 19 required artwork images with progress, a 20-second timeout, retry of
+failures only and explicit simple-artwork fallback; the renderer consumes the
+same image cache. Production-build Playwright tests drive real UI/simulation
+through browser clock controls and observe canvas/audio APIs without mutating
+engine state or reading React internals. CI runs browser checks before deployment
+and retains failure artifacts. Eight browser checks passed across the initial
+suite and targeted reruns after test-clock fixes. The unit suite has 90 tests /
+2,446 assertions;
+same-stroke scoring is now next. Physical touch, listening, device frame times
+and interrupted/offline service-worker updates remain open.
 
 </details>

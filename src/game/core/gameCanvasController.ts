@@ -1,9 +1,10 @@
 import type { GameEngine } from '../engine'
-import { createTrailTracker, isPointInsideCanvas, mapCanvasPointToWorld } from '../input'
+import { createTrailTracker, isPointInsideCanvas } from '../input'
 import { createRenderer, type PointerTrailDebug } from '../render'
 import type { Vec2 } from '../types'
 import { resizeCanvasToDisplaySize } from './canvasStage'
 import { createGameLoop } from './gameLoop'
+import { canvasPointToWorld, createViewportTransform, getAdaptiveWorldBounds } from './viewport'
 
 export type CanvasPreferences = {
   debugEnabled: boolean
@@ -23,11 +24,14 @@ export function mountGameCanvas(
   const renderer = createRenderer()
   const tracker = createTrailTracker()
   let metrics = resizeCanvasToDisplaySize(canvas, ctx)
+  engine.setWorldBounds(getAdaptiveWorldBounds(metrics))
+  let viewport = createViewportTransform(metrics, engine.getState().world.bounds)
   let rect = canvas.getBoundingClientRect()
   let lastPointerCanvas: Vec2 | null = null
   let lastPointerWorld: Vec2 | null = null
   let previousPhase = engine.getState().phase
   let previousWorld = engine.getState().world
+  let previousBounds = previousWorld.bounds
 
   const clearInput = () => {
     tracker.clear()
@@ -38,11 +42,13 @@ export function mountGameCanvas(
 
   const syncMetrics = () => {
     metrics = resizeCanvasToDisplaySize(canvas, ctx)
+    engine.setWorldBounds(getAdaptiveWorldBounds(metrics))
+    viewport = createViewportTransform(metrics, engine.getState().world.bounds)
     rect = canvas.getBoundingClientRect()
-    tracker.setViewportScale(metrics.widthCssPx / 1280)
+    tracker.setViewportScale(viewport.scale)
     clearInput()
   }
-  tracker.setViewportScale(metrics.widthCssPx / 1280)
+  tracker.setViewportScale(viewport.scale)
 
   const pointFromEvent = (event: PointerEvent) => ({
     x: event.clientX - rect.left,
@@ -53,7 +59,7 @@ export function mountGameCanvas(
   const updateProbe = (point: Vec2) => {
     if (!isPointInsideCanvas(point, metrics)) return
     lastPointerCanvas = point
-    lastPointerWorld = mapCanvasPointToWorld(point, metrics, engine.getState().world.bounds)
+    lastPointerWorld = canvasPointToWorld(point, viewport)
   }
 
   const handlePointerDown = (event: PointerEvent) => {
@@ -104,21 +110,25 @@ export function mountGameCanvas(
   }
 
   const unsubscribe = engine.subscribe((state) => {
-    if (state.phase !== previousPhase || state.world !== previousWorld) clearInput()
+    if (state.phase !== previousPhase || state.world !== previousWorld || state.world.bounds !== previousBounds) clearInput()
+    if (state.world.bounds !== previousBounds) {
+      viewport = createViewportTransform(metrics, state.world.bounds)
+      tracker.setViewportScale(viewport.scale)
+    }
     previousPhase = state.phase
     previousWorld = state.world
+    previousBounds = state.world.bounds
   })
 
   const loop = createGameLoop({
     onFrame: (frameInfo) => {
       const preferences = getPreferences()
       tracker.setSliceSensitivity(preferences.sliceSensitivity)
-      const bounds = engine.getState().world.bounds
       // Queue raw motion before stepping. Visual history never cuts.
       engine.setInputTrails(tracker.drainSliceTrails(frameInfo.timestampMs).map((trail) => ({
         pointerId: trail.pointerId,
         points: trail.points.map((point) => ({
-          ...mapCanvasPointToWorld(point, metrics, bounds),
+          ...canvasPointToWorld(point, viewport),
           tMs: point.tMs,
         })),
       })))
@@ -128,7 +138,7 @@ export function mountGameCanvas(
         pointerId: trail.pointerId,
         rawCanvasPoints: trail.points,
         canvasPoints: trail.points,
-        worldPoints: trail.points.map((point) => mapCanvasPointToWorld(point, metrics, bounds)),
+        worldPoints: trail.points.map((point) => canvasPointToWorld(point, viewport)),
         velocityPxPerS: trail.velocityPxPerS,
         isSliceActive: trail.isSliceActive,
       }))

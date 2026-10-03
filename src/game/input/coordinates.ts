@@ -1,4 +1,5 @@
 import type { CanvasMetrics } from '../core/canvasStage'
+import { canvasPointToWorld, createViewportTransform } from '../core/viewport'
 import type { Vec2 } from '../types'
 
 export function pointerEventToCanvasLocal(event: PointerEvent, canvas: HTMLCanvasElement): Vec2 {
@@ -19,8 +20,5 @@ export function mapCanvasPointToWorld(point: Vec2, metrics: CanvasMetrics, world
     return { x: 0, y: 0 }
   }
 
-  return {
-    x: (point.x / metrics.widthCssPx) * worldBounds.x,
-    y: (point.y / metrics.heightCssPx) * worldBounds.y,
-  }
+  return canvasPointToWorld(point, createViewportTransform(metrics, worldBounds))
 }

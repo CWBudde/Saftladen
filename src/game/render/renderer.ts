@@ -1,5 +1,7 @@
+import { gameAssets, type ImageAssetKey } from '../assets'
 import type { CanvasMetrics } from '../core/canvasStage'
 import type { FrameInfo } from '../core/gameLoop'
+import { createViewportTransform, worldPointToCanvas } from '../core/viewport'
 import type { EngineDiagnostics } from '../engine'
 import type { GameState, ScoreFeedbackEvent, Vec2 } from '../types'
 import { drawBoundingCircle, drawFpsOverlay, drawPointerProbe, drawTrailStats } from './debugDraw'
@@ -36,60 +38,6 @@ export type Renderer = {
     context: RenderContext,
   ) => void
 }
-
-const backgroundImageModules = import.meta.glob('../../assets/background.jpg', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-const preferredBackgroundImageUrl = Object.values(backgroundImageModules)[0] ?? null
-
-const fruitImageModules = import.meta.glob([
-  '../../assets/{apple,melon,banana}{1,3}.png',
-  '../../assets/{pineapple,starfruit}1.png',
-], {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-
-const orangeWholeModules = import.meta.glob('../../assets/orange1.png', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-
-const pineappleHalfModules = import.meta.glob('../../assets/pineapple{4,5}.png', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-
-const orangeHalfModules = import.meta.glob('../../assets/orange{3,4}.png', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-
-const starfruitHalfModules = import.meta.glob('../../assets/starfruit{4,5}.png', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-
-const bombImageModules = import.meta.glob('../../assets/bomb.png', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-const bombImageUrl = Object.values(bombImageModules)[0] ?? null
-
-const freezeGlyphModules = import.meta.glob('../../assets/freeze-glyph.png', {
-  eager: true,
-  import: 'default',
-  query: '?url',
-}) as Record<string, string>
-const freezeGlyphUrl = Object.values(freezeGlyphModules)[0] ?? null
 
 type FruitImageSet = {
   whole: HTMLImageElement | null
@@ -591,31 +539,29 @@ function drawBladeTrails(ctx: CanvasRenderingContext2D, context: RenderContext, 
   ctx.restore()
 }
 
-function createFruitImageSet(): FruitImageSet {
+function createFruitImageSet(
+  wholeKey: ImageAssetKey, cutKey?: ImageAssetKey,
+  leftKey?: ImageAssetKey, rightKey?: ImageAssetKey,
+): FruitImageSet {
+  const whole = gameAssets.getImage(wholeKey)
+  const cut = cutKey ? gameAssets.getImage(cutKey) : null
+  const cutLeft = leftKey ? gameAssets.getImage(leftKey) : null
+  const cutRight = rightKey ? gameAssets.getImage(rightKey) : null
   return {
-    whole: null,
-    cut: null,
-    cutLeft: null,
-    cutRight: null,
-    wholeReady: false,
-    cutReady: false,
-    cutLeftReady: false,
-    cutRightReady: false,
+    whole, cut, cutLeft, cutRight,
+    wholeReady: whole !== null, cutReady: cut !== null,
+    cutLeftReady: cutLeft !== null, cutRightReady: cutRight !== null,
   }
 }
 
-function loadFruitImage(url: string, onReady: (img: HTMLImageElement) => void): void {
-  if (typeof Image === 'undefined') {
-    return
-  }
-  const img = new Image()
-  img.decoding = 'async'
-  img.src = url
-  img.onload = () => {
-    onReady(img)
-  }
-  img.onerror = () => {
-    // Silently fail - fallback rendering will be used
+function readFruitImages(): FruitImages {
+  return {
+    apple: createFruitImageSet('appleWhole', 'appleCut'),
+    orange: createFruitImageSet('orangeWhole', undefined, 'orangeLeft', 'orangeRight'),
+    watermelon: createFruitImageSet('watermelonWhole', 'watermelonCut'),
+    pineapple: createFruitImageSet('pineappleWhole', undefined, 'pineappleLeft', 'pineappleRight'),
+    banana: createFruitImageSet('bananaWhole', 'bananaCut'),
+    starfruit: createFruitImageSet('starfruitWhole', undefined, 'starfruitLeft', 'starfruitRight'),
   }
 }
 
@@ -624,151 +570,26 @@ export function createRenderer(): Renderer {
   const buckets = createRenderBuckets()
   let observedBombHitAtMs: number | null = null
   let bombFlashStartedAtMs = -Infinity
-  let preferredBackgroundImage: HTMLImageElement | null = null
-  let preferredBackgroundReady = false
-
-  if (preferredBackgroundImageUrl && typeof Image !== 'undefined') {
-    preferredBackgroundImage = new Image()
-    preferredBackgroundImage.decoding = 'async'
-    preferredBackgroundImage.src = preferredBackgroundImageUrl
-    preferredBackgroundImage.onload = () => {
-      preferredBackgroundReady = true
-    }
-    preferredBackgroundImage.onerror = () => {
-      preferredBackgroundImage = null
-      preferredBackgroundReady = false
-    }
-  }
-
-  // Load bomb image
-  let bombImage: HTMLImageElement | null = null
-  let bombImageReady = false
-
-  if (bombImageUrl && typeof Image !== 'undefined') {
-    bombImage = new Image()
-    bombImage.decoding = 'async'
-    bombImage.src = bombImageUrl
-    bombImage.onload = () => {
-      bombImageReady = true
-    }
-    bombImage.onerror = () => {
-      bombImage = null
-      bombImageReady = false
-    }
-  }
-
-  // Load freeze glyph image
-  let freezeGlyphImage: HTMLImageElement | null = null
-  let freezeGlyphReady = false
-
-  if (freezeGlyphUrl && typeof Image !== 'undefined') {
-    freezeGlyphImage = new Image()
-    freezeGlyphImage.decoding = 'async'
-    freezeGlyphImage.src = freezeGlyphUrl
-    freezeGlyphImage.onload = () => {
-      freezeGlyphReady = true
-    }
-    freezeGlyphImage.onerror = () => {
-      freezeGlyphImage = null
-      freezeGlyphReady = false
-    }
-  }
-
-  // Initialize fruit images
-  const fruitImages: FruitImages = {
-    apple: createFruitImageSet(),
-    orange: createFruitImageSet(),
-    watermelon: createFruitImageSet(),
-    pineapple: createFruitImageSet(),
-    banana: createFruitImageSet(),
-    starfruit: createFruitImageSet(),
-  }
-
-  // Load fruit images from the glob imports
-  Object.entries(fruitImageModules).forEach(([path, url]) => {
-    const match = path.match(/\/(apple|melon|pineapple|banana|starfruit)([13])\.png$/)
-    if (!match) return
-
-    const [, fruitName, variant] = match
-    const fruitKey = fruitName === 'melon' ? 'watermelon' : (fruitName as 'apple' | 'pineapple' | 'banana' | 'starfruit')
-
-    if (variant === '1') {
-      loadFruitImage(url, (img) => {
-        fruitImages[fruitKey].whole = img
-        fruitImages[fruitKey].wholeReady = true
-      })
-    } else if (variant === '3') {
-      loadFruitImage(url, (img) => {
-        fruitImages[fruitKey].cut = img
-        fruitImages[fruitKey].cutReady = true
-      })
-    }
-  })
-
-  // Load orange whole image
-  Object.entries(orangeWholeModules).forEach(([, url]) => {
-    loadFruitImage(url, (img) => {
-      fruitImages.orange.whole = img
-      fruitImages.orange.wholeReady = true
-    })
-  })
-
-  // Load pineapple half images (4=right, 5=left)
-  Object.entries(pineappleHalfModules).forEach(([path, url]) => {
-    const match = path.match(/\/pineapple([45])\.png$/)
-    if (!match) return
-
-    const [, variant] = match
-    if (variant === '4') {
-      loadFruitImage(url, (img) => {
-        fruitImages.pineapple.cutRight = img
-        fruitImages.pineapple.cutRightReady = true
-      })
-    } else if (variant === '5') {
-      loadFruitImage(url, (img) => {
-        fruitImages.pineapple.cutLeft = img
-        fruitImages.pineapple.cutLeftReady = true
-      })
-    }
-  })
-
-  // Load orange half images (3=left, 4=right)
-  Object.entries(orangeHalfModules).forEach(([path, url]) => {
-    const match = path.match(/\/orange([34])\.png$/)
-    if (!match) return
-
-    const [, variant] = match
-    if (variant === '3') {
-      loadFruitImage(url, (img) => {
-        fruitImages.orange.cutLeft = img
-        fruitImages.orange.cutLeftReady = true
-      })
-    } else if (variant === '4') {
-      loadFruitImage(url, (img) => {
-        fruitImages.orange.cutRight = img
-        fruitImages.orange.cutRightReady = true
-      })
-    }
-  })
-
-  Object.entries(starfruitHalfModules).forEach(([path, url]) => {
-    const isLeft = path.endsWith('starfruit4.png')
-    loadFruitImage(url, (img) => {
-      if (isLeft) {
-        fruitImages.starfruit.cutLeft = img
-        fruitImages.starfruit.cutLeftReady = true
-      } else {
-        fruitImages.starfruit.cutRight = img
-        fruitImages.starfruit.cutRightReady = true
-      }
-    })
-  })
+  let assetSnapshot = gameAssets.getSnapshot()
+  let fruitImages = readFruitImages()
 
   return {
     render: (ctx, state, frameInfo, context) => {
+      const nextAssetSnapshot = gameAssets.getSnapshot()
+      if (nextAssetSnapshot !== assetSnapshot) {
+        assetSnapshot = nextAssetSnapshot
+        fruitImages = readFruitImages()
+      }
+      const preferredBackgroundImage = gameAssets.getImage('background')
+      const preferredBackgroundReady = preferredBackgroundImage !== null
+      const bombImage = gameAssets.getImage('bomb')
+      const bombImageReady = bombImage !== null
+      const freezeGlyphImage = gameAssets.getImage('freeze')
+      const freezeGlyphReady = freezeGlyphImage !== null
       const { widthCssPx, heightCssPx } = context.metrics
-      const scaleX = widthCssPx / state.world.bounds.x
-      const scaleY = heightCssPx / state.world.bounds.y
+      const viewport = createViewportTransform(context.metrics, state.world.bounds)
+      const scaleX = viewport.scale
+      const scaleY = viewport.scale
       const reducedMotion = context.reducedMotion ?? false
       collectRenderBuckets(state.world.entities, buckets, !reducedMotion)
       const bombHitAtMs = state.world.lastBombHitAtMs
@@ -786,24 +607,25 @@ export function createRenderer(): Renderer {
         preferredBackgroundImage,
         preferredBackgroundReady,
       )
+      ctx.save()
+      ctx.translate(viewport.offsetX, viewport.offsetY)
       drawDecalLayer(ctx, buckets.decals, scaleX, scaleY)
       drawFruitBombPowerLayer(ctx, buckets.objects, scaleX, scaleY, fruitImages, bombImage, bombImageReady, freezeGlyphImage, freezeGlyphReady)
       drawFruitHalfLayer(ctx, buckets.halves, scaleX, scaleY, fruitImages, reducedMotion)
       if (!reducedMotion) {
         drawParticleLayer(ctx, buckets.particles, scaleX, scaleY)
       }
-      drawBladeTrails(ctx, context, frameInfo.timestampMs)
       drawScoreFeedbackLayer(ctx, state.world.scoreFeedbackEvents, state.world.elapsedMs, scaleX, scaleY, reducedMotion)
+      ctx.restore()
+      drawBladeTrails(ctx, context, frameInfo.timestampMs)
       if (!reducedMotion) {
         drawScreenFlashLayer(ctx, frameInfo.timestampMs - bombFlashStartedAtMs, widthCssPx, heightCssPx)
       }
 
       if (context.debug.enabled) {
-        drawBoundingCircle(
-          ctx,
-          { x: widthCssPx * 0.5, y: heightCssPx * 0.5 },
-          Math.min(widthCssPx, heightCssPx) * 0.22,
-        )
+        for (const entity of buckets.objects) {
+          drawBoundingCircle(ctx, worldPointToCanvas(entity.position, viewport), entity.radius * viewport.scale)
+        }
         drawPointerProbe(ctx, context)
         drawTrailStats(ctx, context)
         drawFpsOverlay(ctx, frameInfo, context)

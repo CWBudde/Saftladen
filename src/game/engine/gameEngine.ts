@@ -1,8 +1,9 @@
 import { createEntityIdAllocator } from '../model'
 import { applyCoreSystems, createInitialArcadeState, createInitialZenState } from '../systems'
-import type { EntityId, GameEntity, GameMode, GamePresentationEvent, GameState, PresentationEventPayload, SliceTrail, TimeScalePreset } from '../types'
+import type { EntityId, GameEntity, GameMode, GamePresentationEvent, GameState, PresentationEventPayload, SliceTrail, TimeScalePreset, Vec2 } from '../types'
 import { transitionGamePhase } from './phaseMachine'
 import { createSeededRng } from './rng'
+import { resizeWorld } from './resizeWorld'
 
 export const TIME_SCALE_FACTORS: Record<TimeScalePreset, number> = {
   normal: 1,
@@ -44,6 +45,7 @@ export type GameEngine = {
   setInputTrails: (trails: SliceTrail[]) => void
   clearInputTrails: (pointerId?: number) => void
   setMode: (mode: GameMode) => void
+  setWorldBounds: (bounds: Vec2) => void
   start: (options?: StartOptions) => void
   pause: () => void
   resume: () => void
@@ -99,6 +101,7 @@ function createBaseState(
   fixedDtMs: number,
   maxFrameDeltaMs: number,
   bestScore = 0,
+  bounds: Vec2 = { x: 1280, y: 720 },
 ): GameState {
   return {
     mode,
@@ -126,10 +129,7 @@ function createBaseState(
     world: {
       tick: 0,
       elapsedMs: 0,
-      bounds: {
-        x: 1280,
-        y: 720,
-      },
+      bounds: { ...bounds },
       entities: emptyEntities(),
       spawn: {
         nextWaveAtMs: 0,
@@ -219,6 +219,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       state.settings.fixedDtMs,
       state.settings.maxFrameDeltaMs,
       bestScore,
+      state.world.bounds,
     )
     state.run.seed = seed
     accumulatorMs = 0
@@ -320,6 +321,7 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       state.settings.fixedDtMs,
       state.settings.maxFrameDeltaMs,
       bestScore,
+      state.world.bounds,
     )
     state.run.seed = seed
     accumulatorMs = 0
@@ -450,6 +452,13 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
       inputTrails = pointerId === undefined ? [] : inputTrails.filter((trail) => trail.pointerId !== pointerId)
     },
     setMode,
+    setWorldBounds: (bounds) => {
+      if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y) || bounds.x < 128 || bounds.y < 128) return
+      if (bounds.x === state.world.bounds.x && bounds.y === state.world.bounds.y) return
+      inputTrails = []
+      resizeWorld(state.world, bounds)
+      emit()
+    },
     start,
     pause,
     resume,

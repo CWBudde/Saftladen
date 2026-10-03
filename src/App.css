@@ -48,6 +48,23 @@
     max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 
+.asset-readiness {
+  width: min(100%, 460px);
+  padding: 12px;
+  border: 1px solid #d6b97b;
+  border-radius: 12px;
+  background: #29170fee;
+  color: #fff4d0;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.asset-readiness p { margin: 0 0 8px; }
+.asset-readiness progress { width: min(100%, 280px); accent-color: #f7cc61; }
+.asset-progress, .asset-fallback-note { font-size: 0.85rem; }
+.asset-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.ring-mode:disabled { opacity: 0.5; cursor: wait; }
+
 .game-hud {
   padding-right: 52px;
   color: #fff4d0;

@@ -10,6 +10,12 @@
 
 The engine is headless and can be advanced without canvas rendering via `advanceBy(...)` and `stepOnce(...)`.
 
+`setWorldBounds({ x, y })` adapts the simulation to the viewport without starting
+a new run. It remaps live/pending entities and score feedback, clears queued
+swipes, and preserves clocks, score and RNG state. Bounds survive reset and mode
+changes. Headless engines default to 1280×720; deterministic comparisons must
+use the same bounds and resize sequence.
+
 `subscribeEvents` publishes ordered immutable batches of gameplay events after
 commands and advances. Catch-up preserves each event; game-over emits a single
 `run-end` carrying the run ID and statistics. Pausing/resuming retains the same

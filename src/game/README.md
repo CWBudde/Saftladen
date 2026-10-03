@@ -38,8 +38,16 @@ the frame loop, and rendering. `GameCanvasLayer` only mounts and disposes it.
 Fresh raw pointer segments queue before simulation and are consumed once on the
 next fixed step. The visual trail has its own 150ms fade and cannot cause cuts.
 Pointer-up preserves pending movement; cancellation, phase changes, resize, and
-backgrounding clear input. Sensitivity changes the movement threshold (120 CSS
-pixels/second at the 1280px reference width, divided by sensitivity).
+backgrounding clear input. Sensitivity changes the movement threshold (120 world
+units/second, converted through the viewport scale and divided by sensitivity).
+
+`core/viewport.ts` defines an adaptive playfield with a 720-unit shorter edge and
+one uniform transform for positions, radii, input and debug probes. The canvas
+controller sends viewport bounds through `engine.setWorldBounds`; React never
+mutates world geometry. Resize keeps entity radii fixed in world units, remaps
+live and pending launches, preserves exterior margins, and adjusts velocity to
+preserve normalized ballistic arcs. Flight time scales with the square root of
+the world-height change; mode clocks and spawn deadlines remain unchanged.
 
 ## Events, Statistics and Determinism
 
@@ -57,3 +65,9 @@ angles preserve the original fruit pose for complementary clipped sprites.
 
 The renderer scans entities once into reusable layer buffers, caches sprite
 size factors, and uses scalar coordinates/opacity in the entity draw paths.
+
+The asset manifest references the actual imported sprite/background/title URLs.
+A shared loader owns decoded images, progress and retry state independently of
+React mounts. The menu gates run starts until decoding succeeds or the player
+explicitly chooses simple artwork after a failure. The renderer consumes this
+same decoded cache rather than starting a second set of image requests.

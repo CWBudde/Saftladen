@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import titleImage from './assets/title.png'
 import appleModeImage from './assets/apple1.png'
 import arcadeModeImage from './assets/orange1.png'
 import zenModeImage from './assets/melon1.png'
 import './App.css'
 import { createAudioService } from './game/audio'
+import { gameAssets } from './game/assets'
 import { GameCanvasLayer } from './game/core'
 import { isGameDebugEnabled } from './game/debug'
 import { GameDialog } from './game/ui/GameDialog'
@@ -88,10 +89,14 @@ function App() {
   const [announcement, setAnnouncement] = useState({ id: 0, text: '' })
   const [musicPlaying, setMusicPlaying] = useState(false)
   const [uiSettings, updateUiSettings] = useUiSettings()
+  const assets = useSyncExternalStore(gameAssets.subscribe, gameAssets.getSnapshot)
+  const assetsReady = assets.status === 'ready' || assets.status === 'fallback'
 
   const rewardProfileRef = useRef(rewardProfile)
 
   const rankInfo = getRankInfo(rewardProfile.xp)
+
+  useEffect(() => { void gameAssets.load() }, [])
 
   const dojos: Unlockable[] = DOJO_UNLOCKS.map((dojo) => ({
     name: dojo.name,
@@ -201,6 +206,7 @@ function App() {
   }, [engine, uiSnapshot.phase])
 
   const startMode = (mode: GameMode) => {
+    if (!assetsReady) return
     audio.initMuted()
     audio.playSfx('ui-click')
     setSelectedMode(mode)
@@ -262,10 +268,34 @@ function App() {
             <section className="menu-home">
               <img src={titleImage} className="menu-logo" alt="Saftladen" />
 
+              {!assetsReady ? (
+                <section className="asset-readiness" aria-label="Game artwork" aria-live="polite" aria-atomic="true">
+                  {assets.status === 'error' ? (
+                    <>
+                      <p>Some artwork could not load. Check your connection and try again.</p>
+                      <p className="asset-progress">{assets.loaded} of {assets.total} images ready</p>
+                      <div className="asset-actions">
+                        <button type="button" className="primary-button" onClick={() => { void gameAssets.load() }}>Retry artwork</button>
+                        <button type="button" className="ghost-button" onClick={gameAssets.allowFallback}>Play with simple artwork</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p>Preparing game artwork…</p>
+                      <progress max={assets.total} value={assets.loaded} aria-label="Artwork loading progress" />
+                      <p className="asset-progress">{assets.loaded} of {assets.total} images ready</p>
+                    </>
+                  )}
+                </section>
+              ) : assets.status === 'fallback' ? (
+                <p className="asset-fallback-note" role="status">Simple artwork enabled for images that could not load.</p>
+              ) : null}
+
               <div className="ring-row">
                 <button
                   type="button"
                   className={`ring-mode ring-red ${selectedMode === 'classic' ? 'selected' : ''}`}
+                  disabled={!assetsReady}
                   onClick={() => startMode('classic')}
                   aria-describedby="classic-help"
                   data-focus-anchor
@@ -278,6 +308,7 @@ function App() {
                 <button
                   type="button"
                   className={`ring-mode ring-orange ${selectedMode === 'arcade' ? 'selected' : ''}`}
+                  disabled={!assetsReady}
                   onClick={() => startMode('arcade')}
                   aria-describedby="arcade-help"
                 >
@@ -289,6 +320,7 @@ function App() {
                 <button
                   type="button"
                   className={`ring-mode ring-green ${selectedMode === 'zen' ? 'selected' : ''}`}
+                  disabled={!assetsReady}
                   onClick={() => startMode('zen')}
                   aria-describedby="zen-help"
                 >

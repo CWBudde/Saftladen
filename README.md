@@ -40,6 +40,12 @@ We are not switching to `bunx --bun vite` right now because the direct script fo
 - `bun run preview` - preview the production build locally
 - `bun run lint` - run ESLint
 - `bun run test` - run input/gameplay, event, rendering, reward/storage, and audio regressions
+- `bun run test:browser` - run the browser smoke suite against a production build
+
+For browser checks, install Chromium once with `bunx playwright install chromium`,
+then run `bun run build` and `bun run test:browser`. The suite covers loading,
+game modes, pause/resume, results/replay and compact-screen dialogs. CI runs
+these checks before deployment.
 
 ## Debug Mode Toggle
 
@@ -64,6 +70,11 @@ The shared flag check lives in `src/game/debug.ts`.
 The canvas sets `touch-action: none` in `src/App.css` so pointer events are not interrupted by browser pan/zoom gestures while playing.
 Trade-off: while interacting over the canvas area, page scrolling and zoom gestures are intentionally suppressed.
 
+The playfield adapts to portrait and landscape with a uniform scale: its shorter
+edge is 720 world units. Rendering, pointer mapping and circular hit areas share
+that scale. Resizing preserves live and queued launches, clears pending swipes,
+and keeps the current run and timer.
+
 ## Current Project Structure
 
 ```text
@@ -79,10 +90,12 @@ src/
       GameCanvasLayer.tsx
       gameCanvasController.ts
       canvasStage.ts
+      viewport.ts
     engine/
       gameEngine.ts
       phaseMachine.ts
       rng.ts
+      resizeWorld.ts
     input/
       coordinates.ts
       trailTracker.ts
@@ -142,9 +155,14 @@ bomb hits in every mode. Recent run IDs prevent duplicate payouts; versioned
 storage migrates existing profiles/preferences and validates fields independently.
 Cosmetics are currently unlock previews; equipping them remains on the roadmap.
 
+Before the first run, the menu loads and decodes the required gameplay and title
+artwork. Failed or timed-out images keep play disabled until you retry or choose
+**Play with simple artwork**. Successful images are retained during retries;
+music continues to load on demand.
+
 ## Release Checks
 
-Pull requests run lint, regression tests, and a production build. Passing builds
+Pull requests run lint, unit and browser regression tests, and a production build. Passing builds
 on `main` deploy to GitHub Pages under `/Saftladen/`. Gameplay artwork is
 precached for offline reload; music is cached after its first requested playback.
 Run `bun run preview` to check the production build locally.

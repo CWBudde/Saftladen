@@ -1,9 +1,6 @@
-export {
-  AUDIO_ASSET_MANIFEST,
-  IMAGE_ASSET_MANIFEST,
-  type AudioAssetEntry,
-  type AudioAssetKey,
-  type ImageAssetEntry,
-  type ImageAssetKey,
-} from './manifest'
-export { preloadImageAssets, type DecodedImageAsset, type ImageAssetMap } from './preload'
+import { IMAGE_ASSET_MANIFEST } from './manifest'
+import { createImageAssetLoader } from './preload'
+
+export const gameAssets = createImageAssetLoader(IMAGE_ASSET_MANIFEST)
+export { IMAGE_ASSET_MANIFEST, type ImageAssetEntry, type ImageAssetKey } from './manifest'
+export { createImageAssetLoader, type AssetReadiness } from './preload'
