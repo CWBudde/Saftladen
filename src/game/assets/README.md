@@ -6,11 +6,17 @@ wordmark is semantic text and an inline SVG; it requires no title image. The
 manifest has no placeholder atlases or unused audio URLs.
 
 The current sprite set uses one whole-fruit image per type and the cut images
-listed in the manifest, including `starfruit4.png` / `starfruit5.png`. Alternate
+listed in the manifest, including `starfruit4.webp` / `starfruit5.webp`. Alternate
 `*2.png` images and the unused pineapple/starfruit `*3.png` images were removed
 after the Phase 7 decision to keep this consistent set. Adding visual variety
 later requires an explicit manifest/rendering change and a check that cosmetic
 selection preserves gameplay RNG. Git history retains the removed source art.
+
+The 17 transparent sprites use lossless WebP with their original dimensions and
+exact RGBA values, reducing sprite downloads by 28.5%. The background remains
+JPEG because lossless WebP/AVIF candidates were larger. Required-image precaching
+includes WebP; public install icons remain PNG. See the measured comparison and
+conversion recipe in [asset compression](../../../docs/ASSET_COMPRESSION.md).
 
 The install splash and favicon live only in `public`; duplicate copies in
 `src/assets` were removed. The old title image and Vite placeholder logo are

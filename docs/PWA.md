@@ -1,8 +1,9 @@
 # Offline installation and updates
 
 The production build at `/Saftladen/` precaches the HTML, bundled code/styles,
-manifest/icons and all 18 decoded gameplay images. Music uses a separate runtime
-cache after requested playback. The splash screen is excluded from precaching.
+manifest/icons and all 18 decoded gameplay images (17 WebP sprites and a JPEG
+background). Music uses a separate runtime cache after requested playback. The
+splash screen is excluded from precaching.
 An incomplete first download cannot provide a full offline game: required
 artwork offers retry or an explicit simple-artwork choice.
 

@@ -50,3 +50,6 @@ output/imagegen/
 output/audio-preview/
 output/performance/
 output/performance-reports/
+
+# Generated asset comparisons
+output/asset-compression/

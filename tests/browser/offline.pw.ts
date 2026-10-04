@@ -94,7 +94,7 @@ test('installed game reloads offline with every gameplay image decoded', async (
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
   await expect(page.getByText('Simple artwork enabled', { exact: false })).toHaveCount(0)
   const source = await readFile('dist/sw.js', 'utf8')
-  const images = [...source.matchAll(/url:"(assets\/[^"?]+\.(?:png|jpg))"/g)].map(
+  const images = [...source.matchAll(/url:"(assets\/[^"?]+\.(?:png|jpg|webp))"/g)].map(
     (match) => match[1],
   )
   expect(images).toHaveLength(18)

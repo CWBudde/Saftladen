@@ -209,6 +209,11 @@ artwork. Failed or timed-out images keep play disabled until you retry or choose
 **Play with simple artwork**. Successful images are retained during retries;
 music continues to load on demand.
 
+The 17 transparent sprites use lossless WebP, saving 28.5% of their encoded
+payload while preserving original dimensions and RGBA pixels. See
+[asset compression measurements](docs/ASSET_COMPRESSION.md) for quality checks,
+format comparisons and the conversion recipe.
+
 ## Release Checks
 
 Pull requests run lint, unit and browser regression tests, and a production build. Passing builds
@@ -227,7 +232,7 @@ An interrupted first install retries registration on reconnect or return to the
 page; failed artwork still offers **Retry artwork**. Offline reload requires a
 completed initial cache installation. See [offline/update checks](docs/PWA.md).
 
-The automated suite currently has 186 Bun tests and 28 production Chromium
+The automated suite currently has 188 Bun tests and 28 production Chromium
 checks. It covers lifecycle/contact/scoring, saved rewards/equipment/goals,
 keyboard/dialog flows, audio decoding and real offline/update recovery. Installed
 iOS/Android behavior, physical touch calibration, headphone/phone listening,

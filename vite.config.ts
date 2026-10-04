@@ -17,7 +17,7 @@ export default defineConfig({
         inlineWorkboxRuntime: true,
         skipWaiting: false,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest,wav}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,webp,svg,webmanifest,wav}'],
         globIgnores: ['**/splash-screen.png'],
         runtimeCaching: [
           {

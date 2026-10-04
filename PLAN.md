@@ -2,8 +2,13 @@
 
 ## Start here
 
-**Next implementation:** evaluate shipped-asset compression in **Phase 14.8**;
-measure decoded quality and transfer savings before replacing the current art.
+**Next acceptance work:** complete physical release checks in **Phase 19** and
+record device/browser evidence for touch, performance, listening and human balance.
+Phase 14.8 shipped-asset compression is complete: 17 lossless WebP sprites save
+28.5% of their payload; the production precache is 18.9% smaller. Exact RGBA,
+browser rendering, loading/retry/fallback and offline/update checks are recorded
+in `docs/ASSET_COMPRESSION.md`. Further pooling/quality tiers depend on device
+measurements; further lossy audio compression depends on listening QA.
 Phase 14.7 formatting is complete: editor settings, pinned Prettier, format/check
 commands and CI enforcement cover source, tests, configuration and documentation.
 License selection remains open and requires the repository owner's choice.
@@ -12,7 +17,7 @@ the unused fixed bomb penalty is gone, and new-run reset owns both RNG reseeds.
 Gameplay/effect replay, explicit seeds, scoring and lifecycle behavior are preserved.
 Phase 14.8 repository hygiene is complete: generated sources are untracked,
 duplicate/unused art and the stale draft are removed, and Phase 7's variant
-decision is recorded. Shipped-asset compression remains a separate measured task.
+decision is recorded. Shipped-asset compression now has separate measured evidence.
 App decomposition is complete: menu, profile, pause and results UI live in focused
 components, with global shortcuts in a dedicated hook. App retains launch,
 settlement, equipment and safe update orchestration. Renderer decomposition is
@@ -101,9 +106,15 @@ last. Completed tasks and the original review are archived below the backlog.
   coverage includes real effects, pending input, accumulator reset and explicit
   zero/large seeds. Arcade's existing half-score bomb deduction is unchanged.
 - Repository hygiene removes 6.65 MiB from the tracked tree: generated source art,
-  duplicate/unused images, the Vite placeholder and stale draft. All 18 runtime
-  images and app bundles remain byte-identical; only the unused public logo and
-  its worker entry leave the deployment. Every retained source asset is referenced.
+  duplicate/unused images, the Vite placeholder and stale draft. That cleanup
+  preserved all runtime images and app bundles; the unused public logo and its
+  worker entry left the deployment. Every retained source asset is referenced.
+- Seventeen lossless WebP sprites retain original dimensions and decoded RGBA
+  pixels, saving 789,734 bytes / 28.5% of encoded sprite payload. Browser alpha is
+  identical; opaque composites differ by at most 1/255 from decoder rounding.
+  Required images remain precached: 29 entries / 3313.82 KiB, down 18.9%.
+  Background, music and public identity assets are unchanged; format/quality
+  measurements and a reproducible conversion recipe are documented.
 - Repository formatting uses shared two-space/LF editor settings and pinned
   Prettier with single quotes, no semicolons and a 100-column target. CI checks
   formatting before lint/tests/build; generated artifacts and the Bun lockfile
@@ -341,7 +352,7 @@ completing the entire phase is not a prerequisite for starting Phase 17.
       replay, with narrow portrait/landscape controls. Progression smoke covers
       a real completed challenge, board rotation, saved progress without expiry,
       reload and keyboard next-goal launches from profile/results. Physical iOS/Android
-      multitouch QA remains in Phase 12; image optimization remains in Phase 14.8.
+      multitouch QA remains in Phase 12; image optimization is recorded in Phase 14.8.
       Add future feature cases alongside their implementation.
 - [x] **Add regression coverage immediately.** Extend Phase 12 with the Phase
       15 input/lifecycle cases, contact geometry, scoring order/stacking, profile
@@ -387,15 +398,17 @@ completing the entire phase is not a prerequisite for starting Phase 17.
 - [ ] **Profile before renderer upgrades.** Establish production frame-time and
       input-latency budgets on agreed midrange mobile devices during Frenzy and
       multitouch; measure p95 frame time and long-session memory. Apply Phases
-      11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work. - [x] Add a reproducible production renderer benchmark and record a host
-      baseline before optimization. Separate minified fixture tests three
-      dojos, DPR 1/3, empty and stationary Frenzy-sized effects/two trails;
-      60 warm-up + 120 native RAF samples per case. Reports retain CPU p95,
-      RAF p95 and missed-frame percentages; full state remains unchanged.
-      `docs/PERFORMANCE.md` records before/cache results and provisional
-      8ms renderer / 20ms RAF / 50ms input budgets. No timing CI gate. - [ ] Validate physical midrange devices, actual Frenzy/touch latency,
-      ten-minute memory behavior and foreground menu/pause work; use those
-      findings to choose additional pooling, FX/DPR tiers or idle scheduling.
+      11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work.
+  - [x] Add a reproducible production renderer benchmark and record a host
+        baseline before optimization. Separate minified fixture tests three
+        dojos, DPR 1/3, empty and stationary Frenzy-sized effects/two trails;
+        60 warm-up + 120 native RAF samples per case. Reports retain CPU p95,
+        RAF p95 and missed-frame percentages; full state remains unchanged.
+        `docs/PERFORMANCE.md` records before/cache results and provisional
+        8ms renderer / 20ms RAF / 50ms input budgets. No timing CI gate.
+  - [ ] Validate physical midrange devices, actual Frenzy/touch latency,
+        ten-minute memory behavior and foreground menu/pause work; use those
+        findings to choose additional pooling, FX/DPR tiers or idle scheduling.
 - [ ] Verify physical touch scrolling.
 
 **Acceptance:** agreed phone/desktop flows work with no clipped controls or
@@ -503,10 +516,22 @@ in the completion record below. Coordinate overlapping work with Phases 11,
       `starfruit4.png`/`starfruit5.png`. Removed unused apple/banana/melon/orange `*2`,
       pineapple `*2/*3` and starfruit `*2/*3` art. Every remaining source asset is
       imported; Git history retains removed art for future deliberate variety work.
-- [ ] **Optimize shipped assets** (evaluate WebP/AVIF with alpha for fruit PNGs;
-      lazy-load/runtime-cache music, already encoded at 64 kbps). Measure quality
-      and transfer savings before further audio compression. The original
-      precache was 8174.48 KiB; the hygiene build has 29 entries / 4085.13 KiB.
+- [x] **Optimize shipped assets from measured quality and payload savings.**
+      Replaced 17 transparent PNGs with lossless WebP: 2,769,288 → 1,979,554 bytes
+      (28.5% saved), original dimensions and exact decoded RGBA preserved.
+      The tested AVIF path was larger overall and introduced 1/255 RGB rounding;
+      both background candidates were larger than the retained JPEG. Chromium's
+      204 scaled/composited comparisons preserve alpha with at most 1/255 visible
+      RGB rounding. Manifest/menu imports, worker glob and browser fixtures now
+      use WebP; all 18 required images still decode offline. Precache falls from
+      4085.02 to 3313.82 KiB (18.9%), with 29 entries unchanged. Music remains
+      byte-identical, on-demand/runtime-cached; `ffprobe` reports approximately
+      182 kbps, correcting the former 64 kbps note. Further lossy audio changes
+      require Phase 16 listening evidence. Documented measurements/conversions
+      in `docs/ASSET_COMPRESSION.md`; generated comparisons are ignored. All 188
+      unit tests, 28 production browser checks, formatting, lint, typechecking
+      and build pass. Fixed the synthetic-clock swipe helper's stale target;
+      the unlock/replay check also passed three consecutive targeted repeats.
 - [x] Remove `goal.md`: unreferenced 29.6 KB German scaffold-era draft with raw
       citation artifacts. Current README, PLAN and architecture guides cover the
       implemented game and remaining work.
@@ -523,7 +548,7 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 ## Phase 7 — Rendering (assets)
 
 Required sprites and directional halves are loaded. The variant decision is
-recorded below; shipped-asset optimization remains in Phase 14.8.
+recorded below; shipped-asset compression is completed in Phase 14.8.
 
 - [x] **Decide on unused variants.** Keep the current consistent whole/cut sprite
       set; remove unused `*2` and pineapple/starfruit `*3` images in Phase 14.8.
@@ -1112,6 +1137,29 @@ lint, application/tooling/browser typechecking, production build and all 28
 production Chromium checks passed. Build precache: 29 entries / 4085.02 KiB.
 Shipped-asset compression is the next independent task. Physical input/device
 performance, screen-reader/listening and human balance QA remain open.
+
+**Twenty-first improvement batch (2026-10-04):** completed Phase 14.8 shipped-asset
+compression. Measured WebP/AVIF candidates for every runtime sprite and the
+background, then selected 17 smaller lossless WebPs with identical dimensions
+and RGBA bytes. Sprite payload drops 789,734 bytes / 28.5%; the unchanged-count
+precache drops from 4085.02 to 3313.82 KiB / 18.9%. Menu/manifest imports and
+offline cache/fixture handling use WebP. Background, music, public identity art
+and CSS stay byte-identical. Audio inspection corrects the earlier 64 kbps
+claim to approximately 182 kbps; further lossy audio work awaits listening QA.
+The measurement report records per-asset sizes, encoder versions/configuration,
+browser rounding and a verified conversion recipe. Generated candidates are ignored.
+
+Validation: all 17 selected WebPs match original RGBA bytes; the documented
+recipe reproduces every committed candidate byte for byte. Chromium's 204
+comparisons at three scales/four backgrounds preserve alpha, with at most 1/255
+visible RGB rounding. All 188 unit tests / 3,756 assertions, formatting, lint,
+application/tooling/browser typechecking, build and all 28 production browser
+checks pass. The initial reward-flow synthetic swipe failed because its sampled
+pose could become stale across the helper's 1ms clock/RAF step; it now reacquires
+the nearest rendered fruit and crosses its fresh center. Three targeted repeats
+and the full suite pass with unchanged scoring assertions and no engine hooks.
+Physical release acceptance is next; device performance, touch, screen-reader/
+listening and human balance checks, plus owner license selection, remain open.
 
 </details>
 

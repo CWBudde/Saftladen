@@ -190,7 +190,24 @@ async function swipeVisibleFruit(page: Page) {
   await page.mouse.move(canvas.x + fruit.x - span, canvas.y + fruit.y)
   await page.mouse.down()
   await advance(page, 1)
-  await page.mouse.move(canvas.x + fruit.x + span, canvas.y + fruit.y)
+  // The 1ms clock step can cross a RAF boundary. Follow the nearest freshly
+  // rendered fruit rather than aiming at a pose from before that physics step.
+  const contact = await page.evaluate(
+    (previous) =>
+      window.__browserProbe.fruit.reduce<DrawnFruit | undefined>(
+        (nearest, candidate) =>
+          nearest &&
+          Math.hypot(nearest.x - previous.x, nearest.y - previous.y) <=
+            Math.hypot(candidate.x - previous.x, candidate.y - previous.y)
+            ? nearest
+            : candidate,
+        undefined,
+      ),
+    fruit,
+  )
+  if (!contact) throw new Error('The selected fruit disappeared before the swipe')
+  await page.mouse.move(canvas.x + contact.x, canvas.y + contact.y)
+  await page.mouse.move(canvas.x + contact.x + span, canvas.y + contact.y)
   await page.mouse.up()
   await advance(page, 32)
   await expect(page.locator('.hud-score strong')).not.toHaveText(String(score))
@@ -661,7 +678,7 @@ test('loading artwork gates start and a failed sprite can be retried', async ({ 
   const held = new Promise<void>((resolve) => {
     release = resolve
   })
-  await page.route('**/bomb-*.png', async (route) => {
+  await page.route('**/bomb-*.webp', async (route) => {
     await held
     await route.abort()
   })
@@ -673,7 +690,7 @@ test('loading artwork gates start and a failed sprite can be retried', async ({ 
   release()
   await expect(page.getByRole('button', { name: 'Retry artwork', exact: true })).toBeVisible()
   await expect(classic).toBeDisabled()
-  await page.unroute('**/bomb-*.png')
+  await page.unroute('**/bomb-*.webp')
   await page.getByRole('button', { name: 'Retry artwork', exact: true }).click()
   await expect(classic).toBeEnabled()
   await classic.click()
@@ -683,7 +700,7 @@ test('loading artwork gates start and a failed sprite can be retried', async ({ 
 
 test('simple artwork fallback is an explicit choice after loading fails', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('saftladen.onboarding.v1', 'seen'))
-  await page.route('**/bomb-*.png', (route) => route.abort())
+  await page.route('**/bomb-*.webp', (route) => route.abort())
   await page.goto('./')
   const classic = page.getByRole('button', { name: 'Classic', exact: true })
   await expect(classic).toBeDisabled()
