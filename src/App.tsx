@@ -6,7 +6,7 @@ import { GameCanvasLayer } from './game/core'
 import { isGameDebugEnabled } from './game/debug'
 import { GameHud } from './game/ui/GameHud'
 import { MenuScreen } from './game/ui/MenuScreen'
-import { ProfilePanel } from './game/ui/ProfilePanel'
+import { ProfilePanel, type ProfileTab } from './game/ui/ProfilePanel'
 import { PauseOverlay } from './game/ui/PauseOverlay'
 import { GameOverOverlay } from './game/ui/GameOverOverlay'
 import { useGameKeyboard } from './game/ui/useGameKeyboard'
@@ -60,6 +60,7 @@ function App() {
   const [lastRunRewards, setLastRunRewards] = useState<RunRewards | null>(null)
   const [selectedMode, setSelectedMode] = useState<GameMode>('classic')
   const [profileOpen, setProfileOpen] = useState(false)
+  const [initialProfileTab, setInitialProfileTab] = useState<ProfileTab>('overview')
   const [seenOnboarding, setSeenOnboarding] = useState(hasSeenOnboarding)
   const [help, setHelp] = useState<{ mode: GameMode; launching: boolean } | null>(null)
   const [readyMode, setReadyMode] = useState<GameMode | null>(null)
@@ -167,7 +168,7 @@ function App() {
             const unlocked = getNewCosmeticUnlocks(rewardProfileRef.current, applied.profile)
             setNewUnlocks(unlocked)
             if (unlocked.length)
-              unlockMessage = `Unlocked ${unlocked.map((item) => item.name).join(', ')}. Equip your reward below.`
+              unlockMessage = `Unlocked ${unlocked.map((item) => item.name).join(', ')}. Choose equipment to try your reward.`
             rewardProfileRef.current = applied.profile
             setRewardProfile(applied.profile)
             setLastRunRewards(applied.rewards)
@@ -258,6 +259,7 @@ function App() {
 
   const openEquipment = () => {
     handleReturnToMenu()
+    setInitialProfileTab('equipment')
     setProfileOpen(true)
   }
 
@@ -307,6 +309,8 @@ function App() {
               canStart={canStart}
               selectedMode={selectedMode}
               profileOpen={profileOpen}
+              nextGoal={nextGoal}
+              playGoal={playGoal}
               updateNotice={updateSafe ? updateNotice : null}
               startMode={startMode}
               onRetryArtwork={() => {
@@ -316,6 +320,7 @@ function App() {
               onOpenHelp={() => setHelp({ mode: selectedMode, launching: false })}
               onToggleProfile={() => {
                 audio.playSfx('ui-click')
+                setInitialProfileTab('overview')
                 setProfileOpen((open) => !open)
               }}
             />
@@ -340,13 +345,12 @@ function App() {
             <ProfilePanel
               rewardProfile={rewardProfile}
               cosmetics={cosmetics}
-              nextGoal={nextGoal}
-              canStart={canStart}
+              selectedMode={selectedMode}
+              initialTab={initialProfileTab}
               liveAnnouncement={liveAnnouncement}
               uiSettings={uiSettings}
               updateUiSettings={updateUiSettings}
               equipCosmetic={equipCosmetic}
-              playGoal={playGoal}
               onClose={() => setProfileOpen(false)}
             />
           ) : null}
@@ -365,18 +369,11 @@ function App() {
           {uiSnapshot.view === 'game-over' ? (
             <GameOverOverlay
               uiSnapshot={uiSnapshot}
-              rewardProfile={rewardProfile}
               lastRunRewards={lastRunRewards}
               newUnlocks={newUnlocks}
-              cosmetics={cosmetics}
-              selectedMode={selectedMode}
-              nextGoal={nextGoal}
-              canStart={canStart}
               updating={update.applying}
               liveAnnouncement={liveAnnouncement}
               updateNotice={updateSafe ? updateNotice : null}
-              equipCosmetic={equipCosmetic}
-              playGoal={playGoal}
               handleRestart={handleRestart}
               openEquipment={openEquipment}
               handleReturnToMenu={handleReturnToMenu}

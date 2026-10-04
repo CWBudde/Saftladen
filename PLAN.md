@@ -196,12 +196,14 @@ guides. Completed work is not part of the active execution queue.
   tapered blades, bounded combo/bomb bursts and readable reduced-motion text;
   layered WAV variants, eight-voice cap, mute/ducking, safe practice/help and
   foreground-only ready countdown. [Player guide](README.md).
-- **Compact results:** fruit-stall receipt with score, quick stats, earnings and
-  replay first; full statistics/goals expand on demand. Portrait/landscape layout,
-  disclosure keyboard focus and unlock/equip/replay flows have browser coverage.
+- **Compact dialogs:** shared dark palette and soft shadows; results show score,
+  six stats, earnings and replay without long goal lists. Profile tabs separate
+  Overview, Goals, single-preview Equipment and Settings; heading/navigation stay
+  visible while content scrolls. One next-goal card lives on the menu. Browser
+  coverage checks portrait/landscape fit, keyboard navigation and saved equipment.
 - **Progression/equipment:** validated saves, exactly-once settlement, lifetime
   earned unlocks, three blades/three dojos with persisted live selections,
-  unlock/equip results, six achievements and three rotating challenges without expiry.
+  compact unlock notices, six achievements and three rotating challenges without expiry.
 - **Performance:** static dojo/HUD cache; production native-RAF benchmark covers
   three dojos, DPR 1/3, empty/effects stress, 60 warm-up + 120 samples, CPU/RAF p95
   and missed frames, with unchanged game state. [Measurements](docs/PERFORMANCE.md).

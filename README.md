@@ -128,7 +128,8 @@ mutation, event ordering and determinism rules.
 | Arcade  | Score within 60 seconds                                        | Bombs subtract half your score, rounded down; Freeze, Frenzy and Double Points pickups |
 | Zen     | Relaxed, timed 90-second session                               | No bombs or pickups; misses do not end the run                                         |
 
-Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
+The Settings tab in Profile & Rewards and the pause dialog offer audio,
+sensitivity, and reduced-motion settings.
 Preferences persist locally; the initial motion preference follows the OS.
 Your saved motion choice overrides that initial default. One combined control
 suppresses flashes, bursts and particles while preserving score and bomb text.
@@ -141,8 +142,10 @@ Storm Temple Dojo at Level 5 (1120 XP). Bamboo Blade and Great Wave Dojo start
 unlocked. Starfruit is never spent, and unlocks remain available as rewards grow.
 The profile shows visual previews, requirements, remaining progress and objective
 payouts. Equip an unlocked blade or dojo to change the live trail or background;
-both choices survive reload. New rewards appear on the results screen with an
-equip button, followed by replay or a shortcut to all equipment. These choices
+both choices survive reload. New rewards appear as a compact unlock notice
+on the results screen.
+**Choose equipment** opens the Equipment tab directly. Browse Blades or Dojos
+with Previous/Next, then explicitly equip the previewed item. These choices
 change appearance only.
 
 ## Audio and Slice Feedback
@@ -158,8 +161,9 @@ on headphones and phone speakers. Generated WAVs and the page are ignored by Git
 The HUD displays score, lives or time, stroke combos, timed streaks and power-up
 remaining durations. Results include fruit sliced, misses, bomb hits, best stroke
 combo, peak streak and stroke accuracy (fruit-hitting gestures / moving gestures).
-The compact fruit-stall receipt puts score, earnings and replay first; expand
-**Run details & goals** for the full statistics and saved goal progress.
+The compact dark results dialog puts score, six run statistics, earnings and replay
+first. Goals live on the menu and in Profile & Rewards.
+All dialogs share a soft shadow and the game’s dark brown palette.
 A stroke combo counts fruit cut during one held gesture; three fruit earn a
 15-point bonus, with 5 more for each additional fruit. Separate swipes never
 combine into a stroke combo. A timed streak chains cuts within 320ms and raises
@@ -193,7 +197,12 @@ cuts, Arcade score/stroke combos and Zen harvest/accuracy. Three challenges
 (one per mode) rotate through harvest, practice and stroke-combo sets after all
 three finish. They have no expiry or daily streak, and partial progress survives
 time away. Each achievement pays once; each challenge pays once per set.
-Profile and results suggest a next goal with a button to play its mode.
+The main menu shows one next goal with progress and a button to play its mode.
+Profile & Rewards has Overview, Goals, Equipment and Settings tabs. Its heading
+and tabs remain visible while the selected content scrolls. Goals shows one
+category at a time: Challenges, Mode achievements (filtered by mode) or Starter
+objectives. Overview opens by default; only the active tab is in the keyboard
+sequence. Use Left/Right, Home or End to switch tabs.
 
 Progress, settings, best scores, help acknowledgement and equipment use validated
 browser-local storage. Clearing site data removes them; they do not sync between

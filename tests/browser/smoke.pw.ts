@@ -213,6 +213,30 @@ async function swipeVisibleFruit(page: Page) {
   await expect(page.locator('.hud-score strong')).not.toHaveText(String(score))
 }
 
+async function browseEquipment(page: Page, name: string) {
+  const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+  await profile.getByRole('tab', { name: 'Equipment', exact: true }).click()
+  await profile
+    .getByLabel('Browse equipment', { exact: true })
+    .selectOption(name.endsWith('Dojo') ? 'dojo' : 'blade')
+  const previous = profile.getByRole('button', { name: 'Previous', exact: true })
+  while (await previous.isEnabled()) await previous.click()
+  const card = profile.locator('.equipment-preview-list > li')
+  for (let i = 0; i < 3; i++) {
+    if (await card.getByText(name, { exact: true }).count()) return card
+    const next = profile.getByRole('button', { name: 'Next', exact: true })
+    if (!(await next.isEnabled())) break
+    await next.click()
+  }
+  throw new Error(`Equipment not found: ${name}`)
+}
+
+async function openGoalCategory(page: Page, category: string) {
+  const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+  await profile.getByRole('tab', { name: 'Goals', exact: true }).click()
+  await profile.getByLabel('Goal category', { exact: true }).selectOption(category)
+}
+
 for (const mode of ['Classic', 'Arcade', 'Zen']) {
   test(`${mode}: menu, pause/resume, natural results and replay`, async ({ page }, testInfo) => {
     await openGame(page)
@@ -241,7 +265,8 @@ for (const mode of ['Classic', 'Arcade', 'Zen']) {
     await expect(results).toContainText('at least 5 seconds')
     if (mode === 'Classic') {
       await expect(results.getByRole('button', { name: 'Run Again', exact: true })).toBeFocused()
-      await expect(results.locator('.result-details')).not.toHaveAttribute('open')
+      await expect(results.locator('details')).toHaveCount(0)
+      await expect(results.getByRole('list')).toHaveCount(0)
       for (const [width, height] of [
         [390, 844],
         [320, 568],
@@ -276,15 +301,6 @@ for (const mode of ['Classic', 'Arcade', 'Zen']) {
         await page.screenshot({ path: testInfo.outputPath(`results-${width}.png`) })
       }
       await page.setViewportSize({ width: 390, height: 844 })
-      const details = results.locator('summary')
-      await details.focus()
-      await page.keyboard.press('Enter')
-      await expect(
-        results.getByRole('list', { name: 'Challenge progress', exact: true }),
-      ).toBeVisible()
-      await details.focus()
-      await page.keyboard.press('Space')
-      await expect(results.locator('.result-details')).not.toHaveAttribute('open')
     }
     await page.getByRole('button', { name: 'Run Again', exact: true }).click()
     await page.getByRole('button', { name: 'Start now', exact: true }).click()
@@ -317,6 +333,7 @@ test('320px fruit contact stays aligned after landscape resize', async ({ page }
 test('one held gesture cuts a rendered fruit group and reports a stroke combo', async ({
   page,
 }) => {
+  test.setTimeout(90_000) // Render every RAF tick of a full run after finding a combo group.
   await page.setViewportSize({ width: 844, height: 390 })
   await openGame(page)
   await startMode(page, 'Zen')
@@ -373,12 +390,11 @@ test('one held gesture cuts a rendered fruit group and reports a stroke combo', 
   expect(samples.every((sample) => sample.rate >= 0.8 && sample.rate <= 1.4)).toBe(true)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete' })
-  await results.locator('summary').click()
   const bestStroke = results
-    .locator('.result-stats > div')
+    .locator('.result-highlights > div')
     .filter({ has: page.getByText('Best stroke combo', { exact: true }) })
   expect(Number.parseInt(await bestStroke.locator('dd').innerText(), 10)).toBeGreaterThanOrEqual(3)
-  await expect(results.locator('.result-stats')).toContainText('Stroke accuracy100% (1/1)')
+  await expect(results.locator('.result-highlights')).toContainText('Stroke accuracy100% (1/1)')
 })
 
 for (const reducedMotion of [false, true]) {
@@ -443,6 +459,7 @@ test('profile traps focus, settings persist, and landscape controls scroll into 
     await page.keyboard.press('Tab')
     expect(await profile.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true)
   }
+  await profile.getByRole('tab', { name: 'Settings', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Reduce motion and flashes' }).check()
   await page.keyboard.press('Escape')
   await advance(page, 32)
@@ -464,6 +481,115 @@ test('profile traps focus, settings persist, and landscape controls scroll into 
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeFocused()
 })
 
+test('profile tabs keep mobile navigation visible and equipment browsing never equips implicitly', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(90_000) // Four viewport layouts plus every profile tab's keyboard sequence.
+  await openGame(page)
+  const canvas = page.getByLabel('Fruit slicing game canvas', { exact: true })
+  for (const [width, height] of [
+    [320, 568],
+    [390, 844],
+    [844, 390],
+    [1440, 900],
+  ]) {
+    await page.setViewportSize({ width, height })
+    await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+    const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+    await expect(profile.getByRole('tab', { name: 'Overview', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(await profile.evaluate((dialog) => getComputedStyle(dialog).backgroundColor)).toBe(
+      'rgb(41, 27, 20)',
+    )
+    expect(await profile.evaluate((dialog) => getComputedStyle(dialog).boxShadow)).not.toBe('none')
+    const fits = await profile.locator('.profile-content').evaluate((content) => ({
+      vertical: content.scrollHeight <= content.clientHeight + 1,
+      horizontal: content.scrollWidth <= content.clientWidth + 1,
+    }))
+    expect(fits, `Overview at ${width}×${height}`).toEqual({ vertical: true, horizontal: true })
+    const bounds = await profile.boundingBox()
+    expect(bounds!.height).toBeLessThanOrEqual(Math.min(480, height - 32))
+    expect(await profile.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth + 1)).toBe(
+      true,
+    )
+    await page.screenshot({ path: testInfo.outputPath(`profile-overview-${width}.png`) })
+    for (const name of ['Goals', 'Equipment', 'Settings']) {
+      await profile.getByRole('tab', { name, exact: true }).click()
+      await expect(profile.getByRole('tabpanel')).toHaveCount(1)
+      const tabBounds = await profile.boundingBox()
+      const navigationBounds = await profile.getByRole('tablist').boundingBox()
+      const content = profile.locator('.profile-content')
+      await content.evaluate((element) => {
+        element.scrollTop = element.scrollHeight
+      })
+      for (const control of [
+        profile.getByRole('button', { name: 'Close', exact: true }),
+        ...['Overview', 'Goals', 'Equipment', 'Settings'].map((tab) =>
+          profile.getByRole('tab', { name: tab, exact: true }),
+        ),
+      ]) {
+        await expect(control).toBeInViewport()
+        const box = await control.boundingBox()
+        expect(box!.height).toBeGreaterThanOrEqual(43.99)
+        expect(box!.y).toBeGreaterThanOrEqual(tabBounds!.y)
+      }
+      expect((await profile.getByRole('tablist').boundingBox())!.y).toBe(navigationBounds!.y)
+      expect(
+        await content.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
+      ).toBe(true)
+      if (name === 'Settings') {
+        for (const slider of await profile.getByRole('slider').all()) {
+          expect((await slider.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+        }
+      }
+      await page.screenshot({
+        path: testInfo.outputPath(`profile-${name.toLowerCase()}-${width}.png`),
+      })
+    }
+    await profile.getByRole('tab', { name: 'Overview', exact: true }).focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(profile.getByRole('tab', { name: 'Goals', exact: true })).toBeFocused()
+    await expect(profile.getByRole('tab', { name: 'Goals', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await page.keyboard.press('End')
+    await expect(profile.getByRole('tab', { name: 'Settings', exact: true })).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(profile.getByRole('tab', { name: 'Overview', exact: true })).toBeFocused()
+    await page.keyboard.press('ArrowLeft')
+    await expect(profile.getByRole('tab', { name: 'Settings', exact: true })).toBeFocused()
+    await page.keyboard.press('Home')
+    await expect(profile.getByRole('tab', { name: 'Overview', exact: true })).toBeFocused()
+    for (const tab of ['Overview', 'Goals', 'Equipment', 'Settings']) {
+      await profile.getByRole('tab', { name: tab, exact: true }).click()
+      await checkDialogKeyboard(page, profile)
+    }
+    await openGoalCategory(page, 'achievements')
+    for (const mode of ['classic', 'arcade', 'zen']) {
+      await profile.getByLabel('Achievement mode', { exact: true }).selectOption(mode)
+      await expect(
+        profile.getByRole('list', { name: 'Achievement progress', exact: true }).locator('li'),
+      ).toHaveCount(2)
+    }
+    await browseEquipment(page, 'Dragon Fang')
+    await expect(profile.getByRole('button', { name: 'Next', exact: true })).toBeDisabled()
+    await expect(
+      profile.getByRole('button', { name: 'Equip Dragon Fang', exact: true }),
+    ).toBeDisabled()
+    await expect(canvas).toHaveAttribute('data-blade', 'bamboo')
+    await expect(canvas).toHaveAttribute('data-dojo', 'great-wave')
+    expect(
+      await page.evaluate(() => localStorage.getItem('saftladen.cosmetics.selection')),
+    ).not.toContain('dragon-fang')
+    await profile.getByRole('button', { name: 'Close', exact: true }).click()
+    await advance(page, 32)
+    await expect(page.getByRole('button', { name: 'Profile & Rewards', exact: true })).toBeFocused()
+  }
+})
+
 test('cosmetic milestones show earned progress and retain automatic unlocks after reload', async ({
   page,
 }) => {
@@ -471,12 +597,13 @@ test('cosmetic milestones show earned progress and retain automatic unlocks afte
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
   await expect(
-    profile.getByText('Unlocks are automatic and permanent; nothing is spent.', { exact: false }),
+    profile.getByText('Permanent cosmetic unlocks; nothing is spent.', { exact: false }),
   ).toBeVisible()
-  const comet = profile.getByRole('listitem').filter({ hasText: 'Comet Blade' })
-  const sunset = profile.getByRole('listitem').filter({ hasText: 'Sunset Harbor Dojo' })
+  const comet = await browseEquipment(page, 'Comet Blade')
   await expect(comet).toContainText('40 Starfruit earned · 0/40 · 40 Starfruit to go')
+  const sunset = await browseEquipment(page, 'Sunset Harbor Dojo')
   await expect(sunset).toContainText('Level 3 · 560 XP earned · 0/560 · 560 XP to go')
+  await openGoalCategory(page, 'objectives')
   await expect(profile.getByRole('listitem').filter({ hasText: 'Warmup Ritual' })).toContainText(
     'Reward: 80 XP · 10 Starfruit',
   )
@@ -492,9 +619,11 @@ test('cosmetic milestones show earned progress and retain automatic unlocks afte
     }, totals)
     await page.reload()
     await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+    await browseEquipment(page, 'Comet Blade')
     await expect(comet).toContainText(
       totals.starfruit === 39 ? '39/40 · 1 Starfruit to go' : 'Unlocked · 40 Starfruit earned',
     )
+    await browseEquipment(page, 'Sunset Harbor Dojo')
     await expect(sunset).toContainText(
       totals.xp === 559 ? '559/560 · 1 XP to go' : 'Unlocked · Level 3 · 560 XP earned',
     )
@@ -505,13 +634,16 @@ test('cosmetic milestones show earned progress and retain automatic unlocks afte
       }),
     ).toEqual(totals)
   }
+  await browseEquipment(page, 'Dragon Fang')
   await expect(profile.getByRole('listitem').filter({ hasText: 'Dragon Fang' })).toContainText(
     'Unlocked · 110 Starfruit earned',
   )
+  await browseEquipment(page, 'Storm Temple Dojo')
   await expect(
     profile.getByRole('listitem').filter({ hasText: 'Storm Temple Dojo' }),
   ).toContainText('Unlocked · Level 5 · 1120 XP earned')
   await page.setViewportSize({ width: 844, height: 390 })
+  await profile.getByRole('tab', { name: 'Settings', exact: true }).click()
   const volume = profile.getByRole('slider', { name: 'Music', exact: true })
   await volume.scrollIntoViewIfNeeded()
   await expect(volume).toBeInViewport()
@@ -523,6 +655,7 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
   await page.setViewportSize({ width: 320, height: 568 })
   await openGame(page)
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await browseEquipment(page, 'Comet Blade')
   await expect(page.getByRole('button', { name: 'Equip Comet Blade', exact: true })).toBeDisabled()
   // An unearned or stale saved selection cannot equip a locked reward.
   await page.evaluate(() =>
@@ -578,7 +711,7 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
     await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
     const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
     for (const name of [pair.bladeName, pair.dojoName]) {
-      const card = profile.getByRole('listitem').filter({ hasText: name })
+      const card = await browseEquipment(page, name)
       await expect(card.getByRole('img', { name: new RegExp(`${name} preview:`) })).toHaveCount(1)
       const button = card.getByRole('button')
       await button.scrollIntoViewIfNeeded()
@@ -634,13 +767,14 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
   expect(scores).toEqual([10, 10, 10])
   await page.setViewportSize({ width: 844, height: 390 })
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await browseEquipment(page, 'Dragon Fang')
   const equipped = page.getByRole('button', { name: 'Equipped Dragon Fang', exact: true })
   await equipped.scrollIntoViewIfNeeded()
   await expect(equipped).toBeInViewport()
   await page.screenshot({ path: testInfo.outputPath('equipment-landscape.png') })
 })
 
-test('earned unlocks celebrate once, equip from results and carry into replay', async ({
+test('earned unlocks celebrate once, open equipment and retain selections across runs', async ({
   page,
 }) => {
   test.setTimeout(90_000) // Two naturally completed 90-second runs, with every RAF tick rendered.
@@ -664,24 +798,30 @@ test('earned unlocks celebrate once, equip from results and carry into replay', 
   expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(70)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete' })
-  const celebration = results.getByRole('region', { name: 'New cosmetic unlocks' })
-  await expect(celebration).toContainText('Comet Blade')
-  await expect(celebration).toContainText('Sunset Harbor Dojo')
-  await results.locator('summary').click()
+  const celebration = results.locator('.result-unlocks')
+  await expect(celebration).toContainText('2 new cosmetic unlocks')
+  await expect(results.getByRole('status').first()).toContainText(
+    'Unlocked Comet Blade, Sunset Harbor Dojo.',
+  )
+  const settled = await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))
+  await results.getByRole('button', { name: 'Choose equipment', exact: true }).click()
+  const equipmentProfile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
   await expect(
-    results
+    equipmentProfile.getByRole('tab', { name: 'Equipment', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true')
+  await openGoalCategory(page, 'objectives')
+  await expect(
+    equipmentProfile
       .getByRole('list', { name: 'Objective progress' })
       .getByRole('listitem')
       .filter({ hasText: 'Warmup Ritual' }),
   ).toContainText('1/5')
-  await expect(page.getByRole('status').first()).toContainText(
-    'Unlocked Comet Blade, Sunset Harbor Dojo.',
-  )
-  await celebration.getByRole('button', { name: 'Equip Comet Blade', exact: true }).click()
-  await celebration.getByRole('button', { name: 'Equip Sunset Harbor Dojo', exact: true }).click()
-  const settled = await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))
-  await results.getByRole('button', { name: 'Run Again', exact: true }).click()
-  await page.getByRole('button', { name: 'Start now', exact: true }).click()
+  for (const name of ['Comet Blade', 'Sunset Harbor Dojo']) {
+    const card = await browseEquipment(page, name)
+    await card.getByRole('button', { name: `Equip ${name}`, exact: true }).click()
+  }
+  await equipmentProfile.getByRole('button', { name: 'Close', exact: true }).click()
+  await startMode(page, 'Zen')
   await expect(page.locator('.game-canvas')).toHaveAttribute('data-blade', 'comet')
   await expect(page.locator('.game-canvas')).toHaveAttribute('data-dojo', 'sunset-harbor')
   await advance(page, 91_000)
@@ -1033,16 +1173,18 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+  await openGoalCategory(page, 'challenges')
   await expect(
     profile.getByRole('region', { name: 'Rotating challenges', exact: true }),
   ).toContainText('No expiry or daily streak')
   await expect(
     profile.getByRole('list', { name: 'Challenge progress', exact: true }),
   ).toContainText('19/20')
-  await expect(profile.getByRole('region', { name: 'Next goal', exact: true })).toContainText(
+  await profile.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Next goal', exact: true })).toContainText(
     'Zen Small Harvest',
   )
-  const playZen = profile.getByRole('button', { name: 'Play Zen goal', exact: true })
+  const playZen = page.getByRole('button', { name: 'Play Zen goal', exact: true })
   await playZen.scrollIntoViewIfNeeded()
   const box = await playZen.boundingBox()
   expect(box && box.height >= 44 && box.x >= 0 && box.x + box.width <= 320).toBe(true)
@@ -1057,15 +1199,17 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await swipeVisibleFruit(page)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete', exact: true })
-  await expect(results).toContainText('Goals completed: Zen Small Harvest')
+  await expect(results).toContainText('Goals completed · 1')
   await expect(results).toContainText('A fresh challenge set is ready!')
   await expect(page.getByRole('status')).toContainText('Goals completed: Zen Small Harvest')
-  await results.locator('summary').click()
+  await results.getByRole('button', { name: 'Main Menu', exact: true }).click()
+  await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await openGoalCategory(page, 'challenges')
   await expect(
-    results.getByRole('list', { name: 'Challenge progress', exact: true }),
+    profile.getByRole('list', { name: 'Challenge progress', exact: true }),
   ).toContainText('Zen Back to the Stall')
   await expect(
-    results.getByRole('list', { name: 'Challenge progress', exact: true }).locator('li'),
+    profile.getByRole('list', { name: 'Challenge progress', exact: true }).locator('li'),
   ).toHaveCount(3)
   const settled = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('saftladen.rewards.profile')!),
@@ -1075,7 +1219,8 @@ test('saved challenge progress rotates from real play and offers a keyboard next
     true,
   )
   expect(settled.starfruit).toBe(114)
-  const nextRun = results.getByRole('button', { name: 'Play Zen goal', exact: true })
+  await profile.getByRole('button', { name: 'Close', exact: true }).click()
+  const nextRun = page.getByRole('button', { name: 'Play Zen goal', exact: true })
   await nextRun.focus()
   await page.keyboard.press('Enter')
   await expect(readyZen).toBeVisible()
@@ -1086,13 +1231,15 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
   await page.setViewportSize({ width: 844, height: 390 })
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await openGoalCategory(page, 'challenges')
   await expect(profile).toContainText('Challenge set 2 of 3')
   expect(
     await page.evaluate(
       () => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!).starfruit,
     ),
   ).toBe(114)
-  const playClassic = profile.getByRole('button', { name: 'Play Classic goal', exact: true })
+  await profile.getByRole('button', { name: 'Close', exact: true }).click()
+  const playClassic = page.getByRole('button', { name: 'Play Classic goal', exact: true })
   await playClassic.scrollIntoViewIfNeeded()
   const landscapeBox = await playClassic.boundingBox()
   expect(landscapeBox && landscapeBox.y >= 0 && landscapeBox.y + landscapeBox.height <= 390).toBe(
@@ -1113,9 +1260,13 @@ test('saved challenge progress rotates from real play and offers a keyboard next
 
 async function checkDialogKeyboard(page: Page, dialog: Locator) {
   await expect(dialog).toBeVisible()
+  expect(await dialog.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+    'rgb(41, 27, 20)',
+  )
+  expect(await dialog.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe('none')
   expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true)
   const controls = dialog.locator(
-    'button:not(:disabled):visible, input:not(:disabled):visible, a[href]:visible, summary:visible',
+    'button:not(:disabled):not([tabindex="-1"]):visible, input:not(:disabled):visible, select:not(:disabled):visible, a[href]:visible, summary:visible, [tabindex="0"]:visible',
   )
   const count = await controls.count()
   expect(count).toBeGreaterThan(0)
@@ -1201,12 +1352,6 @@ test('every dialog supports both Tab directions, keyboard transitions and meanin
   await startMode(page, 'Classic')
   await advance(page, 20_000)
   const results = page.getByRole('dialog', { name: 'Run Complete', exact: true })
-  await checkDialogKeyboard(page, results)
-  await results.locator('summary').focus()
-  await page.keyboard.press('Enter')
-  await checkDialogKeyboard(page, results)
-  await results.locator('summary').focus()
-  await page.keyboard.press('Space')
   await checkDialogKeyboard(page, results)
   await results.getByRole('button', { name: 'Choose equipment', exact: true }).focus()
   await page.keyboard.press('Enter')
@@ -1309,6 +1454,7 @@ test('OS motion defaults and every keyboard setting persist across profile, paus
   await openGame(page)
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
+  await profile.getByRole('tab', { name: 'Settings', exact: true }).click()
   const motion = profile.getByRole('checkbox', { name: 'Reduce motion and flashes', exact: true })
   await expect(motion).toBeChecked()
   await expect(motion).toHaveAccessibleDescription(
@@ -1363,6 +1509,7 @@ test('OS motion defaults and every keyboard setting persist across profile, paus
   await page.reload()
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
+  await profile.getByRole('tab', { name: 'Settings', exact: true }).click()
   await expect(sensitivity).toHaveValue('2')
   await expect(motion).not.toBeChecked()
   await page.keyboard.press('Escape')

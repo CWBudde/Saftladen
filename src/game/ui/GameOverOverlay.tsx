@@ -1,29 +1,19 @@
 import type { ReactNode } from 'react'
 import orange from '../../assets/orange1.webp'
-import type { GameMode } from '../types'
-import { CosmeticCard } from './CosmeticCard'
-import type { CosmeticSelection, CosmeticUnlock } from './cosmetics'
+import type { CosmeticUnlock } from './cosmetics'
 import { formatDuration } from './formatDuration'
 import { GameDialog } from './GameDialog'
-import { GoalList } from './GoalList'
-import { MODE_NAMES, type ProgressionGoal } from './progression'
-import type { RewardProfile, RunRewards } from './rewards'
+import { MODE_NAMES } from './progression'
+import type { RunRewards } from './rewards'
 import type { GameUiSnapshot } from './viewModel'
 
 type GameOverOverlayProps = {
   uiSnapshot: GameUiSnapshot
-  rewardProfile: RewardProfile
   lastRunRewards: RunRewards | null
   newUnlocks: CosmeticUnlock[]
-  cosmetics: CosmeticSelection
-  selectedMode: GameMode
-  nextGoal: ProgressionGoal
-  canStart: boolean
   updating: boolean
   liveAnnouncement: ReactNode
   updateNotice: ReactNode
-  equipCosmetic: (item: CosmeticUnlock) => void
-  playGoal: () => void
   handleRestart: () => void
   openEquipment: () => void
   handleReturnToMenu: () => void
@@ -31,18 +21,11 @@ type GameOverOverlayProps = {
 
 export function GameOverOverlay({
   uiSnapshot,
-  rewardProfile,
   lastRunRewards,
   newUnlocks,
-  cosmetics,
-  selectedMode,
-  nextGoal,
-  canStart,
   updating,
   liveAnnouncement,
   updateNotice,
-  equipCosmetic,
-  playGoal,
   handleRestart,
   openEquipment,
   handleReturnToMenu,
@@ -90,6 +73,29 @@ export function GameOverOverlay({
           <dt>Bomb hits</dt>
           <dd>{uiSnapshot.stats.bombHits}</dd>
         </div>
+        <div>
+          <dt>Best stroke combo</dt>
+          <dd>{uiSnapshot.stats.peakStrokeCombo} fruit</dd>
+        </div>
+        <div>
+          <dt>Stroke accuracy</dt>
+          <dd>
+            {uiSnapshot.stats.strokesAttempted > 0
+              ? Math.round(
+                  (100 * uiSnapshot.stats.successfulStrokes) / uiSnapshot.stats.strokesAttempted,
+                )
+              : 0}
+            %
+            <span className="sr-only">
+              {' '}
+              ({uiSnapshot.stats.successfulStrokes}/{uiSnapshot.stats.strokesAttempted})
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt>Peak streak</dt>
+          <dd>{uiSnapshot.stats.peakCombo} hits</dd>
+        </div>
       </dl>
       {lastRunRewards ? (
         <div className="reward-strip">
@@ -102,10 +108,10 @@ export function GameOverOverlay({
           ) : null}
           {lastRunRewards.flawless ? <p>Flawless run bonus</p> : null}
           {lastRunRewards.objectiveCompletions.length > 0 ? (
-            <p>Objectives: {lastRunRewards.objectiveCompletions.join(', ')}</p>
+            <p>Objectives completed · {lastRunRewards.objectiveCompletions.length}</p>
           ) : null}
           {lastRunRewards.goalCompletions.length > 0 ? (
-            <p>Goals completed: {lastRunRewards.goalCompletions.join(', ')}</p>
+            <p>Goals completed · {lastRunRewards.goalCompletions.length}</p>
           ) : null}
           {lastRunRewards.challengesRotated ? <p>A fresh challenge set is ready!</p> : null}
         </div>
@@ -120,85 +126,11 @@ export function GameOverOverlay({
         Run Again <span aria-hidden="true">↗</span>
       </button>
       {newUnlocks.length ? (
-        <section className="unlock-celebration" aria-label="New cosmetic unlocks">
-          <h3>New rewards unlocked!</h3>
-          <ul className="cosmetic-rewards">
-            {newUnlocks.map((item) => (
-              <CosmeticCard
-                key={item.id}
-                item={item}
-                profile={rewardProfile}
-                selection={cosmetics}
-                onEquip={equipCosmetic}
-              />
-            ))}
-          </ul>
-        </section>
+        <p className="result-unlocks">
+          {newUnlocks.length} new cosmetic {newUnlocks.length === 1 ? 'unlock' : 'unlocks'} · Choose
+          equipment to try {newUnlocks.length === 1 ? 'it' : 'them'}.
+        </p>
       ) : null}
-      <details className="result-details">
-        <summary>Run details &amp; goals</summary>
-        <p className="result-streak">Peak streak · {uiSnapshot.stats.peakCombo} hits</p>
-        <dl className="result-stats">
-          <div>
-            <dt>Fruit sliced</dt>
-            <dd>{uiSnapshot.stats.fruitSliced}</dd>
-          </div>
-          <div>
-            <dt>Misses</dt>
-            <dd>{uiSnapshot.stats.missedFruits}</dd>
-          </div>
-          <div>
-            <dt>Bomb hits</dt>
-            <dd>{uiSnapshot.stats.bombHits}</dd>
-          </div>
-          <div>
-            <dt>Best stroke combo</dt>
-            <dd>{uiSnapshot.stats.peakStrokeCombo} fruit</dd>
-          </div>
-          <div>
-            <dt>Stroke accuracy</dt>
-            <dd>
-              {uiSnapshot.stats.strokesAttempted > 0
-                ? Math.round(
-                    (100 * uiSnapshot.stats.successfulStrokes) / uiSnapshot.stats.strokesAttempted,
-                  )
-                : 0}
-              %
-              <small>
-                {' '}
-                ({uiSnapshot.stats.successfulStrokes}/{uiSnapshot.stats.strokesAttempted})
-              </small>
-            </dd>
-          </div>
-        </dl>
-        <section aria-label="Next goal">
-          <p className="next-objective">
-            Next goal: {nextGoal.title} ({nextGoal.progress}/{nextGoal.target}
-            {nextGoal.metric === 'accuracy' ? '%' : ''})
-          </p>
-          <p>{nextGoal.description}</p>
-          <button type="button" className="primary-button" onClick={playGoal} disabled={!canStart}>
-            Play {MODE_NAMES[nextGoal.mode]} goal
-          </button>
-        </section>
-        <GoalList goals={rewardProfile.challenges.goals} label="Challenge progress" />
-        <GoalList
-          goals={rewardProfile.achievements.filter((goal) => goal.mode === selectedMode)}
-          label="Mode achievement progress"
-        />
-        <ul className="objective-list" aria-label="Objective progress">
-          {rewardProfile.objectives.map((objective) => (
-            <li key={objective.id} className={objective.completed ? 'done' : ''}>
-              <div className="objective-row">
-                <span>{objective.title}</span>
-                <strong>
-                  {Math.min(objective.progress, objective.target)}/{objective.target}
-                </strong>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </details>
       <div className="overlay-actions">
         <button type="button" className="ghost-button" onClick={openEquipment}>
           Choose equipment

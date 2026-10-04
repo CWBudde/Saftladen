@@ -5,6 +5,7 @@ import zenModeImage from '../../assets/melon1.webp'
 import type { AssetReadiness } from '../assets'
 import type { GameMode } from '../types'
 import { SaftladenBrand } from './SaftladenBrand'
+import { MODE_NAMES, type ProgressionGoal } from './progression'
 
 type MenuScreenProps = {
   assets: AssetReadiness
@@ -12,6 +13,8 @@ type MenuScreenProps = {
   canStart: boolean
   selectedMode: GameMode
   profileOpen: boolean
+  nextGoal: ProgressionGoal
+  playGoal: () => void
   updateNotice: ReactNode
   startMode: (mode: GameMode) => void
   onRetryArtwork: () => void
@@ -26,6 +29,8 @@ export function MenuScreen({
   canStart,
   selectedMode,
   profileOpen,
+  nextGoal,
+  playGoal,
   updateNotice,
   startMode,
   onRetryArtwork,
@@ -136,6 +141,19 @@ export function MenuScreen({
           Swipe across fruit with your mouse or finger. Use Space or Escape to pause.
         </p>
       </div>
+
+      <section className="menu-next-goal" aria-label="Next goal">
+        <div>
+          <p className="meta-label">Next goal · {nextGoal.title}</p>
+          <p className="meta-subtle">
+            {nextGoal.progress}/{nextGoal.target}
+            {nextGoal.metric === 'accuracy' ? '%' : ''}
+          </p>
+        </div>
+        <button type="button" className="primary-button" onClick={playGoal} disabled={!canStart}>
+          Play {MODE_NAMES[nextGoal.mode]} goal
+        </button>
+      </section>
 
       <div className="menu-actions">
         <button
