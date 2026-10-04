@@ -91,9 +91,10 @@ See [`src/game/README.md`](src/game/README.md) for detailed architecture notes.
 ### Current Implementation Status
 
 Use [`PLAN.md`](PLAN.md)'s execution queue and active unchecked items for the next
-work. Phase numbers are reference IDs, not execution order; the completed history
-is archived separately. Mark tasks done only after implementation and relevant
-checks pass. Keep physical QA open until device/browser evidence is recorded.
+work. Phase numbers follow execution order; numbered subsections divide independent
+tasks and a compact completed baseline retains prior milestones. Mark tasks done
+only after implementation and relevant checks pass. Keep physical QA open until
+device/browser evidence is recorded.
 
 ### Game Loop Architecture
 

@@ -8,7 +8,7 @@ manifest has no placeholder atlases or unused audio URLs.
 The current sprite set uses one whole-fruit image per type and the cut images
 listed in the manifest, including `starfruit4.webp` / `starfruit5.webp`. Alternate
 `*2.png` images and the unused pineapple/starfruit `*3.png` images were removed
-after the Phase 7 decision to keep this consistent set. Adding visual variety
+after the asset-hygiene decision to keep this consistent set. Adding visual variety
 later requires an explicit manifest/rendering change and a check that cosmetic
 selection preserves gameplay RNG. Git history retains the removed source art.
 

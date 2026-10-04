@@ -1,6 +1,6 @@
 # Shipped asset compression
 
-The 2026-10-04 Phase 14.8 pass replaces all 17 transparent gameplay PNGs with
+The 2026-10-04 asset-compression pass replaces all 17 transparent gameplay PNGs with
 lossless WebP. Encoded sprite payload falls from **2,769,288 to 1,979,554 bytes**:
 **789,734 bytes saved (28.5%)**. Dimensions and every decoded RGBA value,
 including RGB underneath transparent pixels, match the originals. No resizing,
