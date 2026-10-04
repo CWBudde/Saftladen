@@ -18,11 +18,13 @@ React mounts the canvas, renders overlay UI, and forwards user intents to the ga
 ## React Boundary
 
 React components can:
+
 - mount/unmount the game canvas
 - display HUD/menu/settings state snapshots
 - dispatch high-level commands (`start`, `pause`, `resume`, `reset`)
 
 React components must not:
+
 - run simulation steps
 - mutate world state directly
 - perform per-frame entity rendering logic

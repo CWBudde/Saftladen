@@ -19,14 +19,22 @@ function setup(mode: 'classic' | 'arcade' | 'zen' = 'zen') {
 
 function fruitAt(x = 100, y = 100) {
   return createFruitEntity({
-    fruitType: 'apple', color: '#ef4444', position: { x, y }, velocity: { x: 0, y: 0 },
-    rotationRad: 0, angularVelocityRadPerS: 0, radius: 20,
+    fruitType: 'apple',
+    color: '#ef4444',
+    position: { x, y },
+    velocity: { x: 0, y: 0 },
+    rotationRad: 0,
+    angularVelocityRadPerS: 0,
+    radius: 20,
   })
 }
 
 const swipe: SliceTrail = {
   pointerId: 1,
-  points: [{ x: 0, y: 100, tMs: 0 }, { x: 1000, y: 100, tMs: 20 }],
+  points: [
+    { x: 0, y: 100, tMs: 0 },
+    { x: 1000, y: 100, tMs: 20 },
+  ],
 }
 
 describe('fresh blade input', () => {
@@ -141,7 +149,13 @@ describe('fresh blade input', () => {
     state.world.entities[validFruit.id] = validFruit
     engine.setInputTrails([
       swipe,
-      { pointerId: 2, points: [{ x: 0, y: 300, tMs: 0 }, { x: 1000, y: 300, tMs: 20 }] },
+      {
+        pointerId: 2,
+        points: [
+          { x: 0, y: 300, tMs: 0 },
+          { x: 1000, y: 300, tMs: 20 },
+        ],
+      },
     ])
     expect(engine.advanceBy(4)).toBe(0)
     engine.clearInputTrails(1)
@@ -170,14 +184,20 @@ describe('run completion', () => {
   test('classic bomb stops remaining fixed steps and emits one terminal update', () => {
     const { engine, state } = setup('classic')
     const bomb = createBombEntity({
-      color: '#111827', position: { x: 100, y: 100 }, velocity: { x: 0, y: 0 },
-      rotationRad: 0, angularVelocityRadPerS: 0, radius: 20,
+      color: '#111827',
+      position: { x: 100, y: 100 },
+      velocity: { x: 0, y: 0 },
+      rotationRad: 0,
+      angularVelocityRadPerS: 0,
+      radius: 20,
     })
     state.world.entities[bomb.id] = bomb
     const laterFruit = fruitAt(200)
     state.world.entities[laterFruit.id] = laterFruit
     let terminalUpdates = 0
-    engine.subscribe((current) => { if (current.phase === 'game-over') terminalUpdates++ })
+    engine.subscribe((current) => {
+      if (current.phase === 'game-over') terminalUpdates++
+    })
     engine.setInputTrails([swipe])
     expect(engine.advanceBy(100)).toBe(1)
     expect(state.phase).toBe('game-over')
@@ -228,10 +248,17 @@ describe('collision feedback and spawns', () => {
     expect(state.world.sliceEvents[0].hitPosition.y).toBe(100)
     engine.setInputTrails([swipe])
     engine.stepOnce()
-    const halves = Object.values(state.world.entities).filter((entity) => entity.kind === 'fruit-half')
+    const halves = Object.values(state.world.entities).filter(
+      (entity) => entity.kind === 'fruit-half',
+    )
     expect(halves).toHaveLength(2)
-    expect(halves.every((half) => half.position.x === 100 && Math.abs(half.position.y - 110) < 1)).toBe(true)
-    expect(closestPointOnSegment({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 1 })).toEqual({ x: 0, y: 0 })
+    expect(
+      halves.every((half) => half.position.x === 100 && Math.abs(half.position.y - 110) < 1),
+    ).toBe(true)
+    expect(closestPointOnSegment({ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 1, y: 1 })).toEqual({
+      x: 0,
+      y: 0,
+    })
   })
 
   test('two pointers overlapping one fruit score it once', () => {
@@ -248,7 +275,15 @@ describe('collision feedback and spawns', () => {
     const { state } = setup()
     const fruit = fruitAt()
     state.world.entities[fruit.id] = fruit
-    detectSliceEvents(state, [{ pointerId: 1, points: [{ x: 100, y: 100, tMs: 0 }, { x: 100, y: 100, tMs: 20 }] }])
+    detectSliceEvents(state, [
+      {
+        pointerId: 1,
+        points: [
+          { x: 100, y: 100, tMs: 0 },
+          { x: 100, y: 100, tMs: 20 },
+        ],
+      },
+    ])
     expect(state.world.sliceEvents).toHaveLength(0)
   })
 
@@ -259,7 +294,10 @@ describe('collision feedback and spawns', () => {
       state.world.elapsedMs = 30000 + wave * 1000
       state.world.spawn.nextWaveAtMs = 0
       stepSpawnSystem(state, random, stepModeSystem(state, 0))
-      const all = [...Object.values(state.world.entities), ...state.world.spawn.pending.map((entry) => entry.entity)]
+      const all = [
+        ...Object.values(state.world.entities),
+        ...state.world.spawn.pending.map((entry) => entry.entity),
+      ]
       expect(all.some((entity) => entity.kind === 'power-up')).toBe(false)
       state.world.entities = {}
       state.world.spawn.pending = []

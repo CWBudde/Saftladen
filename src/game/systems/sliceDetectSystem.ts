@@ -1,4 +1,12 @@
-import type { BombEntity, FruitEntity, GameState, PowerUpEntity, SliceEvent, SliceTrail, Vec2 } from '../types'
+import type {
+  BombEntity,
+  FruitEntity,
+  GameState,
+  PowerUpEntity,
+  SliceEvent,
+  SliceTrail,
+  Vec2,
+} from '../types'
 import { segmentCapsuleHitFraction, segmentMayHitSweptCircleByAabb } from './collision'
 
 type SliceCandidate = FruitEntity | BombEntity | PowerUpEntity
@@ -23,7 +31,9 @@ function getSliceCandidates(state: GameState): SliceCandidate[] {
  * if physics moved it before input was consumed. A visual trail is never reused.
  */
 export function detectSliceEvents(
-  state: GameState, trails: SliceTrail[], previousPositions?: ReadonlyMap<string, Vec2>,
+  state: GameState,
+  trails: SliceTrail[],
+  previousPositions?: ReadonlyMap<string, Vec2>,
 ): void {
   const queue = state.world.sliceEvents
   queue.length = 0
@@ -42,8 +52,15 @@ export function detectSliceEvents(
 
       for (const entity of candidates) {
         const previous = previousPositions?.get(entity.id) ?? entity.position
-        if (!segmentMayHitSweptCircleByAabb(start, end, previous, entity.position, entity.radius)) continue
-        const fraction = segmentCapsuleHitFraction(start, end, previous, entity.position, entity.radius)
+        if (!segmentMayHitSweptCircleByAabb(start, end, previous, entity.position, entity.radius))
+          continue
+        const fraction = segmentCapsuleHitFraction(
+          start,
+          end,
+          previous,
+          entity.position,
+          entity.radius,
+        )
         if (fraction === null) continue
         contacts.push({
           event: {
@@ -64,14 +81,15 @@ export function detectSliceEvents(
 
   // Resolve in physical contact order, never entity-map or pointer-array order.
   // Stable gesture/entity IDs break exact ties, including overlapping bombs.
-  contacts.sort((a, b) =>
-    a.event.atMs - b.event.atMs ||
-    (a.event.strokeId ?? a.event.pointerId) - (b.event.strokeId ?? b.event.pointerId) ||
-    a.event.pointerId - b.event.pointerId ||
-    a.segmentStartMs - b.segmentStartMs ||
-    a.segmentIndex - b.segmentIndex ||
-    a.fraction - b.fraction ||
-    (a.event.entityId < b.event.entityId ? -1 : a.event.entityId > b.event.entityId ? 1 : 0),
+  contacts.sort(
+    (a, b) =>
+      a.event.atMs - b.event.atMs ||
+      (a.event.strokeId ?? a.event.pointerId) - (b.event.strokeId ?? b.event.pointerId) ||
+      a.event.pointerId - b.event.pointerId ||
+      a.segmentStartMs - b.segmentStartMs ||
+      a.segmentIndex - b.segmentIndex ||
+      a.fraction - b.fraction ||
+      (a.event.entityId < b.event.entityId ? -1 : a.event.entityId > b.event.entityId ? 1 : 0),
   )
   const queuedIds = new Set<string>()
   for (const { event } of contacts) {

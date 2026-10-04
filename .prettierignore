@@ -1,0 +1,10 @@
+# Generated files and build/test artifacts
+bun.lock
+dist/
+dist-ssr/
+output/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo

@@ -3,22 +3,36 @@ import { createImageAssetLoader } from '../src/game/assets/preload'
 
 function fakeImage(decode: (() => Promise<void>) | undefined = () => Promise.resolve()) {
   return {
-    src: '', decoding: '', naturalWidth: 64, naturalHeight: 64,
+    src: '',
+    decoding: '',
+    naturalWidth: 64,
+    naturalHeight: 64,
     onload: null as (() => void) | null,
     onerror: null as (() => void) | null,
     decode,
   }
 }
 
-const entries = [{ key: 'fruit', src: '/fruit.png' }, { key: 'bomb', src: '/bomb.png' }] as const
+const entries = [
+  { key: 'fruit', src: '/fruit.png' },
+  { key: 'bomb', src: '/bomb.png' },
+] as const
 const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve))
 
 test('readiness waits for decoding and remount loads share one request and image', async () => {
   let finishDecode!: () => void
-  const image = fakeImage(() => new Promise<void>((resolve) => { finishDecode = resolve }))
+  const image = fakeImage(
+    () =>
+      new Promise<void>((resolve) => {
+        finishDecode = resolve
+      }),
+  )
   let requests = 0
   const loader = createImageAssetLoader(entries.slice(0, 1), {
-    createImage: () => { requests++; return image as unknown as HTMLImageElement },
+    createImage: () => {
+      requests++
+      return image as unknown as HTMLImageElement
+    },
   })
   const first = loader.load()
   const remount = loader.load()
@@ -62,7 +76,9 @@ test('retry requests failures only and preserves successful decoded images', asy
 
 test('procedural artwork requires an explicit choice after a failed load', async () => {
   const image = fakeImage()
-  const loader = createImageAssetLoader(entries.slice(0, 1), { createImage: () => image as unknown as HTMLImageElement })
+  const loader = createImageAssetLoader(entries.slice(0, 1), {
+    createImage: () => image as unknown as HTMLImageElement,
+  })
   const loading = loader.load()
   loader.allowFallback()
   expect(loader.getSnapshot().status).toBe('loading')
@@ -79,18 +95,31 @@ test('decode rejection and empty image dimensions are failures', async () => {
   const images = [fakeImage(() => Promise.reject(new Error('corrupt image'))), fakeImage()]
   images[1].naturalWidth = 0
   let index = 0
-  const loader = createImageAssetLoader(entries, { createImage: () => images[index++] as unknown as HTMLImageElement })
+  const loader = createImageAssetLoader(entries, {
+    createImage: () => images[index++] as unknown as HTMLImageElement,
+  })
   const loading = loader.load()
   images.forEach((image) => image.onload?.())
   await loading
-  expect(loader.getSnapshot()).toEqual({ status: 'error', loaded: 0, total: 2, failed: ['fruit', 'bomb'] })
+  expect(loader.getSnapshot()).toEqual({
+    status: 'error',
+    loaded: 0,
+    total: 2,
+    failed: ['fruit', 'bomb'],
+  })
 })
 
 test('a stalled decode times out and late completion cannot silently clear the failure', async () => {
   let finishDecode!: () => void
-  const image = fakeImage(() => new Promise<void>((resolve) => { finishDecode = resolve }))
+  const image = fakeImage(
+    () =>
+      new Promise<void>((resolve) => {
+        finishDecode = resolve
+      }),
+  )
   const loader = createImageAssetLoader(entries.slice(0, 1), {
-    createImage: () => image as unknown as HTMLImageElement, timeoutMs: 10,
+    createImage: () => image as unknown as HTMLImageElement,
+    timeoutMs: 10,
   })
   const loading = loader.load()
   image.onload?.()
@@ -106,12 +135,18 @@ test('a stalled decode times out and late completion cannot silently clear the f
 })
 
 test('image construction failure settles and browsers without decode can become ready', async () => {
-  const unavailable = createImageAssetLoader(entries, { createImage: () => { throw new Error('Unavailable') } })
+  const unavailable = createImageAssetLoader(entries, {
+    createImage: () => {
+      throw new Error('Unavailable')
+    },
+  })
   await unavailable.load()
   expect(unavailable.getSnapshot().status).toBe('error')
   const image = fakeImage()
   image.decode = undefined
-  const loader = createImageAssetLoader(entries.slice(0, 1), { createImage: () => image as unknown as HTMLImageElement })
+  const loader = createImageAssetLoader(entries.slice(0, 1), {
+    createImage: () => image as unknown as HTMLImageElement,
+  })
   const loading = loader.load()
   image.onload?.()
   await loading
@@ -120,10 +155,14 @@ test('image construction failure settles and browsers without decode can become 
 
 test('readiness listeners receive stable snapshots and unsubscribe on unmount', async () => {
   const image = fakeImage()
-  const loader = createImageAssetLoader(entries.slice(0, 1), { createImage: () => image as unknown as HTMLImageElement })
+  const loader = createImageAssetLoader(entries.slice(0, 1), {
+    createImage: () => image as unknown as HTMLImageElement,
+  })
   expect(loader.getSnapshot()).toBe(loader.getSnapshot())
   let notifications = 0
-  const unsubscribe = loader.subscribe(() => { notifications++ })
+  const unsubscribe = loader.subscribe(() => {
+    notifications++
+  })
   const loading = loader.load()
   expect(notifications).toBe(1)
   unsubscribe()

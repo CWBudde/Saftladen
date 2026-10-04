@@ -28,10 +28,17 @@ export function applyCoreSystems(
 ): SystemStepOutcome {
   const modifiers = stepModeSystem(state, dtMs, context?.events)
   stepSpawnSystem(state, random, modifiers, context)
-  const previousPositions = trails.some((trail) => trail.points.length > 1) ? new Map<string, Vec2>() : undefined
+  const previousPositions = trails.some((trail) => trail.points.length > 1)
+    ? new Map<string, Vec2>()
+    : undefined
   stepPhysicsSystem(state, dtMs * modifiers.physicsDtScale, previousPositions)
   detectSliceEvents(state, trails, previousPositions)
-  const sliceOutcome = resolveSliceEvents(state, context?.cosmeticRandom ?? random, modifiers, context)
+  const sliceOutcome = resolveSliceEvents(
+    state,
+    context?.cosmeticRandom ?? random,
+    modifiers,
+    context,
+  )
   const despawnOutcome = stepDespawnSystem(state, context?.events)
 
   return {

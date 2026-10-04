@@ -73,7 +73,9 @@ export function activatePowerUp(state: GameState, powerUp: PowerUpType): void {
     for (const entity of Object.values(state.world.entities)) {
       if (entity.kind === 'bomb') delete state.world.entities[entity.id]
     }
-    state.world.spawn.pending = state.world.spawn.pending.filter(entry => entry.entity.kind !== 'bomb')
+    state.world.spawn.pending = state.world.spawn.pending.filter(
+      (entry) => entry.entity.kind !== 'bomb',
+    )
     return
   }
   timers.doublePointsMs = Math.max(timers.doublePointsMs, DOUBLE_POINTS_POWER_UP_DURATION_MS)
@@ -98,7 +100,11 @@ export function createInitialZenState() {
   }
 }
 
-export function stepModeSystem(state: GameState, dtMs: number, events?: PresentationEventPayload[]): ModeSystemModifiers {
+export function stepModeSystem(
+  state: GameState,
+  dtMs: number,
+  events?: PresentationEventPayload[],
+): ModeSystemModifiers {
   if (state.mode === 'arcade') {
     const arcade = state.modeState.arcade
     const timers = arcade.powerUpTimers
@@ -108,9 +114,9 @@ export function stepModeSystem(state: GameState, dtMs: number, events?: Presenta
     timers.frenzyMs = clampToNonNegative(timers.frenzyMs - dtMs)
     timers.doublePointsMs = clampToNonNegative(timers.doublePointsMs - dtMs)
     for (const powerUp of activeBeforeStep) {
-      if (!isPowerUpActive(state, powerUp)) events?.push({ type: 'power-up-expired', atMs: state.world.elapsedMs, powerUp })
+      if (!isPowerUpActive(state, powerUp))
+        events?.push({ type: 'power-up-expired', atMs: state.world.elapsedMs, powerUp })
     }
-
   } else if (state.mode === 'zen') {
     state.modeState.zen.remainingMs = clampToNonNegative(state.modeState.zen.remainingMs - dtMs)
   }

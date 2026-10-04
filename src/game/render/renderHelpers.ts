@@ -1,4 +1,13 @@
-import type { BombEntity, DecalEntity, EntityId, FruitEntity, FruitHalfEntity, GameEntity, ParticleEntity, PowerUpEntity } from '../types'
+import type {
+  BombEntity,
+  DecalEntity,
+  EntityId,
+  FruitEntity,
+  FruitHalfEntity,
+  GameEntity,
+  ParticleEntity,
+  PowerUpEntity,
+} from '../types'
 
 export type RenderBuckets = {
   decals: DecalEntity[]
@@ -25,10 +34,17 @@ export function collectRenderBuckets(
     if (!Object.hasOwn(entities, id)) continue
     const entity = entities[id as EntityId]
     switch (entity.kind) {
-      case 'decal': buckets.decals[decalCount++] = entity; break
-      case 'fruit-half': buckets.halves[halfCount++] = entity; break
-      case 'particle': if (includeParticles) buckets.particles[particleCount++] = entity; break
-      default: buckets.objects[objectCount++] = entity
+      case 'decal':
+        buckets.decals[decalCount++] = entity
+        break
+      case 'fruit-half':
+        buckets.halves[halfCount++] = entity
+        break
+      case 'particle':
+        if (includeParticles) buckets.particles[particleCount++] = entity
+        break
+      default:
+        buckets.objects[objectCount++] = entity
     }
   }
   // Replace existing entries before trimming, so stable populations retain

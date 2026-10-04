@@ -1,5 +1,9 @@
 import { expect, test } from 'bun:test'
-import { SOUND_RECIPES, comboPlaybackRate, createSoundVariationSelector } from '../src/game/audio/soundDesign'
+import {
+  SOUND_RECIPES,
+  comboPlaybackRate,
+  createSoundVariationSelector,
+} from '../src/game/audio/soundDesign'
 import { encodeWavPcm16, SFX_SAMPLE_RATE, synthesizeSound } from '../src/game/audio/tone'
 import { eventSounds } from '../src/game/ui/eventFeedback'
 import type { GamePresentationEvent } from '../src/game/types'
@@ -58,22 +62,40 @@ test('cut/bomb variations are distinct, bounded and independent across effects a
     const waves = SOUND_RECIPES[name].map(synthesizeSound)
     for (let i = 1; i < waves.length; i++) expect(waves[i]).not.toEqual(waves[i - 1])
   }
-  expect(synthesizeSound(SOUND_RECIPES['power-up'][0])).not.toEqual(synthesizeSound(SOUND_RECIPES['power-up-expired'][0]))
+  expect(synthesizeSound(SOUND_RECIPES['power-up'][0])).not.toEqual(
+    synthesizeSound(SOUND_RECIPES['power-up-expired'][0]),
+  )
 })
 
 test('growing gesture cues rise within a capped range, with no extra sounds for timed streaks', () => {
   const events: GamePresentationEvent[] = [
-    { id: 1, runId: 'run', type: 'fruit-slice', atMs: 100, entityId: 'entity_1',
-      fruitType: 'apple', position: { x: 10, y: 20 }, direction: { x: 1, y: 0 }, points: 10, combo: 10 },
+    {
+      id: 1,
+      runId: 'run',
+      type: 'fruit-slice',
+      atMs: 100,
+      entityId: 'entity_1',
+      fruitType: 'apple',
+      position: { x: 10, y: 20 },
+      direction: { x: 1, y: 0 },
+      points: 10,
+      combo: 10,
+    },
     ...[3, 4, 5, 8, 100].map((fruitCount, index): GamePresentationEvent => ({
-      id: index + 2, runId: 'run', type: 'stroke-combo', atMs: 100, strokeId: 1,
-      fruitCount, bonus: 15, position: { x: 10, y: 20 },
+      id: index + 2,
+      runId: 'run',
+      type: 'stroke-combo',
+      atMs: 100,
+      strokeId: 1,
+      fruitCount,
+      bonus: 15,
+      position: { x: 10, y: 20 },
     })),
   ]
   const before = JSON.stringify(events)
   const cues = eventSounds(events)
   expect(cues[0]).toEqual({ name: 'slice' })
-  expect(cues.slice(1).every(cue => cue.name === 'combo')).toBe(true)
+  expect(cues.slice(1).every((cue) => cue.name === 'combo')).toBe(true)
   expect(cues[1].rate).toBe(1)
   expect(cues[2].rate).toBeGreaterThan(cues[1].rate!)
   expect(cues[3].rate).toBeGreaterThan(cues[2].rate!)

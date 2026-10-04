@@ -2,8 +2,11 @@
 
 ## Start here
 
-**Next implementation:** add repository formatting configuration in **Phase 14.7**
-(`.editorconfig` and Prettier setup); license selection remains open.
+**Next implementation:** evaluate shipped-asset compression in **Phase 14.8**;
+measure decoded quality and transfer savings before replacing the current art.
+Phase 14.7 formatting is complete: editor settings, pinned Prettier, format/check
+commands and CI enforcement cover source, tests, configuration and documentation.
+License selection remains open and requires the repository owner's choice.
 Phase 14.4 dead simulation cleanup is complete: fruit slicing uses entity removal,
 the unused fixed bomb penalty is gone, and new-run reset owns both RNG reseeds.
 Gameplay/effect replay, explicit seeds, scoring and lifecycle behavior are preserved.
@@ -43,12 +46,12 @@ Human playtests are still needed to tune pressure and rewards from run statistic
 Use this execution queue; phase numbers remain stable reference IDs and do not
 represent the order of work:
 
-| Order | Work | Dependency / completion check |
-| --- | --- | --- |
-| 1 | [Finish physical release acceptance](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Automated regression, equipment, keyboard/settings, offline/update and documentation checks complete; record device evidence for remaining checks |
-| 2 | [Validate device performance and select further optimizations](#phase-11--performance--polish) | Host renderer baseline/cache done; measure physical latency/memory before pooling or quality tiers |
-| 3 | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2) | Use recorded accuracy/combos/streaks to tune pressure and reward rates |
-| 4 | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health) | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks |
+| Order | Work                                                                                              | Dependency / completion check                                                                                                                     |
+| ----- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | [Finish physical release acceptance](#phase-19--mobile-performance-and-release-confidence-p1--p2) | Automated regression, equipment, keyboard/settings, offline/update and documentation checks complete; record device evidence for remaining checks |
+| 2     | [Validate device performance and select further optimizations](#phase-11--performance--polish)    | Host renderer baseline/cache done; measure physical latency/memory before pooling or quality tiers                                                |
+| 3     | [Playtest mode balance](#phase-17--skill-fairness-and-mode-depth-p1--p2)                          | Use recorded accuracy/combos/streaks to tune pressure and reward rates                                                                            |
+| 4     | [Finish cleanup, QA and release](#phase-14--quality-remediation-code-health)                      | Follow the remaining Phases 14, 7, 12 and 13 below; ship after release checks                                                                     |
 
 Physical input calibration in **Phase 15**, listening QA in **Phase 16** and
 device QA in **Phase 12** can run alongside implementation. Record device/browser evidence; pending device access
@@ -101,6 +104,10 @@ last. Completed tasks and the original review are archived below the backlog.
   duplicate/unused images, the Vite placeholder and stale draft. All 18 runtime
   images and app bundles remain byte-identical; only the unused public logo and
   its worker entry leave the deployment. Every retained source asset is referenced.
+- Repository formatting uses shared two-space/LF editor settings and pinned
+  Prettier with single quotes, no semicolons and a 100-column target. CI checks
+  formatting before lint/tests/build; generated artifacts and the Bun lockfile
+  stay excluded. Existing source/tests are normalized mechanically.
 - Deliberate menu/results PWA updates, no automatic reload of active/paused tabs,
   reconnect recovery after interrupted first installs and retained caches after failed updates.
 - Current player/contributor guides describe actual modes, shortcuts, audio, local
@@ -380,17 +387,15 @@ completing the entire phase is not a prerequisite for starting Phase 17.
 - [ ] **Profile before renderer upgrades.** Establish production frame-time and
       input-latency budgets on agreed midrange mobile devices during Frenzy and
       multitouch; measure p95 frame time and long-session memory. Apply Phases
-      11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work.
-      - [x] Add a reproducible production renderer benchmark and record a host
-            baseline before optimization. Separate minified fixture tests three
-            dojos, DPR 1/3, empty and stationary Frenzy-sized effects/two trails;
-            60 warm-up + 120 native RAF samples per case. Reports retain CPU p95,
-            RAF p95 and missed-frame percentages; full state remains unchanged.
-            `docs/PERFORMANCE.md` records before/cache results and provisional
-            8ms renderer / 20ms RAF / 50ms input budgets. No timing CI gate.
-      - [ ] Validate physical midrange devices, actual Frenzy/touch latency,
-            ten-minute memory behavior and foreground menu/pause work; use those
-            findings to choose additional pooling, FX/DPR tiers or idle scheduling.
+      11/14.3 optimizations, bounded FX/DPR tiers, and pause idle/menu work. - [x] Add a reproducible production renderer benchmark and record a host
+      baseline before optimization. Separate minified fixture tests three
+      dojos, DPR 1/3, empty and stationary Frenzy-sized effects/two trails;
+      60 warm-up + 120 native RAF samples per case. Reports retain CPU p95,
+      RAF p95 and missed-frame percentages; full state remains unchanged.
+      `docs/PERFORMANCE.md` records before/cache results and provisional
+      8ms renderer / 20ms RAF / 50ms input budgets. No timing CI gate. - [ ] Validate physical midrange devices, actual Frenzy/touch latency,
+      ten-minute memory behavior and foreground menu/pause work; use those
+      findings to choose additional pooling, FX/DPR tiers or idle scheduling.
 - [ ] Verify physical touch scrolling.
 
 **Acceptance:** agreed phone/desktop flows work with no clipped controls or
@@ -469,8 +474,19 @@ in the completion record below. Coordinate overlapping work with Phases 11,
 
 ### 14.7 Tooling / CI / Deploy
 
-- [ ] Add `LICENSE`, `.editorconfig`, and a Prettier config (formatting is
-      currently unenforced).
+- [x] **Configure and enforce repository formatting.** Added `.editorconfig`,
+      `.prettierrc.json`, `.prettierignore` and exact Prettier 3.9.9 dependency.
+      `bun run format` writes formatting; `bun run format:check` checks it and
+      gates CI before lint/tests/build/deployment. Generated build/test/listening/
+      performance files and the Bun lockfile are excluded. Source, tests,
+      configuration and documentation are normalized; all 96 changed code/config
+      files match the formatter's output from the previous commit exactly.
+      Resolved a multiline inline-code span in this plan so formatting is stable.
+      Frozen installation, formatting check, all 188 unit tests / 28 production
+      browser checks, lint, typechecking and build pass. Contributor commands
+      and conventions are documented in README and AGENTS.
+- [ ] **Add `LICENSE` after the owner chooses its terms.** License selection is
+      independent of formatting; do not infer a license for code or bundled art.
 
 ### 14.8 Repo / asset hygiene
 
@@ -705,8 +721,7 @@ in the active backlog.
       Quantize alpha / use `globalAlpha` with a fixed fillStyle.
       Done: scalar `globalAlpha` and cached/fixed colors in entity draw paths.
 
-- [x] **De-duplicate the draw-size logic.** The ~15-line `imgAspect /
-      baseSizeScale / nonSquareBonus / drawWidth / drawHeight` block is copied 6×
+- [x] **De-duplicate the draw-size logic.** The ~15-line `imgAspect / baseSizeScale / nonSquareBonus / drawWidth / drawHeight` block is copied 6×
       in `renderer.ts` (3 in `drawFruitBombPowerLayer`, 3 in `drawFruitHalfLayer`).
       Extract `computeDrawSize(img, radius)`. (Supersedes the existing Phase 7
       cleanup item.) Cached sprite-size factors now serve every sprite draw.
@@ -1079,6 +1094,25 @@ Build precache: 29 entries / 4085.02 KiB. Repository formatting in Phase 14.7 is
 the next independent task; license selection, shipped-asset optimization and
 physical input/performance/listening/human balance QA remain open.
 
+**Twentieth improvement batch (2026-10-04):** completed Phase 14.7 formatting.
+Shared editor settings specify UTF-8, LF, two-space indentation and final
+newlines, while preserving intentional Markdown trailing spaces. Exact Prettier
+3.9.9 and its lock entry provide repeatable single-quote/no-semicolon formatting
+with a 100-column target. New format/check commands cover source, tests, tooling
+and documentation; CI checks formatting immediately after frozen installation.
+Generated bundles, listening/performance output, browser reports and the lockfile
+are excluded. README and contributor guidance document the workflow. Existing
+files are normalized once; a multiline inline-code span in this plan was joined
+to make formatting idempotent. License selection remains an owner decision.
+
+Validation: all 96 changed source/test/config files match Prettier's output from
+HEAD exactly. Ignore checks confirm generated paths and the lockfile are skipped;
+the formatting check passes. Frozen install, all 188 Bun tests / 3,756 assertions,
+lint, application/tooling/browser typechecking, production build and all 28
+production Chromium checks passed. Build precache: 29 entries / 4085.02 KiB.
+Shipped-asset compression is the next independent task. Physical input/device
+performance, screen-reader/listening and human balance QA remain open.
+
 </details>
 
 ---
@@ -1106,23 +1140,23 @@ confirmed the profile drawer has `pointer-events: none` and the 844×390 pause
 card ends at y=431, with its SFX control below the viewport. Physical touch,
 subjective listening, and target-device performance still require playtesting.
 
-| Aspect | Rating / 10 | Main gap |
-| --- | ---: | --- |
-| Fruit art and visual identity | 6 | Consistent art direction and complementary cut halves |
-| Slicing and input trust | 2 | Stale segments cut; released swipes can disappear |
-| Modes and power-ups | 4 | Zen never finishes; non-Arcade pickups lack effects |
-| Spawn rhythm and challenge | 6 | Authored patterns, safe openings, hazard clearance |
-| Scoring and skill expression | 4 | Same-stroke combos versus time-based streaks |
-| Slice spectacle | 4 | Colored juice, tapered blades, directional cuts |
-| Audio | 3 | Synthetic tone cues, mute/mix defects, event precision |
-| Menus and HUD | 5 | Onboarding, drawer interaction, gameplay hierarchy |
-| Mobile experience | 4 | Viewport mapping, touch QA, clipped landscape controls |
-| Accessibility and settings | 3 | Focus flows, motion preferences, sensitivity wiring |
-| Progression and replay value | 3 | Real equippable cosmetics and sustained objectives |
-| Engineering foundation | 6 | Runtime controller, event boundary, hot-path work |
-| Performance readiness | 5 | Hot-path allocations and target-device measurements |
-| PWA and release readiness | 5 | Cache coverage, asset weight, reproducible tooling |
-| Automated QA | 1 | No automated test suite or PR quality gate |
+| Aspect                        | Rating / 10 | Main gap                                               |
+| ----------------------------- | ----------: | ------------------------------------------------------ |
+| Fruit art and visual identity |           6 | Consistent art direction and complementary cut halves  |
+| Slicing and input trust       |           2 | Stale segments cut; released swipes can disappear      |
+| Modes and power-ups           |           4 | Zen never finishes; non-Arcade pickups lack effects    |
+| Spawn rhythm and challenge    |           6 | Authored patterns, safe openings, hazard clearance     |
+| Scoring and skill expression  |           4 | Same-stroke combos versus time-based streaks           |
+| Slice spectacle               |           4 | Colored juice, tapered blades, directional cuts        |
+| Audio                         |           3 | Synthetic tone cues, mute/mix defects, event precision |
+| Menus and HUD                 |           5 | Onboarding, drawer interaction, gameplay hierarchy     |
+| Mobile experience             |           4 | Viewport mapping, touch QA, clipped landscape controls |
+| Accessibility and settings    |           3 | Focus flows, motion preferences, sensitivity wiring    |
+| Progression and replay value  |           3 | Real equippable cosmetics and sustained objectives     |
+| Engineering foundation        |           6 | Runtime controller, event boundary, hot-path work      |
+| Performance readiness         |           5 | Hot-path allocations and target-device measurements    |
+| PWA and release readiness     |           5 | Cache coverage, asset weight, reproducible tooling     |
+| Automated QA                  |           1 | No automated test suite or PR quality gate             |
 
 **Original recommendation (before implementation):** Phase 15 playability fixes → Phase 16 slice feel →
 Phase 17 skill/mode depth → Phase 18 real progression. Start Phase 19 regression
@@ -1265,7 +1299,6 @@ the default mix; its WAVs/page are ignored by Git. Subjective headphones/phone
 listening and in-game mix comfort remain unchecked. Visual identity is the next
 implementation task; physical input, human balance, performance and offline/update
 QA remain pending.
-
 
 **Eighth improvement batch (2026-10-03):** completed Phase 16 visual identity.
 The semantic wordmark and decorative sliced-citrus SVG are available before art

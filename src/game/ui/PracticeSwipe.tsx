@@ -26,14 +26,26 @@ export function PracticeSwipe({ sliceSensitivity, reducedMotion }: PracticeSwipe
     if (!canvas) return
     const controller = mountPracticeCanvas(canvas, () => preferencesRef.current, setFeedback)
     controllerRef.current = controller
-    return () => { controller.dispose(); controllerRef.current = null }
+    return () => {
+      controller.dispose()
+      controllerRef.current = null
+    }
   }, [])
 
   return (
     <section className="practice-swipe" aria-label="Safe slicing practice">
       <canvas ref={canvasRef} className="practice-canvas" aria-label="Practice slicing canvas" />
-      <p className="practice-feedback" role="status" aria-live="polite" aria-atomic="true">{FEEDBACK[feedback]}</p>
-      <button type="button" className="ghost-button" onClick={() => controllerRef.current?.reset()} disabled={feedback === 'unavailable'}>Practice again</button>
+      <p className="practice-feedback" role="status" aria-live="polite" aria-atomic="true">
+        {FEEDBACK[feedback]}
+      </p>
+      <button
+        type="button"
+        className="ghost-button"
+        onClick={() => controllerRef.current?.reset()}
+        disabled={feedback === 'unavailable'}
+      >
+        Practice again
+      </button>
     </section>
   )
 }

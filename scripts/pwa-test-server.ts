@@ -9,9 +9,15 @@ let release = 0
 let failingAsset = ''
 let failedPrecacheDownloads = 0
 const mime: Record<string, string> = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
-  '.webmanifest': 'application/manifest+json', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
 }
 
 createServer(async (request, response) => {
@@ -25,7 +31,9 @@ createServer(async (request, response) => {
       return
     }
     if (request.method === 'GET' && url.pathname === '/__test/status') {
-      response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ failedPrecacheDownloads }))
+      response
+        .writeHead(200, { 'Content-Type': 'application/json' })
+        .end(JSON.stringify({ failedPrecacheDownloads }))
       return
     }
     if (!url.pathname.startsWith('/Saftladen/')) {
@@ -47,13 +55,23 @@ createServer(async (request, response) => {
     if (relative === 'sw.js') {
       const source = data.toString()
       // A real precache revision change forces a new HTML download/install.
-      const revised = source.replace(/(url:"index\.html",revision:")[^"]+("})/, `$1test-release-${release}$2`)
+      const revised = source.replace(
+        /(url:"index\.html",revision:")[^"]+("})/,
+        `$1test-release-${release}$2`,
+      )
       if (source === revised) throw new Error('Generated HTML precache entry not found')
       data = Buffer.from(`${revised}\n// Test release ${release}\n`)
     } else if (relative === 'index.html') {
-      data = Buffer.from(data.toString().replace('</head>', `<meta name="test-release" content="${release}"></head>`))
+      data = Buffer.from(
+        data
+          .toString()
+          .replace('</head>', `<meta name="test-release" content="${release}"></head>`),
+      )
     }
-    response.writeHead(200, { 'Content-Type': mime[extname(path)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' })
+    response.writeHead(200, {
+      'Content-Type': mime[extname(path)] ?? 'application/octet-stream',
+      'Cache-Control': 'no-store',
+    })
     response.end(data)
   } catch {
     response.writeHead(404).end()

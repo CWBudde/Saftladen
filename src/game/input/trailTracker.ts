@@ -96,7 +96,8 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
   let nextStrokeId = 1
   let sensitivity = 1
   let viewportScale = 1
-  const velocityThreshold = () => config.sliceVelocityThresholdPxPerS * viewportScale / sensitivity
+  const velocityThreshold = () =>
+    (config.sliceVelocityThresholdPxPerS * viewportScale) / sensitivity
 
   const updateTrailState = (trail: MutableTrail) => {
     trail.velocityPxPerS = computeVelocityPxPerS(trail.points)
@@ -131,8 +132,12 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
       return
     }
     // Collision uses each fresh raw movement once. Smoothing is only for drawing.
-    if (distance > 0 && (dtMs === 0 || distance * 1000 / dtMs >= velocityThreshold())) {
-      pendingSegments.push({ pointerId, strokeId: trail.strokeId, points: [{ ...previous }, { ...point }] })
+    if (distance > 0 && (dtMs === 0 || (distance * 1000) / dtMs >= velocityThreshold())) {
+      pendingSegments.push({
+        pointerId,
+        strokeId: trail.strokeId,
+        points: [{ ...previous }, { ...point }],
+      })
     }
     trail.lastPoint = { ...point }
     trail.points.push({ ...point })
@@ -159,7 +164,9 @@ export function createTrailTracker(customConfig: Partial<TrailTrackerConfig> = {
     const trail = trails.get(pointerId)
     if (trail?.active) {
       trail.active = false
-      const last = [...pendingSegments].reverse().find((segment) => segment.strokeId === trail.strokeId)
+      const last = [...pendingSegments]
+        .reverse()
+        .find((segment) => segment.strokeId === trail.strokeId)
       if (last) last.ended = true
       else pendingSegments.push({ pointerId, strokeId: trail.strokeId, ended: true, points: [] })
     }

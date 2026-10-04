@@ -10,7 +10,9 @@ export type ViewportTransform = {
 }
 
 /** Fill either orientation while keeping circular hit areas and useful mobile sizes. */
-export function getAdaptiveWorldBounds(metrics: Pick<CanvasMetrics, 'widthCssPx' | 'heightCssPx'>): Vec2 {
+export function getAdaptiveWorldBounds(
+  metrics: Pick<CanvasMetrics, 'widthCssPx' | 'heightCssPx'>,
+): Vec2 {
   const width = Math.max(1, metrics.widthCssPx)
   const height = Math.max(1, metrics.heightCssPx)
   const scale = Math.min(width, height) / WORLD_SHORT_EDGE
@@ -32,9 +34,15 @@ export function createViewportTransform(
 }
 
 export function canvasPointToWorld(point: Vec2, viewport: ViewportTransform): Vec2 {
-  return { x: (point.x - viewport.offsetX) / viewport.scale, y: (point.y - viewport.offsetY) / viewport.scale }
+  return {
+    x: (point.x - viewport.offsetX) / viewport.scale,
+    y: (point.y - viewport.offsetY) / viewport.scale,
+  }
 }
 
 export function worldPointToCanvas(point: Vec2, viewport: ViewportTransform): Vec2 {
-  return { x: point.x * viewport.scale + viewport.offsetX, y: point.y * viewport.scale + viewport.offsetY }
+  return {
+    x: point.x * viewport.scale + viewport.offsetX,
+    y: point.y * viewport.scale + viewport.offsetY,
+  }
 }

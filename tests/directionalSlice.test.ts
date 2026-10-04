@@ -8,24 +8,50 @@ function slice(direction: Vec2, rotationRad = 0) {
   engine.start()
   const state = engine.getState() as GameState
   state.world.spawn.nextWaveAtMs = Infinity
-  const fruit = createFruitEntity({ fruitType: 'orange', color: '#f97316', position: { x: 500, y: 300 }, velocity: { x: 0, y: 0 }, rotationRad, angularVelocityRadPerS: 0, radius: 30 })
+  const fruit = createFruitEntity({
+    fruitType: 'orange',
+    color: '#f97316',
+    position: { x: 500, y: 300 },
+    velocity: { x: 0, y: 0 },
+    rotationRad,
+    angularVelocityRadPerS: 0,
+    radius: 30,
+  })
   state.world.entities[fruit.id] = fruit
-  engine.setInputTrails([{ pointerId: 1, points: [
-    { x: 500 - direction.x * 100, y: 300 - direction.y * 100, tMs: 0 },
-    { x: 500 + direction.x * 100, y: 300 + direction.y * 100, tMs: 20 },
-  ] }])
+  engine.setInputTrails([
+    {
+      pointerId: 1,
+      points: [
+        { x: 500 - direction.x * 100, y: 300 - direction.y * 100, tMs: 0 },
+        { x: 500 + direction.x * 100, y: 300 + direction.y * 100, tMs: 20 },
+      ],
+    },
+  ])
   engine.stepOnce()
   return {
-    halves: Object.values(state.world.entities).filter((entity): entity is FruitHalfEntity => entity.kind === 'fruit-half'),
-    particles: Object.values(state.world.entities).filter((entity): entity is ParticleEntity => entity.kind === 'particle'),
+    halves: Object.values(state.world.entities).filter(
+      (entity): entity is FruitHalfEntity => entity.kind === 'fruit-half',
+    ),
+    particles: Object.values(state.world.entities).filter(
+      (entity): entity is ParticleEntity => entity.kind === 'particle',
+    ),
   }
 }
 
 describe('directional cut effects', () => {
   test.each([
-    [{ x: 1, y: 0 }, { x: 0, y: 1 }],
-    [{ x: 0, y: 1 }, { x: -1, y: 0 }],
-    [{ x: Math.SQRT1_2, y: Math.SQRT1_2 }, { x: -Math.SQRT1_2, y: Math.SQRT1_2 }],
+    [
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    [
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+    ],
+    [
+      { x: Math.SQRT1_2, y: Math.SQRT1_2 },
+      { x: -Math.SQRT1_2, y: Math.SQRT1_2 },
+    ],
   ] as const)('fragments separate along the slash normal for %j', (direction, normal) => {
     const { halves, particles } = slice(direction)
     expect(halves).toHaveLength(2)

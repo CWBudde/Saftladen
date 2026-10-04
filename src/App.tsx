@@ -14,8 +14,14 @@ import { OnboardingDialog } from './game/ui/OnboardingDialog'
 import { hasSeenOnboarding, rememberOnboarding } from './game/ui/onboarding'
 import { ReadyCountdown } from './game/ui/ReadyCountdown'
 import { eventAnnouncement, eventSounds } from './game/ui/eventFeedback'
-import { getCosmeticUnlock, getNewCosmeticUnlocks,
-  loadCosmeticSelection, normalizeCosmeticSelection, saveCosmeticSelection, type CosmeticUnlock } from './game/ui/cosmetics'
+import {
+  getCosmeticUnlock,
+  getNewCosmeticUnlocks,
+  loadCosmeticSelection,
+  normalizeCosmeticSelection,
+  saveCosmeticSelection,
+  type CosmeticUnlock,
+} from './game/ui/cosmetics'
 import { pwaUpdates } from './game/ui/pwaUpdates'
 import { getNextGoal } from './game/ui/progression'
 import { createGameEngine } from './game/engine'
@@ -35,7 +41,8 @@ function isPwaMode(): boolean {
   if (typeof window === 'undefined') return false
   if (window.matchMedia('(display-mode: standalone)').matches) return true
   if (window.matchMedia('(display-mode: fullscreen)').matches) return true
-  if ('standalone' in navigator && (navigator as Record<string, unknown>).standalone === true) return true
+  if ('standalone' in navigator && (navigator as Record<string, unknown>).standalone === true)
+    return true
   return false
 }
 
@@ -63,7 +70,8 @@ function App() {
   const update = useSyncExternalStore(pwaUpdates.subscribe, pwaUpdates.getSnapshot)
   const assetsReady = assets.status === 'ready' || assets.status === 'fallback'
   const canStart = assetsReady && !update.applying
-  const updateSafe = (uiSnapshot.view === 'menu' || uiSnapshot.view === 'game-over') && !help && !readyMode
+  const updateSafe =
+    (uiSnapshot.view === 'menu' || uiSnapshot.view === 'game-over') && !help && !readyMode
 
   useEffect(() => {
     if (update.applying && update.canReload && updateSafe) window.location.reload()
@@ -71,8 +79,17 @@ function App() {
 
   const updateNotice = update.available ? (
     <section className="update-notice" aria-label="Game update" aria-live="polite">
-      <p>{update.error ? 'Update could not finish. Please try again.' : 'A new version is ready. Your saved progress will stay.'}</p>
-      <button type="button" className="ghost-button" onClick={pwaUpdates.apply} disabled={update.applying}>
+      <p>
+        {update.error
+          ? 'Update could not finish. Please try again.'
+          : 'A new version is ready. Your saved progress will stay.'}
+      </p>
+      <button
+        type="button"
+        className="ghost-button"
+        onClick={pwaUpdates.apply}
+        disabled={update.applying}
+      >
         {update.applying ? 'Updating…' : 'Update game'}
       </button>
     </section>
@@ -80,7 +97,9 @@ function App() {
 
   const rewardProfileRef = useRef(rewardProfile)
 
-  useEffect(() => { void gameAssets.load() }, [])
+  useEffect(() => {
+    void gameAssets.load()
+  }, [])
 
   useEffect(
     () => () => {
@@ -125,37 +144,47 @@ function App() {
     saveCosmeticSelection(cosmetics, rewardProfile)
   }, [cosmetics, rewardProfile])
 
-  useEffect(() => engine.subscribeEvents((events) => {
-    eventSounds(events).forEach((sound) => audio.playSfx(sound.name, sound.rate))
-    const message = eventAnnouncement(events)
-    let unlockMessage = ''
-    for (const event of events) {
-      if (event.type === 'run-start') {
-        setLastRunRewards(null)
-        setNewUnlocks([])
-      }
-      if (event.type === 'run-end') {
-        const summary: RunSummary = {
-          runId: event.runId,
-          mode: event.mode,
-          score: event.score,
-          durationMs: event.durationMs,
-          stats: event.stats,
+  useEffect(
+    () =>
+      engine.subscribeEvents((events) => {
+        eventSounds(events).forEach((sound) => audio.playSfx(sound.name, sound.rate))
+        const message = eventAnnouncement(events)
+        let unlockMessage = ''
+        for (const event of events) {
+          if (event.type === 'run-start') {
+            setLastRunRewards(null)
+            setNewUnlocks([])
+          }
+          if (event.type === 'run-end') {
+            const summary: RunSummary = {
+              runId: event.runId,
+              mode: event.mode,
+              score: event.score,
+              durationMs: event.durationMs,
+              stats: event.stats,
+            }
+            const applied = applyRunRewards(rewardProfileRef.current, summary)
+            const unlocked = getNewCosmeticUnlocks(rewardProfileRef.current, applied.profile)
+            setNewUnlocks(unlocked)
+            if (unlocked.length)
+              unlockMessage = `Unlocked ${unlocked.map((item) => item.name).join(', ')}. Equip your reward below.`
+            rewardProfileRef.current = applied.profile
+            setRewardProfile(applied.profile)
+            setLastRunRewards(applied.rewards)
+            if (applied.rewards.goalCompletions.length)
+              unlockMessage += ` Goals completed: ${applied.rewards.goalCompletions.join(', ')}.`
+            if (applied.rewards.challengesRotated)
+              unlockMessage += ' A fresh challenge set is ready.'
+          }
         }
-        const applied = applyRunRewards(rewardProfileRef.current, summary)
-        const unlocked = getNewCosmeticUnlocks(rewardProfileRef.current, applied.profile)
-        setNewUnlocks(unlocked)
-        if (unlocked.length) unlockMessage = `Unlocked ${unlocked.map(item => item.name).join(', ')}. Equip your reward below.`
-        rewardProfileRef.current = applied.profile
-        setRewardProfile(applied.profile)
-        setLastRunRewards(applied.rewards)
-        if (applied.rewards.goalCompletions.length) unlockMessage += ` Goals completed: ${applied.rewards.goalCompletions.join(', ')}.`
-        if (applied.rewards.challengesRotated) unlockMessage += ' A fresh challenge set is ready.'
-      }
-    }
-    if (message || unlockMessage) setAnnouncement(previous => ({ id: previous.id + 1,
-      text: [message, unlockMessage].filter(Boolean).join(' ') }))
-  }), [audio, engine])
+        if (message || unlockMessage)
+          setAnnouncement((previous) => ({
+            id: previous.id + 1,
+            text: [message, unlockMessage].filter(Boolean).join(' '),
+          }))
+      }),
+    [audio, engine],
+  )
 
   useGameKeyboard(engine, uiSnapshot.phase, setDebugEnabled)
 
@@ -220,9 +249,11 @@ function App() {
   const equipCosmetic = (item: CosmeticUnlock) => {
     if (!getCosmeticUnlock(item, rewardProfile).unlocked) return
     const slot = item.metric === 'xp' ? 'dojo' : 'blade'
-    setCosmetics(previous => normalizeCosmeticSelection({ ...previous, [slot]: item.id }, rewardProfile))
+    setCosmetics((previous) =>
+      normalizeCosmeticSelection({ ...previous, [slot]: item.id }, rewardProfile),
+    )
     audio.playSfx('ui-click')
-    setAnnouncement(previous => ({ id: previous.id + 1, text: `${item.name} equipped.` }))
+    setAnnouncement((previous) => ({ id: previous.id + 1, text: `${item.name} equipped.` }))
   }
 
   const openEquipment = () => {
@@ -243,12 +274,24 @@ function App() {
 
   return (
     <main className="game-root" data-reduced-motion={uiSettings.reducedMotion}>
-      {uiSnapshot.view !== 'game-over' && !(uiSnapshot.view === 'menu' && profileOpen) ? liveAnnouncement : null}
+      {uiSnapshot.view !== 'game-over' && !(uiSnapshot.view === 'menu' && profileOpen)
+        ? liveAnnouncement
+        : null}
       <section className="stage-shell">
-        <GameCanvasLayer engine={engine} debugEnabled={debugEnabled}
-          sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion} cosmetics={cosmetics} />
+        <GameCanvasLayer
+          engine={engine}
+          debugEnabled={debugEnabled}
+          sliceSensitivity={uiSettings.sliceSensitivity}
+          reducedMotion={uiSettings.reducedMotion}
+          cosmetics={cosmetics}
+        />
 
-        <button type="button" className="music-toggle-button" onClick={handleToggleMusic} aria-label={musicPlaying ? 'Pause music' : 'Play music'}>
+        <button
+          type="button"
+          className="music-toggle-button"
+          onClick={handleToggleMusic}
+          aria-label={musicPlaying ? 'Pause music' : 'Play music'}
+        >
           {musicPlaying ? '🔊' : '🔇'}
         </button>
 
@@ -258,39 +301,86 @@ function App() {
           ) : null}
 
           {uiSnapshot.view === 'menu' ? (
-            <MenuScreen assets={assets} assetsReady={assetsReady} canStart={canStart}
-              selectedMode={selectedMode} profileOpen={profileOpen} updateNotice={updateSafe ? updateNotice : null}
-              startMode={startMode} onRetryArtwork={() => { void gameAssets.load() }} onAllowFallback={gameAssets.allowFallback}
+            <MenuScreen
+              assets={assets}
+              assetsReady={assetsReady}
+              canStart={canStart}
+              selectedMode={selectedMode}
+              profileOpen={profileOpen}
+              updateNotice={updateSafe ? updateNotice : null}
+              startMode={startMode}
+              onRetryArtwork={() => {
+                void gameAssets.load()
+              }}
+              onAllowFallback={gameAssets.allowFallback}
               onOpenHelp={() => setHelp({ mode: selectedMode, launching: false })}
               onToggleProfile={() => {
                 audio.playSfx('ui-click')
                 setProfileOpen((open) => !open)
-              }} />
+              }}
+            />
           ) : null}
 
-          {help ? <OnboardingDialog mode={help.mode} launching={help.launching}
-            sliceSensitivity={uiSettings.sliceSensitivity} reducedMotion={uiSettings.reducedMotion}
-            onContinue={finishHelp} onDismiss={() => setHelp(null)} /> : null}
+          {help ? (
+            <OnboardingDialog
+              mode={help.mode}
+              launching={help.launching}
+              sliceSensitivity={uiSettings.sliceSensitivity}
+              reducedMotion={uiSettings.reducedMotion}
+              onContinue={finishHelp}
+              onDismiss={() => setHelp(null)}
+            />
+          ) : null}
 
-          {readyMode ? <ReadyCountdown mode={readyMode} onComplete={beginRun} onCancel={handleReturnToMenu} /> : null}
+          {readyMode ? (
+            <ReadyCountdown mode={readyMode} onComplete={beginRun} onCancel={handleReturnToMenu} />
+          ) : null}
 
           {uiSnapshot.view === 'menu' && profileOpen ? (
-            <ProfilePanel rewardProfile={rewardProfile} cosmetics={cosmetics} nextGoal={nextGoal} canStart={canStart}
-              liveAnnouncement={liveAnnouncement} uiSettings={uiSettings} updateUiSettings={updateUiSettings}
-              equipCosmetic={equipCosmetic} playGoal={playGoal} onClose={() => setProfileOpen(false)} />
+            <ProfilePanel
+              rewardProfile={rewardProfile}
+              cosmetics={cosmetics}
+              nextGoal={nextGoal}
+              canStart={canStart}
+              liveAnnouncement={liveAnnouncement}
+              uiSettings={uiSettings}
+              updateUiSettings={updateUiSettings}
+              equipCosmetic={equipCosmetic}
+              playGoal={playGoal}
+              onClose={() => setProfileOpen(false)}
+            />
           ) : null}
 
           {uiSnapshot.view === 'paused' ? (
-            <PauseOverlay uiSnapshot={uiSnapshot} uiSettings={uiSettings} updateUiSettings={updateUiSettings}
-              handleResume={handleResume} handleRestart={handleRestart} handleReturnToMenu={handleReturnToMenu} />
+            <PauseOverlay
+              uiSnapshot={uiSnapshot}
+              uiSettings={uiSettings}
+              updateUiSettings={updateUiSettings}
+              handleResume={handleResume}
+              handleRestart={handleRestart}
+              handleReturnToMenu={handleReturnToMenu}
+            />
           ) : null}
 
           {uiSnapshot.view === 'game-over' ? (
-            <GameOverOverlay uiSnapshot={uiSnapshot} rewardProfile={rewardProfile} lastRunRewards={lastRunRewards}
-              newUnlocks={newUnlocks} cosmetics={cosmetics} selectedMode={selectedMode} nextGoal={nextGoal}
-              canStart={canStart} updating={update.applying} liveAnnouncement={liveAnnouncement}
-              updateNotice={updateSafe ? updateNotice : null} equipCosmetic={equipCosmetic} playGoal={playGoal}
-              handleRestart={handleRestart} openEquipment={openEquipment} handleReturnToMenu={handleReturnToMenu} />
+            <GameOverOverlay
+              uiSnapshot={uiSnapshot}
+              rewardProfile={rewardProfile}
+              lastRunRewards={lastRunRewards}
+              newUnlocks={newUnlocks}
+              cosmetics={cosmetics}
+              selectedMode={selectedMode}
+              nextGoal={nextGoal}
+              canStart={canStart}
+              updating={update.applying}
+              liveAnnouncement={liveAnnouncement}
+              updateNotice={updateSafe ? updateNotice : null}
+              equipCosmetic={equipCosmetic}
+              playGoal={playGoal}
+              handleRestart={handleRestart}
+              openEquipment={openEquipment}
+              handleReturnToMenu={handleReturnToMenu}
+            />
           ) : null}
         </div>
       </section>

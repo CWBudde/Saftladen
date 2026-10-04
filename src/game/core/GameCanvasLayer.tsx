@@ -32,6 +32,13 @@ export function GameCanvasLayer({
     return mountGameCanvas(canvas, engine, () => optionsRef.current)
   }, [engine])
 
-  return <canvas ref={canvasRef} className="game-canvas" aria-label="Fruit slicing game canvas"
-    data-blade={cosmetics.blade} data-dojo={cosmetics.dojo} />
+  return (
+    <canvas
+      ref={canvasRef}
+      className="game-canvas"
+      aria-label="Fruit slicing game canvas"
+      data-blade={cosmetics.blade}
+      data-dojo={cosmetics.dojo}
+    />
+  )
 }

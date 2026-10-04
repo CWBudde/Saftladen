@@ -11,7 +11,9 @@ export function createEntityIdAllocator(startAt = 1, increment = 1) {
       next += increment
       return id
     },
-    reset: () => { next = startAt },
+    reset: () => {
+      next = startAt
+    },
   }
 }
 

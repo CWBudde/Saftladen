@@ -67,7 +67,11 @@ export function mountGameCanvas(
   }
 
   const handlePointerDown = (event: PointerEvent) => {
-    if (engine.getState().phase !== 'running' || (event.pointerType === 'mouse' && event.button !== 0)) return
+    if (
+      engine.getState().phase !== 'running' ||
+      (event.pointerType === 'mouse' && event.button !== 0)
+    )
+      return
     // Refresh the cached origin at gesture start, never on each move.
     rect = canvas.getBoundingClientRect()
     tracker.setSliceSensitivity(getPreferences().sliceSensitivity)
@@ -114,8 +118,14 @@ export function mountGameCanvas(
   }
 
   const unsubscribe = engine.subscribe((state) => {
-    if (state.world !== previousWorld) presentationEvents = presentationEvents.filter(event => event.runId === state.run.id)
-    if (state.phase !== previousPhase || state.world !== previousWorld || state.world.bounds !== previousBounds) clearInput()
+    if (state.world !== previousWorld)
+      presentationEvents = presentationEvents.filter((event) => event.runId === state.run.id)
+    if (
+      state.phase !== previousPhase ||
+      state.world !== previousWorld ||
+      state.world.bounds !== previousBounds
+    )
+      clearInput()
     if (state.world.bounds !== previousBounds) {
       viewport = createViewportTransform(metrics, state.world.bounds)
       tracker.setViewportScale(viewport.scale)
@@ -130,27 +140,31 @@ export function mountGameCanvas(
       const preferences = getPreferences()
       tracker.setSliceSensitivity(preferences.sliceSensitivity)
       // Queue raw motion before stepping. Visual history never cuts.
-      engine.setInputTrails(tracker.drainSliceTrails(frameInfo.timestampMs).map((trail) => ({
-        pointerId: trail.pointerId,
-        strokeId: trail.strokeId,
-        ended: trail.ended,
-        points: trail.points.map((point) => ({
-          ...canvasPointToWorld(point, viewport),
-          tMs: point.tMs,
+      engine.setInputTrails(
+        tracker.drainSliceTrails(frameInfo.timestampMs).map((trail) => ({
+          pointerId: trail.pointerId,
+          strokeId: trail.strokeId,
+          ended: trail.ended,
+          points: trail.points.map((point) => ({
+            ...canvasPointToWorld(point, viewport),
+            tMs: point.tMs,
+          })),
         })),
-      })))
+      )
       engine.advanceBy(frameInfo.deltaMs)
       const frameEvents = presentationEvents
       presentationEvents = []
 
-      const trails: PointerTrailDebug[] = tracker.getActiveTrails(frameInfo.timestampMs).map((trail) => ({
-        pointerId: trail.pointerId,
-        rawCanvasPoints: trail.points,
-        canvasPoints: trail.points,
-        worldPoints: trail.points.map((point) => canvasPointToWorld(point, viewport)),
-        velocityPxPerS: trail.velocityPxPerS,
-        isSliceActive: trail.isSliceActive,
-      }))
+      const trails: PointerTrailDebug[] = tracker
+        .getActiveTrails(frameInfo.timestampMs)
+        .map((trail) => ({
+          pointerId: trail.pointerId,
+          rawCanvasPoints: trail.points,
+          canvasPoints: trail.points,
+          worldPoints: trail.points.map((point) => canvasPointToWorld(point, viewport)),
+          velocityPxPerS: trail.velocityPxPerS,
+          isSliceActive: trail.isSliceActive,
+        }))
       renderer.render(ctx, engine.getState(), frameInfo, {
         metrics,
         reducedMotion: preferences.reducedMotion,

@@ -24,52 +24,73 @@ export function createImageAssetLoader<Key extends string>(
     listeners.forEach((listener) => listener())
   }
 
-  const loadOne = (entry: ImageEntry<Key>) => new Promise<void>((resolve, reject) => {
-    let image: HTMLImageElement
-    try { image = createImage() } catch (error) { reject(error); return }
-    let settled = false
-    const finish = (error?: unknown) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeout)
-      image.onload = null
-      image.onerror = null
-      if (error) reject(error)
-      else {
-        images.set(entry.key, image)
-        publish('loading')
-        resolve()
+  const loadOne = (entry: ImageEntry<Key>) =>
+    new Promise<void>((resolve, reject) => {
+      let image: HTMLImageElement
+      try {
+        image = createImage()
+      } catch (error) {
+        reject(error)
+        return
       }
-    }
-    const timeout = setTimeout(() => finish(new Error('Image loading timed out')), timeoutMs)
-    image.decoding = 'async'
-    image.onload = () => {
-      // onload alone does not guarantee the first draw can use the image.
-      Promise.resolve().then(() => image.decode?.()).then(() => {
-        if (image.naturalWidth <= 0 || image.naturalHeight <= 0) throw new Error('Empty image')
-        finish()
-      }).catch(finish)
-    }
-    image.onerror = () => finish(new Error('Image request failed'))
-    try { image.src = entry.src } catch (error) { finish(error) }
-  })
+      let settled = false
+      const finish = (error?: unknown) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        image.onload = null
+        image.onerror = null
+        if (error) reject(error)
+        else {
+          images.set(entry.key, image)
+          publish('loading')
+          resolve()
+        }
+      }
+      const timeout = setTimeout(() => finish(new Error('Image loading timed out')), timeoutMs)
+      image.decoding = 'async'
+      image.onload = () => {
+        // onload alone does not guarantee the first draw can use the image.
+        Promise.resolve()
+          .then(() => image.decode?.())
+          .then(() => {
+            if (image.naturalWidth <= 0 || image.naturalHeight <= 0) throw new Error('Empty image')
+            finish()
+          })
+          .catch(finish)
+      }
+      image.onerror = () => finish(new Error('Image request failed'))
+      try {
+        image.src = entry.src
+      } catch (error) {
+        finish(error)
+      }
+    })
 
   return {
     getSnapshot: () => snapshot,
     getImage: (key: Key) => images.get(key) ?? null,
     subscribe: (listener: () => void) => {
       listeners.add(listener)
-      return () => { listeners.delete(listener) }
+      return () => {
+        listeners.delete(listener)
+      }
     },
     load: () => {
       if (pending) return pending
       if (snapshot.status === 'ready') return Promise.resolve()
       publish('loading')
       const missing = entries.filter((entry) => !images.has(entry.key))
-      pending = Promise.allSettled(missing.map(loadOne)).then((results) => {
-        const failed = missing.filter((_, index) => results[index].status === 'rejected').map((entry) => entry.key)
-        publish(failed.length > 0 ? 'error' : 'ready', failed)
-      }).finally(() => { pending = null })
+      pending = Promise.allSettled(missing.map(loadOne))
+        .then((results) => {
+          const failed = missing
+            .filter((_, index) => results[index].status === 'rejected')
+            .map((entry) => entry.key)
+          publish(failed.length > 0 ? 'error' : 'ready', failed)
+        })
+        .finally(() => {
+          pending = null
+        })
       return pending
     },
     allowFallback: () => {

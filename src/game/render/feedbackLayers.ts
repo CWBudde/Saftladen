@@ -17,8 +17,10 @@ export function drawScoreFeedbackLayer(
     const lifeProgress = Math.max(0, Math.min(1, ageMs / event.lifetimeMs))
     const alpha = 1 - lifeProgress
     const x = event.position.x * scaleX
-    const y = event.position.y * scaleY - (reducedMotion ? 0 : lifeProgress * 36)
-      - ((event.strokeCombo ?? 0) >= 3 ? 42 : 0)
+    const y =
+      event.position.y * scaleY -
+      (reducedMotion ? 0 : lifeProgress * 36) -
+      ((event.strokeCombo ?? 0) >= 3 ? 42 : 0)
 
     ctx.save()
     if (!reducedMotion) {
@@ -32,9 +34,10 @@ export function drawScoreFeedbackLayer(
 
     ctx.globalAlpha = alpha
     ctx.fillStyle = event.amount < 0 ? '#fecaca' : '#ecfdf5'
-    ctx.font = (event.strokeCombo ?? 0) >= 3
-      ? "800 22px 'Trebuchet MS', 'Segoe UI', sans-serif"
-      : "800 19px 'Trebuchet MS', 'Segoe UI', sans-serif"
+    ctx.font =
+      (event.strokeCombo ?? 0) >= 3
+        ? "800 22px 'Trebuchet MS', 'Segoe UI', sans-serif"
+        : "800 19px 'Trebuchet MS', 'Segoe UI', sans-serif"
     ctx.textAlign = 'center'
     ctx.strokeStyle = '#1e0f0a'
     ctx.lineWidth = 3.5
@@ -45,9 +48,10 @@ export function drawScoreFeedbackLayer(
     if ((event.strokeCombo ?? 0) >= 3 || event.combo > 1) {
       ctx.font = "800 13px 'Trebuchet MS', 'Segoe UI', sans-serif"
       ctx.fillStyle = '#fde047'
-      const label = (event.strokeCombo ?? 0) >= 3
-        ? 'STROKE COMBO · ' + event.strokeCombo
-        : 'STREAK · ' + event.combo + ' HITS'
+      const label =
+        (event.strokeCombo ?? 0) >= 3
+          ? 'STROKE COMBO · ' + event.strokeCombo
+          : 'STREAK · ' + event.combo + ' HITS'
       ctx.strokeText(label, x, y - 22)
       ctx.fillText(label, x, y - 22)
     }
@@ -55,12 +59,20 @@ export function drawScoreFeedbackLayer(
   }
 }
 
-export function drawBladeTrails(ctx: CanvasRenderingContext2D, context: RenderContext, nowMs: number): void {
+export function drawBladeTrails(
+  ctx: CanvasRenderingContext2D,
+  context: RenderContext,
+  nowMs: number,
+): void {
   ctx.save()
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   // TrailTracker bounds the trail history; cap work here as a second guard.
-  for (let trailIndex = 0; trailIndex < Math.min(10, context.debug.trails.length); trailIndex += 1) {
+  for (
+    let trailIndex = 0;
+    trailIndex < Math.min(10, context.debug.trails.length);
+    trailIndex += 1
+  ) {
     const trail = context.debug.trails[trailIndex]
     const points = trail.canvasPoints
     const firstIndex = Math.max(1, points.length - 24)

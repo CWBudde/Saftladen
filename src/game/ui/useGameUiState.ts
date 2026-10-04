@@ -10,7 +10,9 @@ import {
 } from './viewModel'
 
 export function useGameUiSnapshot(engine: GameEngine): GameUiSnapshot {
-  const [snapshot, setSnapshot] = useState<GameUiSnapshot>(() => selectGameUiSnapshot(engine.getState()))
+  const [snapshot, setSnapshot] = useState<GameUiSnapshot>(() =>
+    selectGameUiSnapshot(engine.getState()),
+  )
 
   useEffect(() => {
     return engine.subscribe((state) => {

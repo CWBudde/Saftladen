@@ -1,5 +1,10 @@
 import { expect, test } from 'bun:test'
-import { canvasPointToWorld, createViewportTransform, getAdaptiveWorldBounds, worldPointToCanvas } from '../src/game/core/viewport'
+import {
+  canvasPointToWorld,
+  createViewportTransform,
+  getAdaptiveWorldBounds,
+  worldPointToCanvas,
+} from '../src/game/core/viewport'
 import { createGameEngine } from '../src/game/engine/gameEngine'
 import { createFruitEntity } from '../src/game/model/entities'
 import { stepDespawnSystem } from '../src/game/systems/despawnSystem'
@@ -34,17 +39,29 @@ test('adaptive worlds fill portrait and landscape with a uniform inverse transfo
 })
 
 test('contain fallback centers a fixed world and uses the same inverse for pointer contacts', () => {
-  const viewport = createViewportTransform({ widthCssPx: 320, heightCssPx: 568 }, { x: 1280, y: 720 })
+  const viewport = createViewportTransform(
+    { widthCssPx: 320, heightCssPx: 568 },
+    { x: 1280, y: 720 },
+  )
   expect(viewport.scale).toBe(0.25)
   expect(viewport.offsetY).toBe(194)
   expect(worldPointToCanvas({ x: 640, y: 360 }, viewport)).toEqual({ x: 160, y: 284 })
   expect(canvasPointToWorld({ x: 160, y: 284 }, viewport)).toEqual({ x: 640, y: 360 })
 })
 
-function addFruit(engine: ReturnType<typeof createGameEngine>, position: { x: number; y: number }, velocity = { x: 0, y: 0 }) {
+function addFruit(
+  engine: ReturnType<typeof createGameEngine>,
+  position: { x: number; y: number },
+  velocity = { x: 0, y: 0 },
+) {
   const fruit = createFruitEntity({
-    fruitType: 'apple', color: '#ef4444', position, velocity,
-    radius: 30, rotationRad: 0, angularVelocityRadPerS: 0,
+    fruitType: 'apple',
+    color: '#ef4444',
+    position,
+    velocity,
+    radius: 30,
+    rotationRad: 0,
+    angularVelocityRadPerS: 0,
   })
   engine.getState().world.entities[fruit.id] = fruit
   return fruit
@@ -60,9 +77,15 @@ test('the same visible stroke hits a fruit through the real engine in either ori
     const fruit = addFruit(engine, { x: bounds.x * 0.5, y: bounds.y * 0.5 })
     const viewport = createViewportTransform(metrics, bounds)
     const canvas = worldPointToCanvas(fruit.position, viewport)
-    engine.setInputTrails([{ pointerId: 1, points: [-60, 60].map((offset, index) => ({
-      ...canvasPointToWorld({ x: canvas.x + offset * viewport.scale, y: canvas.y }, viewport), tMs: index * 10,
-    })) }])
+    engine.setInputTrails([
+      {
+        pointerId: 1,
+        points: [-60, 60].map((offset, index) => ({
+          ...canvasPointToWorld({ x: canvas.x + offset * viewport.scale, y: canvas.y }, viewport),
+          tMs: index * 10,
+        })),
+      },
+    ])
     engine.stepOnce()
     expect(engine.getState().run.stats.fruitSliced).toBe(1)
     expect(engine.getState().score.current).toBe(10)
@@ -78,8 +101,13 @@ test('resize preserves live fruit, below-screen launch margins, pending times an
   // Still inside the miss margin despite falling below the canvas.
   const leaving = addFruit(engine, { x: 700, y: 780 }, { x: 0, y: 100 })
   const pending = createFruitEntity({
-    fruitType: 'orange', color: '#fb923c', position: { x: 640, y: 775 },
-    velocity: { x: 20, y: -700 }, radius: 30, rotationRad: 0, angularVelocityRadPerS: 0,
+    fruitType: 'orange',
+    color: '#fb923c',
+    position: { x: 640, y: 775 },
+    velocity: { x: 20, y: -700 },
+    radius: 30,
+    rotationRad: 0,
+    angularVelocityRadPerS: 0,
   })
   world.spawn.pending.push({ spawnAtMs: 200, entity: pending })
   const runId = engine.getState().run.id
@@ -92,7 +120,9 @@ test('resize preserves live fruit, below-screen launch margins, pending times an
   expect(pending.position.y).toBe(1615)
   expect(leaving.position.y).toBe(1620)
   expect(world.spawn.pending[0].spawnAtMs).toBe(200)
-  expect(stepDespawnSystem(engine.getState() as Parameters<typeof stepDespawnSystem>[0]).missedFruits).toBe(0)
+  expect(
+    stepDespawnSystem(engine.getState() as Parameters<typeof stepDespawnSystem>[0]).missedFruits,
+  ).toBe(0)
   expect(engine.getState().run.id).toBe(runId)
   expect(engine.getState().run.stats).toEqual(stats)
   engine.setWorldBounds({ x: 1280, y: 720 })
@@ -117,7 +147,12 @@ test('viewport bounds survive new runs, reset and mode changes; invalid requests
   engine.reset()
   engine.setMode('arcade')
   expect(engine.getState().world.bounds).toEqual(expected)
-  for (const invalid of [{ x: 0, y: 720 }, { x: 720, y: NaN }, { x: Infinity, y: 720 }]) engine.setWorldBounds(invalid)
+  for (const invalid of [
+    { x: 0, y: 720 },
+    { x: 720, y: NaN },
+    { x: Infinity, y: 720 },
+  ])
+    engine.setWorldBounds(invalid)
   expect(engine.getState().world.bounds).toEqual(expected)
 })
 
@@ -126,7 +161,15 @@ test('resizing discards queued strokes captured in the old coordinate system', (
   engine.start()
   engine.getState().world.spawn.nextWaveAtMs = Infinity
   const fruit = addFruit(engine, { x: 640, y: 360 })
-  engine.setInputTrails([{ pointerId: 1, points: [{ x: 300, y: 780, tMs: 0 }, { x: 420, y: 780, tMs: 10 }] }])
+  engine.setInputTrails([
+    {
+      pointerId: 1,
+      points: [
+        { x: 300, y: 780, tMs: 0 },
+        { x: 420, y: 780, tMs: 10 },
+      ],
+    },
+  ])
   engine.setWorldBounds({ x: 720, y: 1560 })
   engine.stepOnce()
   expect(engine.getState().world.entities[fruit.id]).toBeDefined()

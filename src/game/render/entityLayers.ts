@@ -40,9 +40,8 @@ export function drawDecalLayer(
   scaleY: number,
 ): void {
   for (const entity of decals) {
-    const lifeProgress = entity.lifetimeMs > 0
-      ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs))
-      : 1
+    const lifeProgress =
+      entity.lifetimeMs > 0 ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs)) : 1
     const alpha = 1 - lifeProgress
     const radius = (entity.radius + (entity.maxRadius - entity.radius) * lifeProgress) * scaleX
 
@@ -59,7 +58,15 @@ export function drawDecalLayer(
       const angle = i * 2.4 + entity.rotationRad
       const distance = radius * (0.7 + (i % 3) * 0.24)
       ctx.beginPath()
-      ctx.ellipse(Math.cos(angle) * distance, Math.sin(angle) * distance * 0.7, radius * 0.15, radius * 0.1, angle, 0, Math.PI * 2)
+      ctx.ellipse(
+        Math.cos(angle) * distance,
+        Math.sin(angle) * distance * 0.7,
+        radius * 0.15,
+        radius * 0.1,
+        angle,
+        0,
+        Math.PI * 2,
+      )
       ctx.fill()
     }
     ctx.globalAlpha = alpha * 0.07
@@ -144,7 +151,8 @@ export function drawFruitHalfLayer(
 ): void {
   for (const entity of halves) {
     const radius = entity.radius * scaleX
-    const lifeProgress = entity.lifetimeMs > 0 ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs)) : 1
+    const lifeProgress =
+      entity.lifetimeMs > 0 ? Math.max(0, Math.min(1, entity.ageMs / entity.lifetimeMs)) : 1
     const popScale = reducedMotion ? 1 : 1 + (1 - lifeProgress) * 0.08
 
     ctx.save()
@@ -154,9 +162,14 @@ export function drawFruitHalfLayer(
     ctx.globalAlpha = Math.min(1, (1 - lifeProgress) * 3)
 
     const imageSet = fruitImages[entity.fruitType]
-    const directionalImage = entity.half === 'left'
-      ? (imageSet.cutLeftReady ? imageSet.cutLeft : null)
-      : (imageSet.cutRightReady ? imageSet.cutRight : null)
+    const directionalImage =
+      entity.half === 'left'
+        ? imageSet.cutLeftReady
+          ? imageSet.cutLeft
+          : null
+        : imageSet.cutRightReady
+          ? imageSet.cutRight
+          : null
     if (directionalImage) {
       ctx.rotate(entity.cutAngleRad)
       drawSprite(ctx, directionalImage, radius)
@@ -205,7 +218,15 @@ export function drawParticleLayer(
     ctx.fillStyle = entity.color
     ctx.beginPath()
     const direction = Math.atan2(entity.velocity.y, entity.velocity.x)
-    ctx.ellipse(entity.position.x * scaleX, entity.position.y * scaleY, Math.max(1.5, radius * 1.4), Math.max(1, radius * 0.7), direction, 0, Math.PI * 2)
+    ctx.ellipse(
+      entity.position.x * scaleX,
+      entity.position.y * scaleY,
+      Math.max(1.5, radius * 1.4),
+      Math.max(1, radius * 0.7),
+      direction,
+      0,
+      Math.PI * 2,
+    )
     ctx.fill()
   }
   ctx.restore()

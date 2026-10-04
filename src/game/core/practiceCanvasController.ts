@@ -29,11 +29,16 @@ export function mountPracticeCanvas(
   let blade: { start: Vec2; end: Vec2 } | null = null
   let disposed = false
   const center = () => ({ x: metrics.widthCssPx / 2, y: metrics.heightCssPx / 2 })
-  const radius = () => Math.max(18, Math.min(44, metrics.widthCssPx * 0.14, metrics.heightCssPx * 0.22))
+  const radius = () =>
+    Math.max(18, Math.min(44, metrics.widthCssPx * 0.14, metrics.heightCssPx * 0.22))
 
   const releasePointer = (pointerId: number) => {
     if (!capturedPointers.delete(pointerId)) return
-    try { canvas.releasePointerCapture(pointerId) } catch { /* Capture may already have ended. */ }
+    try {
+      canvas.releasePointerCapture(pointerId)
+    } catch {
+      /* Capture may already have ended. */
+    }
   }
   const clearInput = () => {
     tracker.clear()
@@ -42,7 +47,8 @@ export function mountPracticeCanvas(
   }
 
   const drawApple = (cut = false) => {
-    const image = gameAssets.getImage(cut ? 'appleCut' : 'appleWhole') ?? gameAssets.getImage('appleWhole')
+    const image =
+      gameAssets.getImage(cut ? 'appleCut' : 'appleWhole') ?? gameAssets.getImage('appleWhole')
     const size = radius()
     if (image) {
       const scale = getSpriteScale(image.naturalWidth, image.naturalHeight)
@@ -118,13 +124,20 @@ export function mountPracticeCanvas(
   }
 
   const point = (event: PointerEvent) => ({
-    x: event.clientX - rect.left, y: event.clientY - rect.top, tMs: event.timeStamp,
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+    tMs: event.timeStamp,
   })
   const pointerDown = (event: PointerEvent) => {
     if (sliced || (event.pointerType === 'mouse' && event.button !== 0)) return
     // Refresh layout and DPR at gesture start; no frame loop or move-time reads.
     const nextMetrics = resizeCanvasToDisplaySize(canvas, ctx)
-    if (nextMetrics.widthCssPx !== metrics.widthCssPx || nextMetrics.heightCssPx !== metrics.heightCssPx || nextMetrics.dpr !== metrics.dpr) clearInput()
+    if (
+      nextMetrics.widthCssPx !== metrics.widthCssPx ||
+      nextMetrics.heightCssPx !== metrics.heightCssPx ||
+      nextMetrics.dpr !== metrics.dpr
+    )
+      clearInput()
     metrics = nextMetrics
     rect = canvas.getBoundingClientRect()
     // Match the full playfield's CSS velocity threshold, rather than the small
@@ -133,14 +146,19 @@ export function mountPracticeCanvas(
     tracker.setSliceSensitivity(getPreferences().sliceSensitivity)
     tracker.beginTrail(event.pointerId, point(event))
     capturedPointers.add(event.pointerId)
-    try { canvas.setPointerCapture(event.pointerId) } catch { /* Pointer may no longer be active. */ }
+    try {
+      canvas.setPointerCapture(event.pointerId)
+    } catch {
+      /* Pointer may no longer be active. */
+    }
     render()
   }
   const pointerMove = (event: PointerEvent) => {
     if (!tracker.hasTrail(event.pointerId)) return
     tracker.setSliceSensitivity(getPreferences().sliceSensitivity)
     const samples = event.getCoalescedEvents?.() ?? []
-    for (const sample of samples.length ? samples : [event]) tracker.appendPoint(event.pointerId, point(sample))
+    for (const sample of samples.length ? samples : [event])
+      tracker.appendPoint(event.pointerId, point(sample))
     consumeFreshMovement(event.timeStamp)
     render()
   }
@@ -161,8 +179,13 @@ export function mountPracticeCanvas(
     blade = null
     render()
   }
-  const clearAndRender = () => { clearInput(); render() }
-  const visibilityChanged = () => { if (document.hidden) clearAndRender() }
+  const clearAndRender = () => {
+    clearInput()
+    render()
+  }
+  const visibilityChanged = () => {
+    if (document.hidden) clearAndRender()
+  }
   const resize = () => {
     clearInput()
     metrics = resizeCanvasToDisplaySize(canvas, ctx)

@@ -1,6 +1,11 @@
 import type { GameMode, RunStats } from '../types'
-import { applyProgression, normalizeAchievements, normalizeChallengeBoard,
-  type ChallengeBoard, type ProgressionGoal } from './progression'
+import {
+  applyProgression,
+  normalizeAchievements,
+  normalizeChallengeBoard,
+  type ChallengeBoard,
+  type ProgressionGoal,
+} from './progression'
 
 export type RewardObjectiveId = 'runs' | 'combo' | 'score'
 export type RewardObjectiveMetric = 'runs' | 'max-combo' | 'best-score'
@@ -115,7 +120,7 @@ export function createDefaultRewardProfile(): RewardProfile {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? (value as Record<string, unknown>)
     : {}
 }
 
@@ -129,7 +134,10 @@ function validRunId(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= 200
 }
 
-function coerceObjective(raw: Record<string, unknown>, template: ObjectiveTemplate): RewardObjective {
+function coerceObjective(
+  raw: Record<string, unknown>,
+  template: ObjectiveTemplate,
+): RewardObjective {
   const progress = Math.min(template.target, safeInteger(raw.progress))
   const completed = raw.completed === true || progress >= template.target
   return { ...template, progress: completed ? template.target : progress, completed }
@@ -154,7 +162,9 @@ function normalizeRewardProfile(value: unknown): RewardProfile {
     totalScore: safeInteger(parsed.totalScore),
     bestCombo: safeInteger(parsed.bestCombo),
     bestScore: safeInteger(parsed.bestScore),
-    objectives: OBJECTIVE_TEMPLATES.map((template) => coerceObjective(objectiveById.get(template.id) ?? {}, template)),
+    objectives: OBJECTIVE_TEMPLATES.map((template) =>
+      coerceObjective(objectiveById.get(template.id) ?? {}, template),
+    ),
     achievements: normalizeAchievements(parsed.achievements),
     challenges: normalizeChallengeBoard(parsed.challenges),
   }
@@ -171,13 +181,20 @@ export function loadRewardProfile(): RewardProfile {
 
 export function saveRewardProfile(profile: RewardProfile): void {
   try {
-    globalThis.localStorage?.setItem(REWARD_PROFILE_STORAGE_KEY, JSON.stringify(normalizeRewardProfile(profile)))
+    globalThis.localStorage?.setItem(
+      REWARD_PROFILE_STORAGE_KEY,
+      JSON.stringify(normalizeRewardProfile(profile)),
+    )
   } catch {
     // Ignore persistence failures in restricted runtimes.
   }
 }
 
-export function getRankInfo(xp: number): { level: number; rankName: string; levelProgress: number } {
+export function getRankInfo(xp: number): {
+  level: number
+  rankName: string
+  levelProgress: number
+} {
   const safeXp = safeInteger(xp)
   const level = Math.floor(safeXp / XP_PER_LEVEL) + 1
   const levelProgress = (safeXp % XP_PER_LEVEL) / XP_PER_LEVEL
@@ -215,7 +232,10 @@ function applyObjectiveProgress(objective: RewardObjective, summary: RunSummary)
   }
 
   if (objective.metric === 'max-combo') {
-    const progress = Math.min(objective.target, Math.max(objective.progress, summary.stats.peakCombo))
+    const progress = Math.min(
+      objective.target,
+      Math.max(objective.progress, summary.stats.peakCombo),
+    )
     return {
       ...objective,
       progress,
@@ -236,8 +256,13 @@ export function applyRunRewards(
   summary: RunSummary,
 ): { profile: RewardProfile; rewards: RunRewards } {
   const noRewards = (status: RunRewards['status']): RunRewards => ({
-    status, flawless: false, xpEarned: 0, starfruitEarned: 0, objectiveCompletions: [],
-    goalCompletions: [], challengesRotated: false,
+    status,
+    flawless: false,
+    xpEarned: 0,
+    starfruitEarned: 0,
+    objectiveCompletions: [],
+    goalCompletions: [],
+    challengesRotated: false,
   })
   if (!validRunId(summary.runId)) return { profile, rewards: noRewards('ineligible') }
   if (profile.settledRunIds.includes(summary.runId)) {
@@ -245,14 +270,21 @@ export function applyRunRewards(
   }
   const settledRunIds = [...profile.settledRunIds, summary.runId].slice(-SETTLED_RUN_HISTORY_LIMIT)
   const counts = [summary.score, summary.durationMs, ...Object.values(summary.stats)]
-  const validValues = counts.every((value) => Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER)
-    && ['classic', 'arcade', 'zen'].includes(summary.mode)
-    && Object.values(summary.stats).every(Number.isInteger)
-    && summary.stats.successfulStrokes <= summary.stats.strokesAttempted
-    && summary.stats.successfulStrokes <= summary.stats.fruitSliced
-    && summary.stats.peakStrokeCombo <= summary.stats.fruitSliced
-  if (!validValues || summary.durationMs < MIN_REWARDED_RUN_DURATION_MS
-    || summary.stats.fruitSliced < 1 || summary.score <= 0) {
+  const validValues =
+    counts.every(
+      (value) => Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER,
+    ) &&
+    ['classic', 'arcade', 'zen'].includes(summary.mode) &&
+    Object.values(summary.stats).every(Number.isInteger) &&
+    summary.stats.successfulStrokes <= summary.stats.strokesAttempted &&
+    summary.stats.successfulStrokes <= summary.stats.fruitSliced &&
+    summary.stats.peakStrokeCombo <= summary.stats.fruitSliced
+  if (
+    !validValues ||
+    summary.durationMs < MIN_REWARDED_RUN_DURATION_MS ||
+    summary.stats.fruitSliced < 1 ||
+    summary.score <= 0
+  ) {
     return { profile: { ...profile, settledRunIds }, rewards: noRewards('ineligible') }
   }
   const baseRewards = calculateBaseRewards(summary)
@@ -272,7 +304,9 @@ export function applyRunRewards(
 
   const progression = applyProgression(profile, summary)
   const xpEarned = safeInteger(baseRewards.xp + bonusXp + progression.bonusXp)
-  const starfruitEarned = safeInteger(baseRewards.starfruit + bonusStarfruit + progression.bonusStarfruit)
+  const starfruitEarned = safeInteger(
+    baseRewards.starfruit + bonusStarfruit + progression.bonusStarfruit,
+  )
 
   return {
     profile: {

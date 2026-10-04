@@ -81,7 +81,11 @@ export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot
     arcadeRemainingMs: state.modeState.arcade.remainingMs,
     zenRemainingMs: state.modeState.zen.remainingMs,
     activePowerUps,
-    powerUpRemainingMs: { freeze: timers.freezeMs, frenzy: timers.frenzyMs, 'double-points': timers.doublePointsMs },
+    powerUpRemainingMs: {
+      freeze: timers.freezeMs,
+      frenzy: timers.frenzyMs,
+      'double-points': timers.doublePointsMs,
+    },
     runId: state.run.id,
     stats: { ...state.run.stats },
   }
@@ -90,39 +94,43 @@ export function selectGameUiSnapshot(state: Readonly<GameState>): GameUiSnapshot
 export function areGameUiSnapshotsEqual(left: GameUiSnapshot, right: GameUiSnapshot): boolean {
   return (
     left.view === right.view &&
-      left.runId === right.runId &&
-      left.stats.fruitSliced === right.stats.fruitSliced &&
-      left.stats.missedFruits === right.stats.missedFruits &&
-      left.stats.bombHits === right.stats.bombHits &&
-      left.stats.peakCombo === right.stats.peakCombo &&
-      left.stats.strokesAttempted === right.stats.strokesAttempted &&
-      left.stats.successfulStrokes === right.stats.successfulStrokes &&
-      left.stats.peakStrokeCombo === right.stats.peakStrokeCombo &&
-      Math.ceil(left.powerUpRemainingMs.freeze / 1000) === Math.ceil(right.powerUpRemainingMs.freeze / 1000) &&
-      Math.ceil(left.powerUpRemainingMs.frenzy / 1000) === Math.ceil(right.powerUpRemainingMs.frenzy / 1000) &&
-      Math.ceil(left.powerUpRemainingMs['double-points'] / 1000) === Math.ceil(right.powerUpRemainingMs['double-points'] / 1000) &&
-      left.phase === right.phase &&
-      left.mode === right.mode &&
-      left.score === right.score &&
-      left.combo === right.combo &&
-      left.streakMultiplier === right.streakMultiplier &&
-      left.strokeCombo === right.strokeCombo &&
-      left.bestScore === right.bestScore &&
-      left.strikesRemaining === right.strikesRemaining &&
-      left.strikesMax === right.strikesMax &&
-      // Elapsed time rounds down; countdowns round up. Phase changes publish exact run times.
-      Math.floor(left.elapsedMs / 1000) === Math.floor(right.elapsedMs / 1000) &&
-      Math.ceil(left.arcadeRemainingMs / 1000) === Math.ceil(right.arcadeRemainingMs / 1000) &&
-      Math.ceil(left.zenRemainingMs / 1000) === Math.ceil(right.zenRemainingMs / 1000) &&
-      left.activePowerUps.length === right.activePowerUps.length &&
-      left.activePowerUps.every((powerUp, index) => powerUp === right.activePowerUps[index])
+    left.runId === right.runId &&
+    left.stats.fruitSliced === right.stats.fruitSliced &&
+    left.stats.missedFruits === right.stats.missedFruits &&
+    left.stats.bombHits === right.stats.bombHits &&
+    left.stats.peakCombo === right.stats.peakCombo &&
+    left.stats.strokesAttempted === right.stats.strokesAttempted &&
+    left.stats.successfulStrokes === right.stats.successfulStrokes &&
+    left.stats.peakStrokeCombo === right.stats.peakStrokeCombo &&
+    Math.ceil(left.powerUpRemainingMs.freeze / 1000) ===
+      Math.ceil(right.powerUpRemainingMs.freeze / 1000) &&
+    Math.ceil(left.powerUpRemainingMs.frenzy / 1000) ===
+      Math.ceil(right.powerUpRemainingMs.frenzy / 1000) &&
+    Math.ceil(left.powerUpRemainingMs['double-points'] / 1000) ===
+      Math.ceil(right.powerUpRemainingMs['double-points'] / 1000) &&
+    left.phase === right.phase &&
+    left.mode === right.mode &&
+    left.score === right.score &&
+    left.combo === right.combo &&
+    left.streakMultiplier === right.streakMultiplier &&
+    left.strokeCombo === right.strokeCombo &&
+    left.bestScore === right.bestScore &&
+    left.strikesRemaining === right.strikesRemaining &&
+    left.strikesMax === right.strikesMax &&
+    // Elapsed time rounds down; countdowns round up. Phase changes publish exact run times.
+    Math.floor(left.elapsedMs / 1000) === Math.floor(right.elapsedMs / 1000) &&
+    Math.ceil(left.arcadeRemainingMs / 1000) === Math.ceil(right.arcadeRemainingMs / 1000) &&
+    Math.ceil(left.zenRemainingMs / 1000) === Math.ceil(right.zenRemainingMs / 1000) &&
+    left.activePowerUps.length === right.activePowerUps.length &&
+    left.activePowerUps.every((powerUp, index) => powerUp === right.activePowerUps[index])
   )
 }
 
 function defaultUiSettings(): UiSettings {
   let reducedMotion = DEFAULT_UI_SETTINGS.reducedMotion
   try {
-    reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? reducedMotion
+    reducedMotion =
+      globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? reducedMotion
   } catch {
     // Use the default when the host does not provide media queries.
   }
@@ -131,16 +139,20 @@ function defaultUiSettings(): UiSettings {
 
 function normalizeUiSettings(value: unknown): UiSettings {
   const defaults = defaultUiSettings()
-  const parsed = value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown> : {}
+  const parsed =
+    value !== null && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {}
   const ranged = (value: unknown, minimum: number, maximum: number, fallback: number) =>
     typeof value === 'number' && Number.isFinite(value)
-      ? Math.min(maximum, Math.max(minimum, value)) : fallback
+      ? Math.min(maximum, Math.max(minimum, value))
+      : fallback
   return {
     musicVolume: ranged(parsed.musicVolume, 0, 1, defaults.musicVolume),
     sfxVolume: ranged(parsed.sfxVolume, 0, 1, defaults.sfxVolume),
     sliceSensitivity: ranged(parsed.sliceSensitivity, 0.5, 2, defaults.sliceSensitivity),
-    reducedMotion: typeof parsed.reducedMotion === 'boolean' ? parsed.reducedMotion : defaults.reducedMotion,
+    reducedMotion:
+      typeof parsed.reducedMotion === 'boolean' ? parsed.reducedMotion : defaults.reducedMotion,
   }
 }
 
@@ -156,10 +168,13 @@ export function loadUiSettings(): UiSettings {
 
 export function saveUiSettings(settings: UiSettings): void {
   try {
-    globalThis.localStorage?.setItem(UI_SETTINGS_STORAGE_KEY, JSON.stringify({
-      schemaVersion: UI_SETTINGS_SCHEMA_VERSION,
-      ...normalizeUiSettings(settings),
-    }))
+    globalThis.localStorage?.setItem(
+      UI_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: UI_SETTINGS_SCHEMA_VERSION,
+        ...normalizeUiSettings(settings),
+      }),
+    )
   } catch {
     // Ignore persistence failures in restricted runtimes.
   }

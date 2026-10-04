@@ -171,7 +171,8 @@ export type MissInfo = {
   lastMissedAtMs: number | null
 }
 
-export type GameEntity = FruitEntity | FruitHalfEntity | BombEntity | PowerUpEntity | ParticleEntity | DecalEntity
+export type GameEntity =
+  FruitEntity | FruitHalfEntity | BombEntity | PowerUpEntity | ParticleEntity | DecalEntity
 
 export type WorldState = {
   tick: number
@@ -208,16 +209,47 @@ export type RunStats = {
 
 export type PresentationEventPayload = { atMs: number } & (
   | { type: 'run-start'; mode: GameMode; seed: number }
-  | { type: 'stroke-combo'; strokeId: number; fruitCount: number; bonus: number; position: Readonly<Vec2> }
-  | { type: 'fruit-slice'; strokeId?: number; strokeCombo?: number; streakMultiplier?: number; entityId: EntityId; fruitType: FruitType; position: Readonly<Vec2>; direction: Readonly<Vec2>; points: number; combo: number }
+  | {
+      type: 'stroke-combo'
+      strokeId: number
+      fruitCount: number
+      bonus: number
+      position: Readonly<Vec2>
+    }
+  | {
+      type: 'fruit-slice'
+      strokeId?: number
+      strokeCombo?: number
+      streakMultiplier?: number
+      entityId: EntityId
+      fruitType: FruitType
+      position: Readonly<Vec2>
+      direction: Readonly<Vec2>
+      points: number
+      combo: number
+    }
   | { type: 'fruit-miss'; entityId: EntityId; position: Readonly<Vec2> }
   | { type: 'bomb-hit'; entityId: EntityId; position: Readonly<Vec2>; penalty: number }
-  | { type: 'power-up-activated'; powerUp: PowerUpType; position: Readonly<Vec2>; durationMs: number }
+  | {
+      type: 'power-up-activated'
+      powerUp: PowerUpType
+      position: Readonly<Vec2>
+      durationMs: number
+    }
   | { type: 'power-up-expired'; powerUp: PowerUpType }
-  | { type: 'run-end'; mode: GameMode; score: number; durationMs: number; peakCombo: number; stats: Readonly<RunStats> }
+  | {
+      type: 'run-end'
+      mode: GameMode
+      score: number
+      durationMs: number
+      peakCombo: number
+      stats: Readonly<RunStats>
+    }
 )
 
-export type GamePresentationEvent = Readonly<PresentationEventPayload & { id: number; runId: string }>
+export type GamePresentationEvent = Readonly<
+  PresentationEventPayload & { id: number; runId: string }
+>
 
 export type ArcadePowerUpTimers = {
   freezeMs: number

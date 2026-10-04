@@ -44,11 +44,11 @@ aligned near their apex for a horizontal combo opportunity. Ladders launch 110ms
 apart and alternating throws 160ms apart. Hazards and pickups supplement fruit
 groups instead of replacing promised combo slots.
 
-| Mode | Group pressure | Normal interval before mode modifiers | Live + queued fruit budget | Live + queued bomb budget |
-| --- | --- | --- | --- | --- |
-| Classic | 3 → 5 fruit over 90s; alternating 2 → 4 | 1400 → 900ms; recovery 1850ms | 12 | 2 |
-| Arcade | 3 → 6 fruit over the 60s round; alternating 2 → 4 | 1050 → 610ms; recovery 1450ms | 18; 30 during Frenzy | 1; 0 during Frenzy |
-| Zen | 3 fruit; alternating 2 | 1450ms; recovery 2200ms | 9 | 0 |
+| Mode    | Group pressure                                    | Normal interval before mode modifiers | Live + queued fruit budget | Live + queued bomb budget |
+| ------- | ------------------------------------------------- | ------------------------------------- | -------------------------- | ------------------------- |
+| Classic | 3 → 5 fruit over 90s; alternating 2 → 4           | 1400 → 900ms; recovery 1850ms         | 12                         | 2                         |
+| Arcade  | 3 → 6 fruit over the 60s round; alternating 2 → 4 | 1050 → 610ms; recovery 1450ms         | 18; 30 during Frenzy       | 1; 0 during Frenzy        |
+| Zen     | 3 fruit; alternating 2                            | 1450ms; recovery 2200ms               | 9                          | 0                         |
 
 Fruit budgets govern admission of new groups. An entire group is deferred when
 it exceeds the fruit budget, or an existing
@@ -73,11 +73,11 @@ physics steps. Classic completion was deliberately bypassed to measure sustained
 pressure. All 270 mode/layout/seed runs respected corridor and spawn budgets.
 Totals across 90 runs per mode:
 
-| Mode | Fruit launched | Bombs launched | Scheduled beats | Mean fruit / 60s |
-| --- | ---: | ---: | ---: | ---: |
-| Classic | 10,620 | 987 | 4,050 | 118.0 |
-| Arcade | 23,356 | 1,039 | 7,163 | 259.5 |
-| Zen | 6,660 | 0 | 2,790 | 74.0 |
+| Mode    | Fruit launched | Bombs launched | Scheduled beats | Mean fruit / 60s |
+| ------- | -------------: | -------------: | --------------: | ---------------: |
+| Classic |         10,620 |            987 |           4,050 |            118.0 |
+| Arcade  |         23,356 |          1,039 |           7,163 |            259.5 |
+| Zen     |          6,660 |              0 |           2,790 |             74.0 |
 
 These establish repeatable pressure baselines, not difficulty ratings. Human
 playtests still need to tune pressure and rewards using misses, stroke accuracy,

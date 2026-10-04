@@ -18,9 +18,24 @@ import bomb from '../../assets/bomb.png'
 import freeze from '../../assets/freeze-glyph.png'
 
 const IMAGE_URLS = {
-  background, appleWhole, appleCut, orangeWhole, orangeLeft, orangeRight,
-  watermelonWhole, watermelonCut, pineappleWhole, pineappleLeft, pineappleRight,
-  bananaWhole, bananaCut, starfruitWhole, starfruitLeft, starfruitRight, bomb, freeze,
+  background,
+  appleWhole,
+  appleCut,
+  orangeWhole,
+  orangeLeft,
+  orangeRight,
+  watermelonWhole,
+  watermelonCut,
+  pineappleWhole,
+  pineappleLeft,
+  pineappleRight,
+  bananaWhole,
+  bananaCut,
+  starfruitWhole,
+  starfruitLeft,
+  starfruitRight,
+  bomb,
+  freeze,
 }
 
 export type ImageAssetKey = keyof typeof IMAGE_URLS
@@ -28,5 +43,6 @@ export type ImageAssetEntry = { key: ImageAssetKey; src: string }
 
 // Vite resolves imports relative to the deployment base and fingerprints images.
 // These are the exact sprites consumed by the menu and renderer.
-export const IMAGE_ASSET_MANIFEST: readonly ImageAssetEntry[] = Object.entries(IMAGE_URLS)
-  .map(([key, src]) => ({ key: key as ImageAssetKey, src }))
+export const IMAGE_ASSET_MANIFEST: readonly ImageAssetEntry[] = Object.entries(IMAGE_URLS).map(
+  ([key, src]) => ({ key: key as ImageAssetKey, src }),
+)

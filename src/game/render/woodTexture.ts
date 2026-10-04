@@ -26,7 +26,10 @@ export function createWoodTexture(width: number, height: number): HTMLCanvasElem
   let plankX = 0
   let plankIndex = 0
   while (plankX < surface.width) {
-    const plankWidth = Math.max(90, Math.min(185, 110 + Math.floor(seededNoise(plankIndex * 3.21) * 75)))
+    const plankWidth = Math.max(
+      90,
+      Math.min(185, 110 + Math.floor(seededNoise(plankIndex * 3.21) * 75)),
+    )
     const endX = Math.min(surface.width, plankX + plankWidth)
     const lightShift = seededNoise(plankIndex * 1.73) * 0.22 - 0.11
     const plankToneTop = `hsl(26 44% ${34 + lightShift * 100}%)`

@@ -5,7 +5,7 @@ function resizeCoordinate(value: number, oldExtent: number, nextExtent: number):
   // and resizing alone cannot turn an almost-missed fruit into a miss.
   if (value < 0) return value
   if (value > oldExtent) return nextExtent + value - oldExtent
-  return value * nextExtent / oldExtent
+  return (value * nextExtent) / oldExtent
 }
 
 /** Keep normalized flight arcs; gravity stays fixed and flight time scales with sqrt(height). */
@@ -19,7 +19,7 @@ export function resizeWorld(world: WorldState, bounds: Vec2): void {
   const resizeEntity = (entity: GameEntity) => {
     if (entity.space !== 'world') return
     resizePoint(entity.position)
-    entity.velocity.x *= (bounds.x / oldBounds.x) / flightTimeScale
+    entity.velocity.x *= bounds.x / oldBounds.x / flightTimeScale
     entity.velocity.y *= flightTimeScale
     // Radius, rotation and angular velocity retain their world-unit meaning.
   }

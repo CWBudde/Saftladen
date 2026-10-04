@@ -17,7 +17,11 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   )
 }
 
-export function useGameKeyboard(engine: GameEngine, phase: GamePhase, setDebugEnabled: Dispatch<SetStateAction<boolean>>) {
+export function useGameKeyboard(
+  engine: GameEngine,
+  phase: GamePhase,
+  setDebugEnabled: Dispatch<SetStateAction<boolean>>,
+) {
   const heldPauseShortcut = useRef<'Space' | 'Escape' | null>(null)
 
   useEffect(() => {
@@ -26,7 +30,8 @@ export function useGameKeyboard(engine: GameEngine, phase: GamePhase, setDebugEn
         event.preventDefault()
         return
       }
-      if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey)
+        return
 
       if (event.key === 'Escape' && phase === 'running') {
         event.preventDefault()
@@ -54,7 +59,6 @@ export function useGameKeyboard(engine: GameEngine, phase: GamePhase, setDebugEn
       if (event.key.toLowerCase() === 'd') {
         setDebugEnabled((previous) => !previous)
       }
-
     }
 
     const onKeyUp = (event: KeyboardEvent) => {
@@ -64,7 +68,9 @@ export function useGameKeyboard(engine: GameEngine, phase: GamePhase, setDebugEn
       event.preventDefault()
       heldPauseShortcut.current = null
     }
-    const onBlur = () => { heldPauseShortcut.current = null }
+    const onBlur = () => {
+      heldPauseShortcut.current = null
+    }
 
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp, true)

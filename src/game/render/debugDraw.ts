@@ -5,12 +5,17 @@ import type { ViewportTransform } from '../core/viewport'
 import { getSpawnWavePlan, getTrajectoryEnvelope } from '../systems/spawnDirector'
 
 export function drawSpawnEnvelopes(
-  ctx: CanvasRenderingContext2D, state: Readonly<GameState>, viewport: ViewportTransform,
+  ctx: CanvasRenderingContext2D,
+  state: Readonly<GameState>,
+  viewport: ViewportTransform,
 ): void {
   ctx.save()
   ctx.lineWidth = 1
   ctx.setLineDash([5, 4])
-  const entities = [...Object.values(state.world.entities), ...state.world.spawn.pending.map((entry) => entry.entity)]
+  const entities = [
+    ...Object.values(state.world.entities),
+    ...state.world.spawn.pending.map((entry) => entry.entity),
+  ]
   for (const entity of entities) {
     if (entity.kind !== 'fruit' && entity.kind !== 'bomb' && entity.kind !== 'power-up') continue
     const envelope = getTrajectoryEnvelope(entity, state.world.bounds)
@@ -26,7 +31,11 @@ export function drawSpawnEnvelopes(
   const plan = getSpawnWavePlan(state)
   ctx.fillStyle = '#b7f7c9'
   ctx.font = "400 12px 'Segoe UI', Tahoma, sans-serif"
-  ctx.fillText(`Next wave: ${plan.pattern} · ${plan.fruitCount} fruit · budgets ${plan.fruitBudget} fruit / ${plan.hazardBudget} bombs`, 24, 130)
+  ctx.fillText(
+    `Next wave: ${plan.pattern} · ${plan.fruitCount} fruit · budgets ${plan.fruitBudget} fruit / ${plan.hazardBudget} bombs`,
+    24,
+    130,
+  )
   ctx.restore()
 }
 
@@ -34,7 +43,11 @@ function drawTextLine(ctx: CanvasRenderingContext2D, text: string, x: number, y:
   ctx.fillText(text, x, y)
 }
 
-export function drawFpsOverlay(ctx: CanvasRenderingContext2D, frameInfo: FrameInfo, context: RenderContext): void {
+export function drawFpsOverlay(
+  ctx: CanvasRenderingContext2D,
+  frameInfo: FrameInfo,
+  context: RenderContext,
+): void {
   const fps = frameInfo.deltaMs > 0 ? (1000 / frameInfo.deltaMs).toFixed(1) : '0.0'
   const { diagnostics } = context.debug
   const { dpr, widthCssPx, heightCssPx } = context.metrics
@@ -48,7 +61,12 @@ export function drawFpsOverlay(ctx: CanvasRenderingContext2D, frameInfo: FrameIn
     24,
     heightCssPx - 44,
   )
-  drawTextLine(ctx, `frame=${frameInfo.frame} | canvas=${widthCssPx}x${heightCssPx}`, 24, heightCssPx - 26)
+  drawTextLine(
+    ctx,
+    `frame=${frameInfo.frame} | canvas=${widthCssPx}x${heightCssPx}`,
+    24,
+    heightCssPx - 26,
+  )
 }
 
 export function drawBoundingCircle(

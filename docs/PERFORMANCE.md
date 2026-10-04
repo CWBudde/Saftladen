@@ -24,20 +24,20 @@ Linux x86_64 host, Intel Core i7-1255U, headless Chromium 153.0.8010.12.
 Sequential runs used the same fixture before and after caching the complete
 static board. Times are milliseconds; percentages count measured RAF intervals.
 
-| Dojo | DPR | Load | CPU p95 before → cached | RAF p95 before → cached | Missed frames before → cached |
-| --- | --- | --- | --- | --- | --- |
-| Great Wave | 1 | Empty | 0.3 → 0.2 | 16.7 → 16.7 | 0% → 0% |
-| Great Wave | 1 | Effects | 0.7 → 0.9 | 16.7 → 16.7 | 0% → 0% |
-| Sunset Harbor | 1 | Empty | 0.3 → 0.1 | 16.7 → 16.8 | 0% → 0% |
-| Sunset Harbor | 1 | Effects | 1.2 → 0.8 | 16.7 → 16.7 | 0% → 0% |
-| Storm Temple | 1 | Empty | 0.2 → 0.1 | 16.8 → 16.7 | 0% → 0% |
-| Storm Temple | 1 | Effects | 0.9 → 1.1 | 16.8 → 16.7 | 0% → 0% |
-| Great Wave | 3 | Empty | 0.2 → 0.1 | 16.7 → 16.8 | 0% → 0% |
-| Great Wave | 3 | Effects | 0.6 → 0.7 | 33.4 → 16.8 | 37.5% → 0.8% |
-| Sunset Harbor | 3 | Empty | 0.2 → 0.1 | 16.7 → 16.7 | 0% → 0% |
-| Sunset Harbor | 3 | Effects | 0.5 → 0.7 | 33.4 → 16.7 | 27.5% → 1.7% |
-| Storm Temple | 3 | Empty | 0.2 → 0.1 | 33.4 → 16.7 | 20% → 0% |
-| Storm Temple | 3 | Effects | 0.7 → 0.7 | 50.0 → 33.3 | 43.3% → 10.8% |
+| Dojo          | DPR | Load    | CPU p95 before → cached | RAF p95 before → cached | Missed frames before → cached |
+| ------------- | --- | ------- | ----------------------- | ----------------------- | ----------------------------- |
+| Great Wave    | 1   | Empty   | 0.3 → 0.2               | 16.7 → 16.7             | 0% → 0%                       |
+| Great Wave    | 1   | Effects | 0.7 → 0.9               | 16.7 → 16.7             | 0% → 0%                       |
+| Sunset Harbor | 1   | Empty   | 0.3 → 0.1               | 16.7 → 16.8             | 0% → 0%                       |
+| Sunset Harbor | 1   | Effects | 1.2 → 0.8               | 16.7 → 16.7             | 0% → 0%                       |
+| Storm Temple  | 1   | Empty   | 0.2 → 0.1               | 16.8 → 16.7             | 0% → 0%                       |
+| Storm Temple  | 1   | Effects | 0.9 → 1.1               | 16.8 → 16.7             | 0% → 0%                       |
+| Great Wave    | 3   | Empty   | 0.2 → 0.1               | 16.7 → 16.8             | 0% → 0%                       |
+| Great Wave    | 3   | Effects | 0.6 → 0.7               | 33.4 → 16.8             | 37.5% → 0.8%                  |
+| Sunset Harbor | 3   | Empty   | 0.2 → 0.1               | 16.7 → 16.7             | 0% → 0%                       |
+| Sunset Harbor | 3   | Effects | 0.5 → 0.7               | 33.4 → 16.7             | 27.5% → 1.7%                  |
+| Storm Temple  | 3   | Empty   | 0.2 → 0.1               | 33.4 → 16.7             | 20% → 0%                      |
+| Storm Temple  | 3   | Effects | 0.7 → 0.7               | 50.0 → 33.3             | 43.3% → 10.8%                 |
 
 The cache removes recurring scenery paths, gradients, background image scaling
 and the header shading pass. High-DPR RAF results improved in the first pair;
@@ -45,10 +45,10 @@ CPU submission times remain small and variable. A second cached run, after the
 browser regression suite had ended, did not consistently reproduce those gains:
 
 | DPR 3 effects case | Repeat CPU p95 | Repeat RAF p95 | Repeat missed frames |
-| --- | --- | --- | --- |
-| Great Wave | 1.0 | 33.4 | 31.7% |
-| Sunset Harbor | 0.8 | 33.4 | 23.3% |
-| Storm Temple | 0.8 | 16.8 | 5.0% |
+| ------------------ | -------------- | -------------- | -------------------- |
+| Great Wave         | 1.0            | 33.4           | 31.7%                |
+| Sunset Harbor      | 0.8            | 33.4           | 23.3%                |
+| Storm Temple       | 0.8            | 16.8           | 5.0%                 |
 
 All DPR 1 repeat cases retained 0% missed frames. The baseline's empty Storm
 Temple case also shows host variation. The cache guarantees less recurring

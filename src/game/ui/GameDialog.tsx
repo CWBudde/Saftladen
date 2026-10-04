@@ -9,7 +9,13 @@ type GameDialogProps = {
 }
 
 /** Native dialogs keep keyboard focus inside and make the game behind them inert. */
-export function GameDialog({ children, className, labelledBy, onDismiss, returnFocusSelector }: GameDialogProps) {
+export function GameDialog({
+  children,
+  className,
+  labelledBy,
+  onDismiss,
+  returnFocusSelector,
+}: GameDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -23,11 +29,13 @@ export function GameDialog({ children, className, labelledBy, onDismiss, returnF
         // A help → countdown transition may already have opened another modal.
         // Let its native autofocus keep focus inside the new dialog.
         if (document.querySelector('dialog[open]')) return
-        const target = (returnFocusSelector ? document.querySelector<HTMLElement>(returnFocusSelector) : null)
-          ?? (previousFocus instanceof HTMLElement && previousFocus.isConnected
-          && !previousFocus.matches(':disabled')
-          ? previousFocus
-          : document.querySelector<HTMLElement>('[data-focus-anchor]:not(:disabled)'))
+        const target =
+          (returnFocusSelector ? document.querySelector<HTMLElement>(returnFocusSelector) : null) ??
+          (previousFocus instanceof HTMLElement &&
+          previousFocus.isConnected &&
+          !previousFocus.matches(':disabled')
+            ? previousFocus
+            : document.querySelector<HTMLElement>('[data-focus-anchor]:not(:disabled)'))
         target?.focus({ preventScroll: true })
       })
     }

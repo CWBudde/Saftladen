@@ -21,9 +21,17 @@ type MenuScreenProps = {
 }
 
 export function MenuScreen({
-  assets, assetsReady, canStart, selectedMode,
-  profileOpen, updateNotice, startMode, onRetryArtwork,
-  onAllowFallback, onOpenHelp, onToggleProfile,
+  assets,
+  assetsReady,
+  canStart,
+  selectedMode,
+  profileOpen,
+  updateNotice,
+  startMode,
+  onRetryArtwork,
+  onAllowFallback,
+  onOpenHelp,
+  onToggleProfile,
 }: MenuScreenProps) {
   return (
     <section className="menu-home">
@@ -31,26 +39,45 @@ export function MenuScreen({
       {updateNotice}
 
       {!assetsReady ? (
-        <section className="asset-readiness" aria-label="Game artwork" aria-live="polite" aria-atomic="true">
+        <section
+          className="asset-readiness"
+          aria-label="Game artwork"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {assets.status === 'error' ? (
             <>
               <p>Some artwork could not load. Check your connection and try again.</p>
-              <p className="asset-progress">{assets.loaded} of {assets.total} images ready</p>
+              <p className="asset-progress">
+                {assets.loaded} of {assets.total} images ready
+              </p>
               <div className="asset-actions">
-                <button type="button" className="primary-button" onClick={onRetryArtwork}>Retry artwork</button>
-                <button type="button" className="ghost-button" onClick={onAllowFallback}>Play with simple artwork</button>
+                <button type="button" className="primary-button" onClick={onRetryArtwork}>
+                  Retry artwork
+                </button>
+                <button type="button" className="ghost-button" onClick={onAllowFallback}>
+                  Play with simple artwork
+                </button>
               </div>
             </>
           ) : (
             <>
               <p>Preparing game artwork…</p>
-              <progress max={assets.total} value={assets.loaded} aria-label="Artwork loading progress" />
-              <p className="asset-progress">{assets.loaded} of {assets.total} images ready</p>
+              <progress
+                max={assets.total}
+                value={assets.loaded}
+                aria-label="Artwork loading progress"
+              />
+              <p className="asset-progress">
+                {assets.loaded} of {assets.total} images ready
+              </p>
             </>
           )}
         </section>
       ) : assets.status === 'fallback' ? (
-        <p className="asset-fallback-note" role="status">Simple artwork enabled for images that could not load.</p>
+        <p className="asset-fallback-note" role="status">
+          Simple artwork enabled for images that could not load.
+        </p>
       ) : null}
 
       <div className="ring-row">
@@ -96,15 +123,29 @@ export function MenuScreen({
       </div>
 
       <div className="mode-guide" aria-label="Choose a mode">
-        <p id="classic-help"><strong>Classic</strong> · Three misses end the run. Avoid every bomb.</p>
-        <p id="arcade-help"><strong>Arcade</strong> · 60 seconds, power-ups and score-chasing. Bombs cost points.</p>
-        <p id="zen-help"><strong>Zen</strong> · 90 seconds of fruit. No bombs, no strikes.</p>
-        <p className="slice-guide">Swipe across fruit with your mouse or finger. Use Space or Escape to pause.</p>
+        <p id="classic-help">
+          <strong>Classic</strong> · Three misses end the run. Avoid every bomb.
+        </p>
+        <p id="arcade-help">
+          <strong>Arcade</strong> · 60 seconds, power-ups and score-chasing. Bombs cost points.
+        </p>
+        <p id="zen-help">
+          <strong>Zen</strong> · 90 seconds of fruit. No bombs, no strikes.
+        </p>
+        <p className="slice-guide">
+          Swipe across fruit with your mouse or finger. Use Space or Escape to pause.
+        </p>
       </div>
 
       <div className="menu-actions">
-        <button type="button" className="ghost-button help-button" aria-haspopup="dialog"
-          onClick={onOpenHelp}>How to play</button>
+        <button
+          type="button"
+          className="ghost-button help-button"
+          aria-haspopup="dialog"
+          onClick={onOpenHelp}
+        >
+          How to play
+        </button>
         <button
           type="button"
           className="profile-button"

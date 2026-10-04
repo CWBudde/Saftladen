@@ -13,12 +13,20 @@ type PauseOverlayProps = {
 }
 
 export function PauseOverlay({
-  uiSnapshot, uiSettings, updateUiSettings, handleResume,
-  handleRestart, handleReturnToMenu,
+  uiSnapshot,
+  uiSettings,
+  updateUiSettings,
+  handleResume,
+  handleRestart,
+  handleReturnToMenu,
 }: PauseOverlayProps) {
   return (
-    <GameDialog className="overlay-card" labelledBy="pause-heading" onDismiss={handleResume}
-      returnFocusSelector="[data-focus-anchor]:not(:disabled)">
+    <GameDialog
+      className="overlay-card"
+      labelledBy="pause-heading"
+      onDismiss={handleResume}
+      returnFocusSelector="[data-focus-anchor]:not(:disabled)"
+    >
       <h2 id="pause-heading">Run Paused</h2>
       <p>Mode: {uiSnapshot.mode}</p>
       <p>Score: {uiSnapshot.score}</p>

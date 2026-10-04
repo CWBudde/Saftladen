@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { createGameEngine } from '../src/game/engine/gameEngine'
 import { createBombEntity, createFruitEntity } from '../src/game/model'
-import { segmentCapsuleHitFraction, segmentCircleHitFraction, segmentMayHitSweptCircleByAabb } from '../src/game/systems/collision'
+import {
+  segmentCapsuleHitFraction,
+  segmentCircleHitFraction,
+  segmentMayHitSweptCircleByAabb,
+} from '../src/game/systems/collision'
 import { stepPhysicsSystem } from '../src/game/systems/physicsSystem'
 import { detectSliceEvents } from '../src/game/systems/sliceDetectSystem'
 import type { GameState, SliceTrail, Vec2 } from '../src/game/types'
@@ -15,37 +19,69 @@ function setup(mode: 'classic' | 'zen' = 'zen') {
 }
 
 const motion = {
-  color: '#f00', velocity: { x: 0, y: 0 }, rotationRad: 0, angularVelocityRadPerS: 0, radius: 10,
+  color: '#f00',
+  velocity: { x: 0, y: 0 },
+  rotationRad: 0,
+  angularVelocityRadPerS: 0,
+  radius: 10,
 }
-const fruit = (id: string, x: number, y: number) => createFruitEntity({
-  ...motion, id, fruitType: 'apple', position: { x, y },
-})
+const fruit = (id: string, x: number, y: number) =>
+  createFruitEntity({
+    ...motion,
+    id,
+    fruitType: 'apple',
+    position: { x, y },
+  })
 const swipe = (pointerId = 1, y = 100, startMs = 0, endMs = 20): SliceTrail => ({
-  pointerId, points: [{ x: 0, y, tMs: startMs }, { x: 400, y, tMs: endMs }],
+  pointerId,
+  points: [
+    { x: 0, y, tMs: startMs },
+    { x: 400, y, tMs: endMs },
+  ],
 })
 
-const permutations = <T,>(items: T[]): T[][] => items.length === 0 ? [[]] : items.flatMap((item, index) =>
-  permutations(items.filter((_, next) => index !== next)).map((rest) => [item, ...rest]))
+const permutations = <T>(items: T[]): T[][] =>
+  items.length === 0
+    ? [[]]
+    : items.flatMap((item, index) =>
+        permutations(items.filter((_, next) => index !== next)).map((rest) => [item, ...rest]),
+      )
 
 describe('first contact geometry', () => {
   test('circle entry, tangency, starting inside, zero length and misses', () => {
-    expect(segmentCircleHitFraction({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 0 }, 10)).toBeCloseTo(0.4)
-    expect(segmentCircleHitFraction({ x: 0, y: 10 }, { x: 100, y: 10 }, { x: 50, y: 0 }, 10)).toBeCloseTo(0.5)
+    expect(
+      segmentCircleHitFraction({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 0 }, 10),
+    ).toBeCloseTo(0.4)
+    expect(
+      segmentCircleHitFraction({ x: 0, y: 10 }, { x: 100, y: 10 }, { x: 50, y: 0 }, 10),
+    ).toBeCloseTo(0.5)
     expect(segmentCircleHitFraction({ x: 50, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 0 }, 10)).toBe(0)
     expect(segmentCircleHitFraction({ x: 50, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 0 }, 10)).toBe(0)
-    expect(segmentCircleHitFraction({ x: 0, y: 11 }, { x: 100, y: 11 }, { x: 50, y: 0 }, 10)).toBeNull()
-    expect(segmentCircleHitFraction({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 50, y: 0 }, 10)).toBeNull()
-    expect(segmentCircleHitFraction({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 0 }, -1)).toBeNull()
+    expect(
+      segmentCircleHitFraction({ x: 0, y: 11 }, { x: 100, y: 11 }, { x: 50, y: 0 }, 10),
+    ).toBeNull()
+    expect(
+      segmentCircleHitFraction({ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 50, y: 0 }, 10),
+    ).toBeNull()
+    expect(
+      segmentCircleHitFraction({ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 0 }, -1),
+    ).toBeNull()
   })
 
   test('capsule catches previous pose, intermediate motion and current pose', () => {
     const old = { x: 100, y: 100 }
     const current = { x: 100, y: 200 }
     for (const y of [100, 150, 200]) {
-      expect(segmentCapsuleHitFraction({ x: 0, y }, { x: 400, y }, old, current, 10)).toBeCloseTo(0.225)
+      expect(segmentCapsuleHitFraction({ x: 0, y }, { x: 400, y }, old, current, 10)).toBeCloseTo(
+        0.225,
+      )
     }
-    expect(segmentCapsuleHitFraction({ x: 0, y: 210 }, { x: 400, y: 210 }, old, current, 10)).toBeCloseTo(0.25)
-    expect(segmentCapsuleHitFraction({ x: 0, y: 211 }, { x: 400, y: 211 }, old, current, 10)).toBeNull()
+    expect(
+      segmentCapsuleHitFraction({ x: 0, y: 210 }, { x: 400, y: 210 }, old, current, 10),
+    ).toBeCloseTo(0.25)
+    expect(
+      segmentCapsuleHitFraction({ x: 0, y: 211 }, { x: 400, y: 211 }, old, current, 10),
+    ).toBeNull()
   })
 
   test('diagonal capsule and motion reversal produce the same shape', () => {
@@ -61,9 +97,15 @@ describe('first contact geometry', () => {
   test('swept broad phase admits old contact without accepting rounded AABB corners', () => {
     const old = { x: 100, y: 100 }
     const current = { x: 100, y: 200 }
-    expect(segmentMayHitSweptCircleByAabb({ x: 0, y: 100 }, { x: 400, y: 100 }, old, current, 10)).toBe(true)
-    expect(segmentMayHitSweptCircleByAabb({ x: 0, y: 300 }, { x: 400, y: 300 }, old, current, 10)).toBe(false)
-    expect(segmentCapsuleHitFraction({ x: 109, y: 90 }, { x: 111, y: 90 }, old, current, 10)).toBeNull()
+    expect(
+      segmentMayHitSweptCircleByAabb({ x: 0, y: 100 }, { x: 400, y: 100 }, old, current, 10),
+    ).toBe(true)
+    expect(
+      segmentMayHitSweptCircleByAabb({ x: 0, y: 300 }, { x: 400, y: 300 }, old, current, 10),
+    ).toBe(false)
+    expect(
+      segmentCapsuleHitFraction({ x: 109, y: 90 }, { x: 111, y: 90 }, old, current, 10),
+    ).toBeNull()
   })
 })
 
@@ -96,7 +138,15 @@ describe('moving entities and fresh input', () => {
     const moving = fruit('moving', 100, 100)
     moving.velocity.y = 6000
     state.world.entities[moving.id] = moving
-    engine.setInputTrails([{ pointerId: 1, points: [{ x: 100, y: 150, tMs: 0 }, { x: 100, y: 150, tMs: 20 }] }])
+    engine.setInputTrails([
+      {
+        pointerId: 1,
+        points: [
+          { x: 100, y: 150, tMs: 0 },
+          { x: 100, y: 150, tMs: 20 },
+        ],
+      },
+    ])
     engine.stepOnce()
     expect(state.run.stats.fruitSliced).toBe(0)
     expect(state.world.entities[moving.id]).toBeDefined()
@@ -118,7 +168,10 @@ describe('moving entities and fresh input', () => {
     const { state } = setup()
     const item = fruit('fruit', 100, 100)
     state.world.entities[item.id] = item
-    detectSliceEvents(state, [{ pointerId: 1, strokeId: 4, ended: true, points: [] }, { ...swipe(), strokeId: 4 }])
+    detectSliceEvents(state, [
+      { pointerId: 1, strokeId: 4, ended: true, points: [] },
+      { ...swipe(), strokeId: 4 },
+    ])
     expect(state.world.sliceEvents).toHaveLength(1)
     expect(state.world.sliceEvents[0].strokeId).toBe(4)
     expect(state.world.sliceEvents[0].atMs).toBeCloseTo(4.5)
@@ -140,7 +193,11 @@ describe('canonical contacts', () => {
         state.world.entities[item.id] = item
       }
       detectSliceEvents(state, [swipe()])
-      expect(state.world.sliceEvents.map((event) => event.entityId)).toEqual(['first', 'bomb', 'last'])
+      expect(state.world.sliceEvents.map((event) => event.entityId)).toEqual([
+        'first',
+        'bomb',
+        'last',
+      ])
     }
   })
 
@@ -177,12 +234,21 @@ describe('canonical contacts', () => {
     state.world.entities.fruit = fruit('fruit', 100, 100)
     const earlier = { ...swipe(2, 100, 0, 10), strokeId: 9 }
     const later = { ...swipe(1, 100, 0, 20), strokeId: 3 }
-    for (const trails of [[later, earlier], [earlier, later]]) {
+    for (const trails of [
+      [later, earlier],
+      [earlier, later],
+    ]) {
       detectSliceEvents(state, trails)
       expect(state.world.sliceEvents).toHaveLength(1)
       expect(state.world.sliceEvents[0].pointerId).toBe(2)
     }
-    for (const trails of [[{ ...earlier, strokeId: 9 }, { ...earlier, pointerId: 1, strokeId: 3 }], [{ ...earlier, pointerId: 1, strokeId: 3 }, earlier]]) {
+    for (const trails of [
+      [
+        { ...earlier, strokeId: 9 },
+        { ...earlier, pointerId: 1, strokeId: 3 },
+      ],
+      [{ ...earlier, pointerId: 1, strokeId: 3 }, earlier],
+    ]) {
       detectSliceEvents(state, trails)
       expect(state.world.sliceEvents[0].strokeId).toBe(3)
     }

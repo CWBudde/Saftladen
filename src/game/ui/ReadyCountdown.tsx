@@ -3,7 +3,11 @@ import type { GameMode } from '../types'
 import { GameDialog } from './GameDialog'
 
 /** The engine stays idle until this foreground-only preparation finishes. */
-export function ReadyCountdown({ mode, onComplete, onCancel }: {
+export function ReadyCountdown({
+  mode,
+  onComplete,
+  onCancel,
+}: {
   mode: GameMode
   onComplete: () => void
   onCancel: () => void
@@ -23,7 +27,9 @@ export function ReadyCountdown({ mode, onComplete, onCancel }: {
       foreground.current = false
       setSuspended(true)
     }
-    const onVisibility = () => { if (document.hidden) suspend() }
+    const onVisibility = () => {
+      if (document.hidden) suspend()
+    }
     window.addEventListener('blur', suspend)
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
@@ -43,20 +49,42 @@ export function ReadyCountdown({ mode, onComplete, onCancel }: {
   }, [remaining, suspended, complete])
 
   return (
-    <GameDialog className="overlay-card ready-card" labelledBy="ready-heading" onDismiss={onCancel}
-      returnFocusSelector="[data-focus-anchor]:not(:disabled)">
+    <GameDialog
+      className="overlay-card ready-card"
+      labelledBy="ready-heading"
+      onDismiss={onCancel}
+      returnFocusSelector="[data-focus-anchor]:not(:disabled)"
+    >
       <h2 id="ready-heading">Ready for {mode[0].toUpperCase() + mode.slice(1)}?</h2>
-      <p role="status">{suspended ? 'Countdown paused. Continue when you are ready.' : 'Starting in 3 seconds. Get ready to swipe.'}</p>
-      <p className="ready-number" aria-hidden="true">{suspended ? 'Ready?' : remaining}</p>
+      <p role="status">
+        {suspended
+          ? 'Countdown paused. Continue when you are ready.'
+          : 'Starting in 3 seconds. Get ready to swipe.'}
+      </p>
+      <p className="ready-number" aria-hidden="true">
+        {suspended ? 'Ready?' : remaining}
+      </p>
       <div className="overlay-actions">
         {suspended ? (
-          <button type="button" className="primary-button" onClick={() => {
-            if (document.hidden) return
-            foreground.current = true
-            setSuspended(false)
-          }}>Continue countdown</button>
-        ) : <button type="button" className="primary-button" onClick={complete}>Start now</button>}
-        <button type="button" className="ghost-button" onClick={onCancel}>Back to menu</button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              if (document.hidden) return
+              foreground.current = true
+              setSuspended(false)
+            }}
+          >
+            Continue countdown
+          </button>
+        ) : (
+          <button type="button" className="primary-button" onClick={complete}>
+            Start now
+          </button>
+        )}
+        <button type="button" className="ghost-button" onClick={onCancel}>
+          Back to menu
+        </button>
       </div>
     </GameDialog>
   )

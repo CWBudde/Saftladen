@@ -30,21 +30,34 @@ export function createImpactFeedback() {
       if (event.type !== 'stroke-combo' && event.type !== 'bomb-hit') continue
       // Growing a combo refreshes one burst instead of stacking rings per fruit.
       if (event.type === 'stroke-combo') {
-        const index = impacts.findIndex((impact) => impact.event.type === 'stroke-combo' && impact.event.strokeId === event.strokeId)
+        const index = impacts.findIndex(
+          (impact) =>
+            impact.event.type === 'stroke-combo' && impact.event.strokeId === event.strokeId,
+        )
         if (index >= 0) impacts.splice(index, 1)
       } else {
         bombFlashStartedAtMs = nowMs
       }
-      impacts.push({ event, startedAtMs: nowMs, normalizedPosition: {
-        x: event.position.x / bounds.x, y: event.position.y / bounds.y,
-      } })
+      impacts.push({
+        event,
+        startedAtMs: nowMs,
+        normalizedPosition: {
+          x: event.position.x / bounds.x,
+          y: event.position.y / bounds.y,
+        },
+      })
       if (impacts.length > MAX_IMPACTS) impacts.shift()
     }
   }
 
   const draw = (
-    ctx: CanvasRenderingContext2D, nowMs: number, viewport: ViewportTransform,
-    bounds: Vec2, width: number, height: number, reducedMotion: boolean,
+    ctx: CanvasRenderingContext2D,
+    nowMs: number,
+    viewport: ViewportTransform,
+    bounds: Vec2,
+    width: number,
+    height: number,
+    reducedMotion: boolean,
   ) => {
     const flashAge = nowMs - bombFlashStartedAtMs
     if (!reducedMotion && flashAge >= 0 && flashAge < 220) {
@@ -82,9 +95,12 @@ export function createImpactFeedback() {
         // Deterministic rays use no gameplay or cosmetic random stream.
         ctx.beginPath()
         for (let ray = 0; ray < 8; ray += 1) {
-          const angle = ray * Math.PI / 4 + (bomb ? Math.PI / 8 : 0)
+          const angle = (ray * Math.PI) / 4 + (bomb ? Math.PI / 8 : 0)
           ctx.moveTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius)
-          ctx.lineTo(x + Math.cos(angle) * (radius + 12 * (1 - progress)), y + Math.sin(angle) * (radius + 12 * (1 - progress)))
+          ctx.lineTo(
+            x + Math.cos(angle) * (radius + 12 * (1 - progress)),
+            y + Math.sin(angle) * (radius + 12 * (1 - progress)),
+          )
         }
         ctx.stroke()
       }

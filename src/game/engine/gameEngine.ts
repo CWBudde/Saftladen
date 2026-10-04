@@ -1,6 +1,17 @@
 import { createEntityIdAllocator } from '../model'
 import { applyCoreSystems, createInitialArcadeState, createInitialZenState } from '../systems'
-import type { EntityId, GameEntity, GameMode, GamePresentationEvent, GameState, PresentationEventPayload, SliceTrail, ScoringConfig, TimeScalePreset, Vec2 } from '../types'
+import type {
+  EntityId,
+  GameEntity,
+  GameMode,
+  GamePresentationEvent,
+  GameState,
+  PresentationEventPayload,
+  SliceTrail,
+  ScoringConfig,
+  TimeScalePreset,
+  Vec2,
+} from '../types'
 import { transitionGamePhase } from './phaseMachine'
 import { createSeededRng } from './rng'
 import { resizeWorld } from './resizeWorld'
@@ -158,7 +169,15 @@ function createBaseState(
       rngCalls: 0,
       simulationSteps: 0,
       cosmeticRngCalls: 0,
-      stats: { fruitSliced: 0, missedFruits: 0, bombHits: 0, peakCombo: 0, strokesAttempted: 0, successfulStrokes: 0, peakStrokeCombo: 0 },
+      stats: {
+        fruitSliced: 0,
+        missedFruits: 0,
+        bombHits: 0,
+        peakCombo: 0,
+        strokesAttempted: 0,
+        successfulStrokes: 0,
+        peakStrokeCombo: 0,
+      },
     },
     modeState: {
       arcade: createInitialArcadeState(),
@@ -171,7 +190,8 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   const scoring: ScoringConfig = { ...DEFAULT_SCORING }
   for (const key of Object.keys(scoring) as (keyof ScoringConfig)[]) {
     const value = options.scoring?.[key]
-    if (value !== undefined && Number.isFinite(value) && value >= 0) scoring[key] = Math.min(value, 1_000_000)
+    if (value !== undefined && Number.isFinite(value) && value >= 0)
+      scoring[key] = Math.min(value, 1_000_000)
   }
   scoring.strokeComboMinimum = Math.max(3, Math.floor(scoring.strokeComboMinimum))
   scoring.streakFruitInterval = Math.max(1, Math.floor(scoring.streakFruitInterval))
@@ -184,13 +204,23 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   const cosmeticRng = createSeededRng(initialSeed ^ 0x9e3779b9)
   const gameplayIds = createEntityIdAllocator()
   const cosmeticIds = createEntityIdAllocator(-1, -1)
-  const engineIdentity = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${nextEngineIdentity++}-${Math.random().toString(36).slice(2)}`
+  const engineIdentity =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}-${nextEngineIdentity++}-${Math.random().toString(36).slice(2)}`
   let nextRunNumber = 1
   let nextEventId = 1
   const persistedBestScore = loadBestScore(mode)
   let lastSavedBestScore = persistedBestScore
 
-  let state = createBaseState(mode, rng.getSeed(), fixedDtMs, maxFrameDeltaMs, persistedBestScore, undefined, scoring)
+  let state = createBaseState(
+    mode,
+    rng.getSeed(),
+    fixedDtMs,
+    maxFrameDeltaMs,
+    persistedBestScore,
+    undefined,
+    scoring,
+  )
   let accumulatorMs = 0
   let lastAdvanceSteps = 0
   let inputTrails: SliceTrail[] = []
@@ -200,7 +230,8 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
   let pendingEvents: GamePresentationEvent[] = []
 
   const queueEvents = (events: PresentationEventPayload[]) => {
-    for (const event of events) pendingEvents.push(freezeEvent({ ...event, id: nextEventId++, runId: state.run.id }))
+    for (const event of events)
+      pendingEvents.push(freezeEvent({ ...event, id: nextEventId++, runId: state.run.id }))
   }
 
   const emit = () => {
@@ -251,7 +282,17 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }
     state.phase = nextPhase
     if (nextPhase === 'game-over' && nextPhase !== previousPhase) {
-      queueEvents([{ type: 'run-end', atMs: state.world.elapsedMs, mode: state.mode, score: state.score.current, durationMs: state.world.elapsedMs, peakCombo: state.run.stats.peakCombo, stats: { ...state.run.stats } }])
+      queueEvents([
+        {
+          type: 'run-end',
+          atMs: state.world.elapsedMs,
+          mode: state.mode,
+          score: state.score.current,
+          durationMs: state.world.elapsedMs,
+          peakCombo: state.run.stats.peakCombo,
+          stats: { ...state.run.stats },
+        },
+      ])
     }
   }
 
@@ -264,11 +305,25 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     const stepTrails = inputTrails
     inputTrails = []
     for (const trail of stepTrails) {
-      if (trail.strokeId === undefined || !trail.points.some((point, index) => index > 0 && (point.x !== trail.points[index - 1].x || point.y !== trail.points[index - 1].y)) || state.score.strokes[trail.strokeId]) continue
+      if (
+        trail.strokeId === undefined ||
+        !trail.points.some(
+          (point, index) =>
+            index > 0 &&
+            (point.x !== trail.points[index - 1].x || point.y !== trail.points[index - 1].y),
+        ) ||
+        state.score.strokes[trail.strokeId]
+      )
+        continue
       // Native input has only a handful of pointers. Bound malformed/headless streams too.
       const ids = Object.keys(state.score.strokes)
       if (ids.length >= 128) delete state.score.strokes[Number(ids[0])]
-      state.score.strokes[trail.strokeId] = { pointerId: trail.pointerId, fruitCount: 0, bonusAwarded: 0, blocked: false }
+      state.score.strokes[trail.strokeId] = {
+        pointerId: trail.pointerId,
+        fruitCount: 0,
+        bonusAwarded: 0,
+        blocked: false,
+      }
       state.run.stats.strokesAttempted += 1
       state.score.strokeCombo = 0
     }
@@ -322,16 +377,25 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const setInputTrails = (trails: SliceTrail[]) => {
     if (state.phase !== 'running' || state.settings.timeScale.factor === 0) return
-    inputTrails.push(...trails.slice().sort((left, right) => left.pointerId - right.pointerId || (left.points[0]?.tMs ?? 0) - (right.points[0]?.tMs ?? 0)).map((trail) => ({
-      pointerId: trail.pointerId,
-      strokeId: trail.strokeId ?? nextLegacyStrokeId--,
-      ended: trail.ended ?? trail.strokeId === undefined,
-      points: trail.points.map((point) => ({
-        x: point.x,
-        y: point.y,
-        tMs: point.tMs,
-      })),
-    })))
+    inputTrails.push(
+      ...trails
+        .slice()
+        .sort(
+          (left, right) =>
+            left.pointerId - right.pointerId ||
+            (left.points[0]?.tMs ?? 0) - (right.points[0]?.tMs ?? 0),
+        )
+        .map((trail) => ({
+          pointerId: trail.pointerId,
+          strokeId: trail.strokeId ?? nextLegacyStrokeId--,
+          ended: trail.ended ?? trail.strokeId === undefined,
+          points: trail.points.map((point) => ({
+            x: point.x,
+            y: point.y,
+            tMs: point.tMs,
+          })),
+        })),
+    )
   }
 
   const setMode = (nextMode: GameMode) => {
@@ -440,7 +504,11 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     accumulatorMs += scaledDeltaMs
 
     let steps = 0
-    while (state.phase === 'running' && accumulatorMs >= state.settings.fixedDtMs && steps < MAX_FIXED_STEPS_PER_ADVANCE) {
+    while (
+      state.phase === 'running' &&
+      accumulatorMs >= state.settings.fixedDtMs &&
+      steps < MAX_FIXED_STEPS_PER_ADVANCE
+    ) {
       accumulatorMs -= state.settings.fixedDtMs
       runSimulationStep(state.settings.fixedDtMs)
       steps += 1
@@ -466,7 +534,9 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
 
   const subscribeEvents = (listener: (events: readonly GamePresentationEvent[]) => void) => {
     eventListeners.add(listener)
-    return () => { eventListeners.delete(listener) }
+    return () => {
+      eventListeners.delete(listener)
+    }
   }
 
   return {
@@ -477,15 +547,23 @@ export function createGameEngine(options: EngineOptions = {}): GameEngine {
     }),
     setInputTrails,
     clearInputTrails: (pointerId) => {
-      inputTrails = pointerId === undefined ? [] : inputTrails.filter((trail) => trail.pointerId !== pointerId)
+      inputTrails =
+        pointerId === undefined ? [] : inputTrails.filter((trail) => trail.pointerId !== pointerId)
       for (const [id, stroke] of Object.entries(state.score.strokes)) {
-        if (pointerId === undefined || stroke.pointerId === pointerId) delete state.score.strokes[Number(id)]
+        if (pointerId === undefined || stroke.pointerId === pointerId)
+          delete state.score.strokes[Number(id)]
       }
       state.score.strokeCombo = 0
     },
     setMode,
     setWorldBounds: (bounds) => {
-      if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y) || bounds.x < 128 || bounds.y < 128) return
+      if (
+        !Number.isFinite(bounds.x) ||
+        !Number.isFinite(bounds.y) ||
+        bounds.x < 128 ||
+        bounds.y < 128
+      )
+        return
       if (bounds.x === state.world.bounds.x && bounds.y === state.world.bounds.y) return
       inputTrails = []
       state.score.strokes = {}

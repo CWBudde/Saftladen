@@ -33,7 +33,7 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
   const urls: string[] = []
   const pack = {} as SfxPack
   for (const name of Object.keys(SOUND_RECIPES) as AudioSfxName[]) {
-    pack[name] = SOUND_RECIPES[name].map(recipe => {
+    pack[name] = SOUND_RECIPES[name].map((recipe) => {
       const url = createSoundObjectUrl(recipe)
       urls.push(url)
       return new Howl({ src: [url], format: ['wav'], volume: sfxGain(name, sfxVolume) })
@@ -42,7 +42,10 @@ function createSfxPack(sfxVolume: number): { pack: SfxPack; urls: string[] } {
   return { urls, pack }
 }
 
-export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume = 0.42): AudioService {
+export function createAudioService(
+  initialMusicVolume = 0.26,
+  initialSfxVolume = 0.42,
+): AudioService {
   let unlocked = false
   let musicVolume = clamp01(initialMusicVolume)
   let sfxVolume = clamp01(initialSfxVolume)
@@ -117,7 +120,10 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     voices.prepare()
     const id = howl.play()
     // A Howl waiting for decode already owns a slot for its queued playback.
-    voices.add({ playing: () => howl.state() !== 'loaded' || howl.playing(id), stop: () => howl.stop(id) })
+    voices.add({
+      playing: () => howl.state() !== 'loaded' || howl.playing(id),
+      stop: () => howl.stop(id),
+    })
     // Explicitly reset per-play rate: reused Howler sound IDs retain prior rates.
     howl.rate(Number.isFinite(rate) ? Math.max(0.8, Math.min(1.4, rate)) : 1, id)
     if (name === 'bomb' || name === 'game-over') {
@@ -141,7 +147,7 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
       return
     }
     for (const name of Object.keys(sfxPack) as AudioSfxName[]) {
-      sfxPack[name].forEach(howl => howl.volume(sfxGain(name, sfxVolume)))
+      sfxPack[name].forEach((howl) => howl.volume(sfxGain(name, sfxVolume)))
     }
   }
 
@@ -154,7 +160,9 @@ export function createAudioService(initialMusicVolume = 0.26, initialSfxVolume =
     music.volume(musicVolume)
     unlocked = false
     if (sfxPack) {
-      Object.values(sfxPack).flat().forEach((howl) => howl.unload())
+      Object.values(sfxPack)
+        .flat()
+        .forEach((howl) => howl.unload())
     }
     sfxPack = null
     sfxObjectUrls.forEach((url) => URL.revokeObjectURL(url))

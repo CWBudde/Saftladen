@@ -12,10 +12,16 @@ export function pointerEventToCanvasLocal(event: PointerEvent, canvas: HTMLCanva
 }
 
 export function isPointInsideCanvas(point: Vec2, metrics: CanvasMetrics): boolean {
-  return point.x >= 0 && point.y >= 0 && point.x <= metrics.widthCssPx && point.y <= metrics.heightCssPx
+  return (
+    point.x >= 0 && point.y >= 0 && point.x <= metrics.widthCssPx && point.y <= metrics.heightCssPx
+  )
 }
 
-export function mapCanvasPointToWorld(point: Vec2, metrics: CanvasMetrics, worldBounds: Vec2): Vec2 {
+export function mapCanvasPointToWorld(
+  point: Vec2,
+  metrics: CanvasMetrics,
+  worldBounds: Vec2,
+): Vec2 {
   if (metrics.widthCssPx <= 0 || metrics.heightCssPx <= 0) {
     return { x: 0, y: 0 }
   }

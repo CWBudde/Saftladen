@@ -1,7 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { sfxGain, type AudioSfxName } from '../src/game/audio/sfxMix'
 
-const effects: AudioSfxName[] = ['slice', 'miss', 'bomb', 'game-over', 'power-up', 'power-up-expired', 'combo', 'ui-click']
+const effects: AudioSfxName[] = [
+  'slice',
+  'miss',
+  'bomb',
+  'game-over',
+  'power-up',
+  'power-up-expired',
+  'combo',
+  'ui-click',
+]
 
 describe('SFX master volume', () => {
   test('mute silences every effect, including bombs, game over, and clicks', () => {

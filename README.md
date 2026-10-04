@@ -14,6 +14,7 @@ Simulation/rendering run on an imperative canvas; React owns menus and overlays.
 - React
 - TypeScript
 - ESLint
+- Prettier
 
 ## Requirements
 
@@ -36,6 +37,8 @@ Open `http://localhost:5173`.
 - `bun run build` - type-check and create a production build
 - `bun run preview` - preview the production build locally
 - `bun run lint` - run ESLint
+- `bun run format` - format source, tests, configuration and documentation
+- `bun run format:check` - check formatting without changing files (also required in CI)
 - `bun run test` - run input/gameplay, event, rendering, reward/storage, and audio regressions
 - `bun run audio:preview` - generate a local listening page at `output/audio-preview/index.html`
 - `bun run test:browser` - run the browser smoke suite against a production build
@@ -46,6 +49,12 @@ then run `bun run build` and `bun run test:browser`. The suite covers loading,
 game modes, pause/resume, results/replay, compact-screen dialogs and real
 service-worker installation/offline/update scenarios. CI runs
 these checks before deployment.
+
+Formatting uses the pinned Prettier dependency and `.prettierrc.json`: two spaces,
+single quotes, no semicolons and a 100-column target. `.editorconfig` shares UTF-8,
+LF and indentation settings with editors; Markdown retains intentional trailing
+spaces. Run `bun run format` before committing. Generated bundles, listening and
+performance output, browser reports and the Bun lockfile are excluded.
 
 The optional renderer benchmark uses the native browser clock at DPR 1 and 3,
 with all dojos and a fixed effects load. See [performance measurements](docs/PERFORMANCE.md)
@@ -113,11 +122,11 @@ mutation, event ordering and determinism rules.
 
 ## Modes and Settings
 
-| Mode | Goal and ending | Hazards / pickups |
-| --- | --- | --- |
-| Classic | Survive for a high score; ends on a bomb or three missed fruit | Bombs end the run; no pickups |
-| Arcade | Score within 60 seconds | Bombs subtract half your score, rounded down; Freeze, Frenzy and Double Points pickups |
-| Zen | Relaxed, timed 90-second session | No bombs or pickups; misses do not end the run |
+| Mode    | Goal and ending                                                | Hazards / pickups                                                                      |
+| ------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Classic | Survive for a high score; ends on a bomb or three missed fruit | Bombs end the run; no pickups                                                          |
+| Arcade  | Score within 60 seconds                                        | Bombs subtract half your score, rounded down; Freeze, Frenzy and Double Points pickups |
+| Zen     | Relaxed, timed 90-second session                               | No bombs or pickups; misses do not end the run                                         |
 
 Profile and pause dialogs offer audio, sensitivity, and reduced-motion settings.
 Preferences persist locally; the initial motion preference follows the OS.

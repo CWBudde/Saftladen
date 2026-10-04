@@ -35,6 +35,10 @@ bun run preview
 # Lint with ESLint
 bun run lint
 
+# Format files / check formatting (CI requires the check)
+bun run format
+bun run format:check
+
 # Bun unit tests
 bun run test
 
@@ -73,11 +77,13 @@ See [`src/game/README.md`](src/game/README.md) for detailed architecture notes.
 ### React Boundary Rules
 
 **React components CAN:**
+
 - Mount/unmount the game canvas
 - Display HUD/menu/settings state snapshots
 - Dispatch high-level commands (`start`, `pause`, `resume`, `reset`)
 
 **React components MUST NOT:**
+
 - Run simulation steps
 - Mutate world state directly
 - Perform per-frame entity rendering logic
@@ -125,6 +131,7 @@ production. The flag does not remove instrumentation from the bundle.
 ### TypeScript Configuration
 
 Project uses TypeScript composite projects with project references:
+
 - [`tsconfig.app.json`](tsconfig.app.json) - Main application code
 - [`tsconfig.node.json`](tsconfig.node.json) - Vite config and Node.js tooling
 - [`tsconfig.browser.json`](tsconfig.browser.json) - Playwright tests/configs
@@ -132,6 +139,7 @@ Project uses TypeScript composite projects with project references:
 ### Implementation Phases
 
 When working on new features, consult [`PLAN.md`](PLAN.md) to:
+
 1. Understand which phase the work belongs to
 2. Check dependencies on previous phases
 3. Follow the established acceptance criteria
@@ -152,7 +160,7 @@ flows through public UI/canvas APIs. Ordinary tests block service workers; five
 offline/update cases use real workers and tooling-only failed-download fixtures.
 Do not add game/React-state injection hooks to the deployed application.
 
-CI runs frozen install, lint, unit tests, build and browser checks for main PRs
+CI runs frozen install, formatting, lint, unit tests, build and browser checks for main PRs
 and pushes. Eligible non-PR builds deploy `dist` to GitHub Pages at `/Saftladen/`.
 Generated listening/benchmark bundles, reports and browser artifacts stay ignored
 and outside deployment. See [`docs/PWA.md`](docs/PWA.md) for cache/update behavior.

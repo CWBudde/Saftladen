@@ -19,16 +19,18 @@ export default defineConfig({
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,webmanifest,wav}'],
         globIgnores: ['**/splash-screen.png'],
-        runtimeCaching: [{
-          urlPattern: /\/assets\/music-[^/]+\.mp3$/,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'saftladen-music',
-            expiration: { maxEntries: 2, maxAgeSeconds: 30 * 24 * 60 * 60 },
-            cacheableResponse: { statuses: [0, 200] },
-            rangeRequests: true,
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/music-[^/]+\.mp3$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'saftladen-music',
+              expiration: { maxEntries: 2, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+              rangeRequests: true,
+            },
           },
-        }],
+        ],
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

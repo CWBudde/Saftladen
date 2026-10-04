@@ -15,97 +15,138 @@ type BrowserProbe = {
 }
 
 declare global {
-  interface Window { __browserProbe: BrowserProbe }
+  interface Window {
+    __browserProbe: BrowserProbe
+  }
 }
 
 // Observe browser APIs, never reach into React or mutate the game engine.
 const test = base.extend<{ runtimeErrors: string[] }>({
-  runtimeErrors: [async ({ page }, use) => {
-    const errors: string[] = []
-    page.on('pageerror', (error) => errors.push(error.message))
-    await use(errors)
-    expect(errors, 'Uncaught browser exceptions').toEqual([])
-  }, { auto: true }],
+  runtimeErrors: [
+    async ({ page }, use) => {
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(error.message))
+      await use(errors)
+      expect(errors, 'Uncaught browser exceptions').toEqual([])
+    },
+    { auto: true },
+  ],
 })
 
 async function openGame(page: Page, muted = false, seenOnboarding = true) {
-  await page.addInitScript(({ muted, seenOnboarding }) => {
-    window.__browserProbe = { fruit: [], bombs: [], impactRings: [], impactLabels: [], bladeColors: [], audibleSfxStarts: 0, sfxSamples: [], musicVolumes: [], debugDrawn: false }
-    if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
-    // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
-    // on the real clock. Keep input age/velocity on the same simulated clock.
-    Object.defineProperty(Event.prototype, 'timeStamp', {
-      configurable: true, get: () => performance.now(),
-    })
-    if (muted) {
-      localStorage.setItem('saftladen.ui.settings', JSON.stringify({
-        schemaVersion: 1, musicVolume: 0, sfxVolume: 0, sliceSensitivity: 1, reducedMotion: true,
-      }))
-    }
-    const originalClear = CanvasRenderingContext2D.prototype.clearRect
-    CanvasRenderingContext2D.prototype.clearRect = function (...args) {
-      if (this.canvas.classList.contains('game-canvas')) {
-        window.__browserProbe.fruit = []
-        window.__browserProbe.bombs = []
-        window.__browserProbe.impactRings = []
-        window.__browserProbe.impactLabels = []
-        window.__browserProbe.bladeColors = []
-        window.__browserProbe.debugDrawn = false
+  await page.addInitScript(
+    ({ muted, seenOnboarding }) => {
+      window.__browserProbe = {
+        fruit: [],
+        bombs: [],
+        impactRings: [],
+        impactLabels: [],
+        bladeColors: [],
+        audibleSfxStarts: 0,
+        sfxSamples: [],
+        musicVolumes: [],
+        debugDrawn: false,
       }
-      return originalClear.apply(this, args)
-    }
-    const originalStroke = CanvasRenderingContext2D.prototype.stroke
-    CanvasRenderingContext2D.prototype.stroke = function (path?: Path2D) {
-      if (this.canvas.classList.contains('game-canvas')) window.__browserProbe.bladeColors.push(String(this.strokeStyle))
-      return Reflect.apply(originalStroke, this, path ? [path] : [])
-    }
-    const originalDraw = CanvasRenderingContext2D.prototype.drawImage
-    CanvasRenderingContext2D.prototype.drawImage = function (
-      this: CanvasRenderingContext2D, source: CanvasImageSource, ...coordinates: number[]
-    ) {
-      if (source instanceof HTMLImageElement && /\/((apple|banana|melon|orange|pineapple|starfruit)1|bomb)-/.test(source.src)) {
-        const matrix = this.getTransform()
-        const dpr = window.devicePixelRatio
-        const collection = /\/bomb-/.test(source.src) ? window.__browserProbe.bombs : window.__browserProbe.fruit
-        collection.push({
-          x: matrix.e / dpr, y: matrix.f / dpr,
-          radius: Math.abs(coordinates[2]) * Math.hypot(matrix.a, matrix.b) / dpr / 2,
-        })
+      if (seenOnboarding) localStorage.setItem('saftladen.onboarding.v1', 'seen')
+      // Playwright mocks performance/RAF but native PointerEvent.timeStamp stays
+      // on the real clock. Keep input age/velocity on the same simulated clock.
+      Object.defineProperty(Event.prototype, 'timeStamp', {
+        configurable: true,
+        get: () => performance.now(),
+      })
+      if (muted) {
+        localStorage.setItem(
+          'saftladen.ui.settings',
+          JSON.stringify({
+            schemaVersion: 1,
+            musicVolume: 0,
+            sfxVolume: 0,
+            sliceSensitivity: 1,
+            reducedMotion: true,
+          }),
+        )
       }
-      return Reflect.apply(originalDraw, this, [source, ...coordinates])
-    }
-    const originalArc = CanvasRenderingContext2D.prototype.arc
-    CanvasRenderingContext2D.prototype.arc = function (...args) {
-      if (this.strokeStyle === '#fb923c' || (this.strokeStyle === '#fde047' && this.lineWidth > 2)) {
-        window.__browserProbe.impactRings.push(String(this.strokeStyle))
+      const originalClear = CanvasRenderingContext2D.prototype.clearRect
+      CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+        if (this.canvas.classList.contains('game-canvas')) {
+          window.__browserProbe.fruit = []
+          window.__browserProbe.bombs = []
+          window.__browserProbe.impactRings = []
+          window.__browserProbe.impactLabels = []
+          window.__browserProbe.bladeColors = []
+          window.__browserProbe.debugDrawn = false
+        }
+        return originalClear.apply(this, args)
       }
-      return originalArc.apply(this, args)
-    }
-    const originalText = CanvasRenderingContext2D.prototype.fillText
-    CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
-      if (text.startsWith('Debug: ON')) window.__browserProbe.debugDrawn = true
-      if (text.startsWith('BOMB')) window.__browserProbe.impactLabels.push(text)
-      return originalText.call(this, text, ...args)
-    }
-    const originalStart = AudioBufferSourceNode.prototype.start
-    AudioBufferSourceNode.prototype.start = function (...args) {
-      if (this.buffer && this.buffer.duration > 0.01) {
-        window.__browserProbe.audibleSfxStarts += 1
-        let peak = 0
-        for (const sample of this.buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(sample))
-        const entry = { duration: this.buffer.duration, peak, rate: this.playbackRate.value }
-        window.__browserProbe.sfxSamples.push(entry)
-        if (window.__browserProbe.sfxSamples.length > 32) window.__browserProbe.sfxSamples.shift()
-        queueMicrotask(() => { entry.rate = this.playbackRate.value })
+      const originalStroke = CanvasRenderingContext2D.prototype.stroke
+      CanvasRenderingContext2D.prototype.stroke = function (path?: Path2D) {
+        if (this.canvas.classList.contains('game-canvas'))
+          window.__browserProbe.bladeColors.push(String(this.strokeStyle))
+        return Reflect.apply(originalStroke, this, path ? [path] : [])
       }
-      return originalStart.apply(this, args)
-    }
-    const originalPlay = HTMLMediaElement.prototype.play
-    HTMLMediaElement.prototype.play = function () {
-      if (/music-.*\.mp3/.test(this.src)) window.__browserProbe.musicVolumes.push(this.volume)
-      return originalPlay.call(this)
-    }
-  }, { muted, seenOnboarding })
+      const originalDraw = CanvasRenderingContext2D.prototype.drawImage
+      CanvasRenderingContext2D.prototype.drawImage = function (
+        this: CanvasRenderingContext2D,
+        source: CanvasImageSource,
+        ...coordinates: number[]
+      ) {
+        if (
+          source instanceof HTMLImageElement &&
+          /\/((apple|banana|melon|orange|pineapple|starfruit)1|bomb)-/.test(source.src)
+        ) {
+          const matrix = this.getTransform()
+          const dpr = window.devicePixelRatio
+          const collection = /\/bomb-/.test(source.src)
+            ? window.__browserProbe.bombs
+            : window.__browserProbe.fruit
+          collection.push({
+            x: matrix.e / dpr,
+            y: matrix.f / dpr,
+            radius: (Math.abs(coordinates[2]) * Math.hypot(matrix.a, matrix.b)) / dpr / 2,
+          })
+        }
+        return Reflect.apply(originalDraw, this, [source, ...coordinates])
+      }
+      const originalArc = CanvasRenderingContext2D.prototype.arc
+      CanvasRenderingContext2D.prototype.arc = function (...args) {
+        if (
+          this.strokeStyle === '#fb923c' ||
+          (this.strokeStyle === '#fde047' && this.lineWidth > 2)
+        ) {
+          window.__browserProbe.impactRings.push(String(this.strokeStyle))
+        }
+        return originalArc.apply(this, args)
+      }
+      const originalText = CanvasRenderingContext2D.prototype.fillText
+      CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
+        if (text.startsWith('Debug: ON')) window.__browserProbe.debugDrawn = true
+        if (text.startsWith('BOMB')) window.__browserProbe.impactLabels.push(text)
+        return originalText.call(this, text, ...args)
+      }
+      const originalStart = AudioBufferSourceNode.prototype.start
+      AudioBufferSourceNode.prototype.start = function (...args) {
+        if (this.buffer && this.buffer.duration > 0.01) {
+          window.__browserProbe.audibleSfxStarts += 1
+          let peak = 0
+          for (const sample of this.buffer.getChannelData(0))
+            peak = Math.max(peak, Math.abs(sample))
+          const entry = { duration: this.buffer.duration, peak, rate: this.playbackRate.value }
+          window.__browserProbe.sfxSamples.push(entry)
+          if (window.__browserProbe.sfxSamples.length > 32) window.__browserProbe.sfxSamples.shift()
+          queueMicrotask(() => {
+            entry.rate = this.playbackRate.value
+          })
+        }
+        return originalStart.apply(this, args)
+      }
+      const originalPlay = HTMLMediaElement.prototype.play
+      HTMLMediaElement.prototype.play = function () {
+        if (/music-.*\.mp3/.test(this.src)) window.__browserProbe.musicVolumes.push(this.volume)
+        return originalPlay.call(this)
+      }
+    },
+    { muted, seenOnboarding },
+  )
   await page.clock.install({ time: new Date('2025-01-01T00:00:00Z') })
   await page.goto('./')
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
@@ -128,9 +169,15 @@ async function swipeVisibleFruit(page: Page) {
   // Condition-driven stepping finds a genuinely rendered opening fruit.
   for (let elapsed = 0; elapsed < 5_000 && !fruit; elapsed += 100) {
     await advance(page, 100)
-    fruit = await page.evaluate(() => window.__browserProbe.fruit.find((item) =>
-      item.y > Math.max(180, item.radius * 3 + 110) && item.y < innerHeight - Math.max(80, item.radius * 3) &&
-      item.x > item.radius * 2 && item.x < innerWidth - item.radius * 2))
+    fruit = await page.evaluate(() =>
+      window.__browserProbe.fruit.find(
+        (item) =>
+          item.y > Math.max(180, item.radius * 3 + 110) &&
+          item.y < innerHeight - Math.max(80, item.radius * 3) &&
+          item.x > item.radius * 2 &&
+          item.x < innerWidth - item.radius * 2,
+      ),
+    )
   }
   expect(fruit, 'An opening fruit should be rendered inside the canvas').toBeDefined()
   if (!fruit) throw new Error('No visible opening fruit')
@@ -203,16 +250,26 @@ test('320px fruit contact stays aligned after landscape resize', async ({ page }
   expect(rect?.height).toBeLessThan(110)
 })
 
-test('one held gesture cuts a rendered fruit group and reports a stroke combo', async ({ page }) => {
+test('one held gesture cuts a rendered fruit group and reports a stroke combo', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await openGame(page)
   await startMode(page, 'Zen')
   let group: DrawnFruit[] = []
   for (let elapsed = 0; elapsed < 30_000 && group.length < 3; elapsed += 100) {
     await advance(page, 100)
-    group = await page.evaluate(() => window.__browserProbe.fruit.filter((item) =>
-      item.y > 135 && item.y < innerHeight - Math.max(50, item.radius * 2) &&
-      item.x > 50 && item.x < innerWidth - 50).slice(0, 3))
+    group = await page.evaluate(() =>
+      window.__browserProbe.fruit
+        .filter(
+          (item) =>
+            item.y > 135 &&
+            item.y < innerHeight - Math.max(50, item.radius * 2) &&
+            item.x > 50 &&
+            item.x < innerWidth - 50,
+        )
+        .slice(0, 3),
+    )
   }
   expect(group.length, 'The Zen director should provide a visible combo group').toBe(3)
   group.sort((a, b) => a.x - b.x)
@@ -229,35 +286,57 @@ test('one held gesture cuts a rendered fruit group and reports a stroke combo', 
   await page.mouse.up()
   await advance(page, 32)
   await expect(page.locator('.hud-effects')).toContainText('Stroke combo')
-  expect(await page.evaluate(() => window.__browserProbe.impactRings.filter(color => color === '#fde047').length)).toBeGreaterThan(0)
+  expect(
+    await page.evaluate(
+      () => window.__browserProbe.impactRings.filter((color) => color === '#fde047').length,
+    ),
+  ).toBeGreaterThan(0)
   expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(45)
   // Real WebAudio decoding/playback covers the generated layered WAVs, including
   // the combo chord. Headroom is measured before the user's master gain.
-  await expect.poll(async () => page.evaluate(() =>
-    window.__browserProbe.sfxSamples.some(sample => Math.abs(sample.duration - 0.248) < 0.001))).toBe(true)
+  await expect
+    .poll(async () =>
+      page.evaluate(() =>
+        window.__browserProbe.sfxSamples.some(
+          (sample) => Math.abs(sample.duration - 0.248) < 0.001,
+        ),
+      ),
+    )
+    .toBe(true)
   const samples = await page.evaluate(() => window.__browserProbe.sfxSamples)
   expect(samples.length).toBeGreaterThanOrEqual(4)
-  expect(samples.every(sample => sample.peak > 0 && sample.peak <= 0.881)).toBe(true)
-  expect(samples.every(sample => sample.rate >= 0.8 && sample.rate <= 1.4)).toBe(true)
+  expect(samples.every((sample) => sample.peak > 0 && sample.peak <= 0.881)).toBe(true)
+  expect(samples.every((sample) => sample.rate >= 0.8 && sample.rate <= 1.4)).toBe(true)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete' })
-  const bestStroke = results.locator('.result-stats > div').filter({ has: page.getByText('Best stroke combo', { exact: true }) })
+  const bestStroke = results
+    .locator('.result-stats > div')
+    .filter({ has: page.getByText('Best stroke combo', { exact: true }) })
   expect(Number.parseInt(await bestStroke.locator('dd').innerText(), 10)).toBeGreaterThanOrEqual(3)
   await expect(results.locator('.result-stats')).toContainText('Stroke accuracy100% (1/1)')
 })
 
 for (const reducedMotion of [false, true]) {
-  test(`bomb impact is readable and expires with reduced motion ${reducedMotion}`, async ({ page }) => {
+  test(`bomb impact is readable and expires with reduced motion ${reducedMotion}`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 844, height: 390 })
     await openGame(page, reducedMotion)
     await startMode(page, 'Arcade')
     let bomb: DrawnFruit | undefined
     for (let elapsed = 0; elapsed < 30_000 && !bomb; elapsed += 100) {
       await advance(page, 100)
-      bomb = await page.evaluate(() => window.__browserProbe.bombs.find(item =>
-        item.y > 160 && item.y < innerHeight - 50 && item.x > 60 && item.x < innerWidth - 60))
+      bomb = await page.evaluate(() =>
+        window.__browserProbe.bombs.find(
+          (item) =>
+            item.y > 160 && item.y < innerHeight - 50 && item.x > 60 && item.x < innerWidth - 60,
+        ),
+      )
     }
-    expect(bomb, 'The director should offer a visible Arcade bomb after its safe opening').toBeDefined()
+    expect(
+      bomb,
+      'The director should offer a visible Arcade bomb after its safe opening',
+    ).toBeDefined()
     if (!bomb) throw new Error('No visible bomb')
     const timer = await page.locator('.hud-timer strong').innerText()
     const score = await page.locator('.hud-score strong').innerText()
@@ -268,12 +347,16 @@ for (const reducedMotion of [false, true]) {
     await page.mouse.up()
     await advance(page, 32)
     expect(await page.evaluate(() => window.__browserProbe.impactLabels)).toContain('BOMB HIT')
-    const rings = await page.evaluate(() => window.__browserProbe.impactRings.filter(color => color === '#fb923c').length)
+    const rings = await page.evaluate(
+      () => window.__browserProbe.impactRings.filter((color) => color === '#fb923c').length,
+    )
     if (reducedMotion) expect(rings).toBe(0)
     else expect(rings).toBeGreaterThan(0)
     await expect(page.locator('.hud-score strong')).toHaveText(score)
     const timerAfterHit = await page.locator('.hud-timer strong').innerText()
-    expect(Number.parseInt(timerAfterHit, 10)).toBeGreaterThanOrEqual(Number.parseInt(timer, 10) - 1)
+    expect(Number.parseInt(timerAfterHit, 10)).toBeGreaterThanOrEqual(
+      Number.parseInt(timer, 10) - 1,
+    )
     await page.getByRole('button', { name: 'Pause', exact: true }).click()
     await advance(page, 800)
     expect(await page.evaluate(() => window.__browserProbe.impactLabels)).toEqual([])
@@ -282,7 +365,9 @@ for (const reducedMotion of [false, true]) {
   })
 }
 
-test('profile traps focus, settings persist, and landscape controls scroll into view', async ({ page }) => {
+test('profile traps focus, settings persist, and landscape controls scroll into view', async ({
+  page,
+}) => {
   await openGame(page)
   const opener = page.getByRole('button', { name: 'Profile & Rewards', exact: true })
   await opener.click()
@@ -314,17 +399,27 @@ test('profile traps focus, settings persist, and landscape controls scroll into 
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeFocused()
 })
 
-test('cosmetic milestones show earned progress and retain automatic unlocks after reload', async ({ page }) => {
+test('cosmetic milestones show earned progress and retain automatic unlocks after reload', async ({
+  page,
+}) => {
   await openGame(page)
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
-  await expect(profile.getByText('Unlocks are automatic and permanent; nothing is spent.', { exact: false })).toBeVisible()
+  await expect(
+    profile.getByText('Unlocks are automatic and permanent; nothing is spent.', { exact: false }),
+  ).toBeVisible()
   const comet = profile.getByRole('listitem').filter({ hasText: 'Comet Blade' })
   const sunset = profile.getByRole('listitem').filter({ hasText: 'Sunset Harbor Dojo' })
   await expect(comet).toContainText('40 Starfruit earned · 0/40 · 40 Starfruit to go')
   await expect(sunset).toContainText('Level 3 · 560 XP earned · 0/560 · 560 XP to go')
-  await expect(profile.getByRole('listitem').filter({ hasText: 'Warmup Ritual' })).toContainText('Reward: 80 XP · 10 Starfruit')
-  for (const totals of [{ xp: 559, starfruit: 39 }, { xp: 560, starfruit: 40 }, { xp: 1120, starfruit: 110 }]) {
+  await expect(profile.getByRole('listitem').filter({ hasText: 'Warmup Ritual' })).toContainText(
+    'Reward: 80 XP · 10 Starfruit',
+  )
+  for (const totals of [
+    { xp: 559, starfruit: 39 },
+    { xp: 560, starfruit: 40 },
+    { xp: 1120, starfruit: 110 },
+  ]) {
     // Load a previously earned profile through the public persistence boundary.
     await page.evaluate((totals) => {
       const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
@@ -332,45 +427,88 @@ test('cosmetic milestones show earned progress and retain automatic unlocks afte
     }, totals)
     await page.reload()
     await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
-    await expect(comet).toContainText(totals.starfruit === 39 ? '39/40 · 1 Starfruit to go' : 'Unlocked · 40 Starfruit earned')
-    await expect(sunset).toContainText(totals.xp === 559 ? '559/560 · 1 XP to go' : 'Unlocked · Level 3 · 560 XP earned')
-    expect(await page.evaluate(() => {
-      const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
-      return { xp: saved.xp, starfruit: saved.starfruit }
-    })).toEqual(totals)
+    await expect(comet).toContainText(
+      totals.starfruit === 39 ? '39/40 · 1 Starfruit to go' : 'Unlocked · 40 Starfruit earned',
+    )
+    await expect(sunset).toContainText(
+      totals.xp === 559 ? '559/560 · 1 XP to go' : 'Unlocked · Level 3 · 560 XP earned',
+    )
+    expect(
+      await page.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+        return { xp: saved.xp, starfruit: saved.starfruit }
+      }),
+    ).toEqual(totals)
   }
-  await expect(profile.getByRole('listitem').filter({ hasText: 'Dragon Fang' })).toContainText('Unlocked · 110 Starfruit earned')
-  await expect(profile.getByRole('listitem').filter({ hasText: 'Storm Temple Dojo' })).toContainText('Unlocked · Level 5 · 1120 XP earned')
+  await expect(profile.getByRole('listitem').filter({ hasText: 'Dragon Fang' })).toContainText(
+    'Unlocked · 110 Starfruit earned',
+  )
+  await expect(
+    profile.getByRole('listitem').filter({ hasText: 'Storm Temple Dojo' }),
+  ).toContainText('Unlocked · Level 5 · 1120 XP earned')
   await page.setViewportSize({ width: 844, height: 390 })
   const volume = profile.getByRole('slider', { name: 'Music', exact: true })
   await volume.scrollIntoViewIfNeeded()
   await expect(volume).toBeInViewport()
 })
 
-test('equipment previews, keyboard equip, saved choices and actual gameplay visuals work for every pair', async ({ page }, testInfo) => {
+test('equipment previews, keyboard equip, saved choices and actual gameplay visuals work for every pair', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await openGame(page)
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Equip Comet Blade', exact: true })).toBeDisabled()
   // An unearned or stale saved selection cannot equip a locked reward.
-  await page.evaluate(() => localStorage.setItem('saftladen.cosmetics.selection', JSON.stringify({
-    schemaVersion: 1, blade: 'dragon-fang', dojo: 'retired-dojo',
-  })))
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'saftladen.cosmetics.selection',
+      JSON.stringify({
+        schemaVersion: 1,
+        blade: 'dragon-fang',
+        dojo: 'retired-dojo',
+      }),
+    ),
+  )
   await page.reload()
   const canvas = page.getByLabel('Fruit slicing game canvas', { exact: true })
   await expect(canvas).toHaveAttribute('data-blade', 'bamboo')
   await expect(canvas).toHaveAttribute('data-dojo', 'great-wave')
   await page.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
-    localStorage.setItem('saftladen.rewards.profile', JSON.stringify({ ...saved, xp: 1120, starfruit: 110 }))
+    localStorage.setItem(
+      'saftladen.rewards.profile',
+      JSON.stringify({ ...saved, xp: 1120, starfruit: 110 }),
+    )
   })
   await page.reload()
   const backgrounds: string[] = []
   const scores: number[] = []
   for (const pair of [
-    { blade: 'bamboo', bladeName: 'Bamboo Blade', dojo: 'great-wave', dojoName: 'Great Wave Dojo', edge: '#f4ffe6', glow: '#8cdb72' },
-    { blade: 'comet', bladeName: 'Comet Blade', dojo: 'sunset-harbor', dojoName: 'Sunset Harbor Dojo', edge: '#d9faff', glow: '#a78bfa' },
-    { blade: 'dragon-fang', bladeName: 'Dragon Fang', dojo: 'storm-temple', dojoName: 'Storm Temple Dojo', edge: '#fff0a6', glow: '#ff7858' },
+    {
+      blade: 'bamboo',
+      bladeName: 'Bamboo Blade',
+      dojo: 'great-wave',
+      dojoName: 'Great Wave Dojo',
+      edge: '#f4ffe6',
+      glow: '#8cdb72',
+    },
+    {
+      blade: 'comet',
+      bladeName: 'Comet Blade',
+      dojo: 'sunset-harbor',
+      dojoName: 'Sunset Harbor Dojo',
+      edge: '#d9faff',
+      glow: '#a78bfa',
+    },
+    {
+      blade: 'dragon-fang',
+      bladeName: 'Dragon Fang',
+      dojo: 'storm-temple',
+      dojoName: 'Storm Temple Dojo',
+      edge: '#fff0a6',
+      glow: '#ff7858',
+    },
   ]) {
     await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
     const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
@@ -384,8 +522,12 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
       expect(box && box.height >= 44 && box.x >= 0 && box.x + box.width <= 320).toBe(true)
       const cardBox = await card.boundingBox()
       const panelBox = await profile.boundingBox()
-      expect(cardBox && panelBox && cardBox.x >= panelBox.x + 8 &&
-        cardBox.x + cardBox.width <= panelBox.x + panelBox.width - 8).toBe(true)
+      expect(
+        cardBox &&
+          panelBox &&
+          cardBox.x >= panelBox.x + 8 &&
+          cardBox.x + cardBox.width <= panelBox.x + panelBox.width - 8,
+      ).toBe(true)
       await button.focus()
       await page.keyboard.press('Enter')
       await expect(button).toHaveAttribute('aria-pressed', 'true')
@@ -400,10 +542,14 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
     await expect(canvas).toHaveAttribute('data-dojo', pair.dojo)
     await advance(page, 32)
     // Read actual canvas pixels, rather than trusting the selection attributes.
-    backgrounds.push(await canvas.evaluate((element: HTMLCanvasElement) => {
-      const data = element.getContext('2d')!.getImageData(Math.floor(element.width / 2), Math.floor(element.height / 2), 1, 1).data
-      return Array.from(data).join(',')
-    }))
+    backgrounds.push(
+      await canvas.evaluate((element: HTMLCanvasElement) => {
+        const data = element
+          .getContext('2d')!
+          .getImageData(Math.floor(element.width / 2), Math.floor(element.height / 2), 1, 1).data
+        return Array.from(data).join(',')
+      }),
+    )
     await startMode(page, 'Zen')
     await swipeVisibleFruit(page)
     scores.push(Number(await page.locator('.hud-score strong').innerText()))
@@ -412,10 +558,12 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
     expect(colors).toContain(pair.glow)
     await page.getByRole('button', { name: 'Pause', exact: true }).click()
     await page.getByRole('button', { name: 'Main Menu', exact: true }).click()
-    expect(await page.evaluate(() => {
-      const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
-      return { xp: saved.xp, starfruit: saved.starfruit }
-    })).toEqual({ xp: 1120, starfruit: 110 })
+    expect(
+      await page.evaluate(() => {
+        const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+        return { xp: saved.xp, starfruit: saved.starfruit }
+      }),
+    ).toEqual({ xp: 1120, starfruit: 110 })
   }
   expect(new Set(backgrounds).size).toBe(3)
   expect(scores).toEqual([10, 10, 10])
@@ -427,16 +575,25 @@ test('equipment previews, keyboard equip, saved choices and actual gameplay visu
   await page.screenshot({ path: testInfo.outputPath('equipment-landscape.png') })
 })
 
-test('earned unlocks celebrate once, equip from results and carry into replay', async ({ page }) => {
+test('earned unlocks celebrate once, equip from results and carry into replay', async ({
+  page,
+}) => {
   test.setTimeout(90_000) // Two naturally completed 90-second runs, with every RAF tick rendered.
   await openGame(page, true)
   await page.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
-    localStorage.setItem('saftladen.rewards.profile', JSON.stringify({ ...saved, xp: 559, starfruit: 39 }))
+    localStorage.setItem(
+      'saftladen.rewards.profile',
+      JSON.stringify({ ...saved, xp: 559, starfruit: 39 }),
+    )
   })
   await page.reload()
   await startMode(page, 'Zen')
-  for (let attempt = 0; attempt < 10 && Number(await page.locator('.hud-score strong').innerText()) < 70; attempt++) {
+  for (
+    let attempt = 0;
+    attempt < 10 && Number(await page.locator('.hud-score strong').innerText()) < 70;
+    attempt++
+  ) {
     await swipeVisibleFruit(page)
   }
   expect(Number(await page.locator('.hud-score strong').innerText())).toBeGreaterThanOrEqual(70)
@@ -445,9 +602,15 @@ test('earned unlocks celebrate once, equip from results and carry into replay', 
   const celebration = results.getByRole('region', { name: 'New cosmetic unlocks' })
   await expect(celebration).toContainText('Comet Blade')
   await expect(celebration).toContainText('Sunset Harbor Dojo')
-  await expect(results.getByRole('list', { name: 'Objective progress' }).getByRole('listitem').filter({ hasText: 'Warmup Ritual' }))
-    .toContainText('1/5')
-  await expect(page.getByRole('status').first()).toContainText('Unlocked Comet Blade, Sunset Harbor Dojo.')
+  await expect(
+    results
+      .getByRole('list', { name: 'Objective progress' })
+      .getByRole('listitem')
+      .filter({ hasText: 'Warmup Ritual' }),
+  ).toContainText('1/5')
+  await expect(page.getByRole('status').first()).toContainText(
+    'Unlocked Comet Blade, Sunset Harbor Dojo.',
+  )
   await celebration.getByRole('button', { name: 'Equip Comet Blade', exact: true }).click()
   await celebration.getByRole('button', { name: 'Equip Sunset Harbor Dojo', exact: true }).click()
   const settled = await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))
@@ -459,16 +622,24 @@ test('earned unlocks celebrate once, equip from results and carry into replay', 
   await expect(results).toBeVisible()
   await expect(celebration).toHaveCount(0)
   // Empty replay settles no additional reward and never repeats old celebrations.
-  expect(await page.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
-    return { xp: saved.xp, starfruit: saved.starfruit, totalRuns: saved.totalRuns }
-  })).toEqual(((saved) => ({ xp: saved.xp, starfruit: saved.starfruit, totalRuns: saved.totalRuns }))(JSON.parse(settled!)))
+  expect(
+    await page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)
+      return { xp: saved.xp, starfruit: saved.starfruit, totalRuns: saved.totalRuns }
+    }),
+  ).toEqual(
+    ((saved) => ({ xp: saved.xp, starfruit: saved.starfruit, totalRuns: saved.totalRuns }))(
+      JSON.parse(settled!),
+    ),
+  )
   await results.getByRole('button', { name: 'Choose equipment', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards' })
   await expect(profile).toBeVisible()
   await advance(page, 32)
-  expect(await profile.evaluate(dialog => dialog.contains(document.activeElement))).toBe(true)
-  await expect(profile.getByRole('button', { name: 'Equipped Comet Blade', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  expect(await profile.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true)
+  await expect(
+    profile.getByRole('button', { name: 'Equipped Comet Blade', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('saved zero volume applies before the first gesture and music playback', async ({ page }) => {
@@ -487,7 +658,9 @@ test('saved zero volume applies before the first gesture and music playback', as
 test('loading artwork gates start and a failed sprite can be retried', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('saftladen.onboarding.v1', 'seen'))
   let release: () => void = () => {}
-  const held = new Promise<void>((resolve) => { release = resolve })
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
   await page.route('**/bomb-*.png', async (route) => {
     await held
     await route.abort()
@@ -521,16 +694,22 @@ test('simple artwork fallback is an explicit choice after loading fails', async 
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
 })
 
-test('Saftladen identity stays readable and controls fit portrait and landscape', async ({ page }, testInfo) => {
+test('Saftladen identity stays readable and controls fit portrait and landscape', async ({
+  page,
+}, testInfo) => {
   await openGame(page)
   await expect(page.getByRole('heading', { name: 'Saftladen.', exact: true })).toBeVisible()
   const appearance = await page.locator('.mode-guide').evaluate((guide) => {
     const style = getComputedStyle(guide)
     const luminance = (color: string) => {
-      const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
-        const s = value / 255
-        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
-      })
+      const channels = color
+        .match(/[\d.]+/g)!
+        .slice(0, 3)
+        .map(Number)
+        .map((value) => {
+          const s = value / 255
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+        })
       return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
     }
     const background = luminance(style.backgroundColor)
@@ -539,15 +718,22 @@ test('Saftladen identity stays readable and controls fit portrait and landscape'
       return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
     }
     return {
-      contrast: [contrast(style.color), contrast(getComputedStyle(guide.querySelector('.slice-guide')!).color),
-        contrast(getComputedStyle(guide.querySelector('strong')!).color)],
+      contrast: [
+        contrast(style.color),
+        contrast(getComputedStyle(guide.querySelector('.slice-guide')!).color),
+        contrast(getComputedStyle(guide.querySelector('strong')!).color),
+      ],
       font: style.fontFamily,
       buttonFont: getComputedStyle(document.querySelector('.profile-button')!).fontFamily,
     }
   })
-  expect(appearance.contrast.every(ratio => ratio >= 4.5)).toBe(true)
+  expect(appearance.contrast.every((ratio) => ratio >= 4.5)).toBe(true)
   expect(appearance.buttonFont).toBe(appearance.font)
-  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+  ]) {
     await page.setViewportSize(viewport)
     await advance(page, 32)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width)
@@ -557,8 +743,15 @@ test('Saftladen identity stays readable and controls fit portrait and landscape'
       const control = page.getByRole('button', { name, exact: true })
       await control.scrollIntoViewIfNeeded()
       const box = await control.boundingBox()
-      expect(box && box.width >= 44 && box.height >= 44 && box.x >= 0 &&
-        box.x + box.width <= viewport.width && box.y >= 0 && box.y + box.height <= viewport.height).toBe(true)
+      expect(
+        box &&
+          box.width >= 44 &&
+          box.height >= 44 &&
+          box.x >= 0 &&
+          box.x + box.width <= viewport.width &&
+          box.y >= 0 &&
+          box.y + box.height <= viewport.height,
+      ).toBe(true)
     }
     await page.screenshot({ path: testInfo.outputPath(`menu-${viewport.width}.png`) })
   }
@@ -578,10 +771,14 @@ async function practiceGesture(page: Page, gesture: 'stationary' | 'miss' | 'sli
   await page.mouse.up()
 }
 
-test('first-run practice teaches slicing without changing rewards and remains available later', async ({ page }) => {
+test('first-run practice teaches slicing without changing rewards and remains available later', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await openGame(page, false, false)
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).not.toBeNull()
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('saftladen.rewards.profile')))
+    .not.toBeNull()
   const profileBefore = await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))
   await page.getByRole('button', { name: 'Zen', exact: true }).click()
   const help = page.getByRole('dialog', { name: 'How to play', exact: true })
@@ -604,7 +801,9 @@ test('first-run practice teaches slicing without changing rewards and remains av
   await expect(help.locator('.practice-feedback')).toHaveText('Swipe across the apple.')
   await practiceGesture(page, 'slice')
   await expect(help.locator('.practice-feedback')).toHaveText('Nice slice! Ready for the game.')
-  expect(await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).toBe(profileBefore)
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).toBe(
+    profileBefore,
+  )
   await page.getByRole('button', { name: 'Play Zen', exact: true }).click()
   const ready = page.getByRole('dialog', { name: 'Ready for Zen?', exact: true })
   await expect(ready).toBeVisible()
@@ -623,10 +822,14 @@ test('first-run practice teaches slicing without changing rewards and remains av
   await expect(page.getByRole('dialog', { name: 'Ready for Arcade?', exact: true })).toBeVisible()
   await expect(help).toHaveCount(0)
   await page.getByRole('button', { name: 'Back to menu', exact: true }).click()
-  expect(await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).toBe(profileBefore)
+  expect(await page.evaluate(() => localStorage.getItem('saftladen.rewards.profile'))).toBe(
+    profileBefore,
+  )
 })
 
-test('short landscape onboarding supports reduced motion, keyboard focus, cancel and skip', async ({ page }) => {
+test('short landscape onboarding supports reduced motion, keyboard focus, cancel and skip', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 844, height: 390 })
   await openGame(page, true, false)
   await page.getByRole('button', { name: 'Classic', exact: true }).click()
@@ -661,7 +864,9 @@ test('short landscape onboarding supports reduced motion, keyboard focus, cancel
 })
 
 for (const mode of ['Arcade', 'Zen']) {
-  test(`${mode}: countdown cancels and suspends in the background without spending run time`, async ({ page }) => {
+  test(`${mode}: countdown cancels and suspends in the background without spending run time`, async ({
+    page,
+  }) => {
     await openGame(page, true)
     const ready = page.getByRole('dialog', { name: `Ready for ${mode}?`, exact: true })
     await page.getByRole('button', { name: mode, exact: true }).click()
@@ -697,7 +902,9 @@ for (const mode of ['Arcade', 'Zen']) {
     } else await page.evaluate(() => window.dispatchEvent(new Event('focus')))
     // Returning to the foreground requires the user's explicit continuation.
     await advance(page, 5_000)
-    await expect(page.getByRole('button', { name: 'Continue countdown', exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Continue countdown', exact: true }),
+    ).toBeVisible()
     await expect(page.locator('.hud-score')).toHaveCount(0)
     await page.getByRole('button', { name: 'Continue countdown', exact: true }).click()
     await advance(page, 1_000)
@@ -721,27 +928,54 @@ for (const mode of ['Arcade', 'Zen']) {
   })
 }
 
-test('saved challenge progress rotates from real play and offers a keyboard next-mode action', async ({ page }, testInfo) => {
+test('saved challenge progress rotates from real play and offers a keyboard next-mode action', async ({
+  page,
+}, testInfo) => {
   test.setTimeout(90000)
   await page.setViewportSize({ width: 320, height: 568 })
   await openGame(page, true)
-  await page.evaluate(() => localStorage.setItem('saftladen.rewards.profile', JSON.stringify({
-    schemaVersion: 3, xp: 1120, starfruit: 110, totalRuns: 25,
-    objectives: ['runs', 'combo', 'score'].map(id => ({ id, completed: true })),
-    achievements: ['classic-safe', 'classic-survival', 'arcade-score', 'arcade-stroke', 'zen-fruit', 'zen-accuracy']
-      .map(id => ({ id, completed: true })),
-    challenges: { cycle: 0, expiresAt: '2000-01-01', goals: [
-      { id: 'harvest-classic', completed: true }, { id: 'harvest-arcade', completed: true },
-      { id: 'harvest-zen', progress: 19 },
-    ] },
-  })))
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'saftladen.rewards.profile',
+      JSON.stringify({
+        schemaVersion: 3,
+        xp: 1120,
+        starfruit: 110,
+        totalRuns: 25,
+        objectives: ['runs', 'combo', 'score'].map((id) => ({ id, completed: true })),
+        achievements: [
+          'classic-safe',
+          'classic-survival',
+          'arcade-score',
+          'arcade-stroke',
+          'zen-fruit',
+          'zen-accuracy',
+        ].map((id) => ({ id, completed: true })),
+        challenges: {
+          cycle: 0,
+          expiresAt: '2000-01-01',
+          goals: [
+            { id: 'harvest-classic', completed: true },
+            { id: 'harvest-arcade', completed: true },
+            { id: 'harvest-zen', progress: 19 },
+          ],
+        },
+      }),
+    ),
+  )
   await page.reload()
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
-  await expect(profile.getByRole('region', { name: 'Rotating challenges', exact: true })).toContainText('No expiry or daily streak')
-  await expect(profile.getByRole('list', { name: 'Challenge progress', exact: true })).toContainText('19/20')
-  await expect(profile.getByRole('region', { name: 'Next goal', exact: true })).toContainText('Zen Small Harvest')
+  await expect(
+    profile.getByRole('region', { name: 'Rotating challenges', exact: true }),
+  ).toContainText('No expiry or daily streak')
+  await expect(
+    profile.getByRole('list', { name: 'Challenge progress', exact: true }),
+  ).toContainText('19/20')
+  await expect(profile.getByRole('region', { name: 'Next goal', exact: true })).toContainText(
+    'Zen Small Harvest',
+  )
   const playZen = profile.getByRole('button', { name: 'Play Zen goal', exact: true })
   await playZen.scrollIntoViewIfNeeded()
   const box = await playZen.boundingBox()
@@ -752,7 +986,7 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   const readyZen = page.getByRole('dialog', { name: 'Ready for Zen?', exact: true })
   await expect(readyZen).toBeVisible()
   await advance(page, 32)
-  expect(await readyZen.evaluate(dialog => dialog.contains(document.activeElement))).toBe(true)
+  expect(await readyZen.evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true)
   await page.getByRole('button', { name: 'Start now', exact: true }).click()
   await swipeVisibleFruit(page)
   await advance(page, 91_000)
@@ -760,11 +994,19 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await expect(results).toContainText('Goals completed: Zen Small Harvest')
   await expect(results).toContainText('A fresh challenge set is ready!')
   await expect(page.getByRole('status')).toContainText('Goals completed: Zen Small Harvest')
-  await expect(results.getByRole('list', { name: 'Challenge progress', exact: true })).toContainText('Zen Back to the Stall')
-  await expect(results.getByRole('list', { name: 'Challenge progress', exact: true }).locator('li')).toHaveCount(3)
-  const settled = await page.evaluate(() => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!))
+  await expect(
+    results.getByRole('list', { name: 'Challenge progress', exact: true }),
+  ).toContainText('Zen Back to the Stall')
+  await expect(
+    results.getByRole('list', { name: 'Challenge progress', exact: true }).locator('li'),
+  ).toHaveCount(3)
+  const settled = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('saftladen.rewards.profile')!),
+  )
   expect(settled.challenges.cycle).toBe(1)
-  expect(settled.challenges.goals.every((goal: { progress: number }) => goal.progress === 0)).toBe(true)
+  expect(settled.challenges.goals.every((goal: { progress: number }) => goal.progress === 0)).toBe(
+    true,
+  )
   expect(settled.starfruit).toBe(114)
   const nextRun = results.getByRole('button', { name: 'Play Zen goal', exact: true })
   await nextRun.focus()
@@ -778,11 +1020,17 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await page.setViewportSize({ width: 844, height: 390 })
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   await expect(profile).toContainText('Challenge set 2 of 3')
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!).starfruit)).toBe(114)
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!).starfruit,
+    ),
+  ).toBe(114)
   const playClassic = profile.getByRole('button', { name: 'Play Classic goal', exact: true })
   await playClassic.scrollIntoViewIfNeeded()
   const landscapeBox = await playClassic.boundingBox()
-  expect(landscapeBox && landscapeBox.y >= 0 && landscapeBox.y + landscapeBox.height <= 390).toBe(true)
+  expect(landscapeBox && landscapeBox.y >= 0 && landscapeBox.y + landscapeBox.height <= 390).toBe(
+    true,
+  )
   await page.screenshot({ path: testInfo.outputPath('progression-landscape.png') })
   await playClassic.click()
   const readyClassic = page.getByRole('dialog', { name: 'Ready for Classic?', exact: true })
@@ -791,13 +1039,14 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await advance(page, 32)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.hud-score')).toHaveCount(0)
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!))).toEqual(settled)
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('saftladen.rewards.profile')!)),
+  ).toEqual(settled)
 })
-
 
 async function checkDialogKeyboard(page: Page, dialog: Locator) {
   await expect(dialog).toBeVisible()
-  expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true)
+  expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true)
   const controls = dialog.locator('button:not(:disabled), input:not(:disabled), a[href]')
   const count = await controls.count()
   expect(count).toBeGreaterThan(0)
@@ -809,7 +1058,9 @@ async function checkDialogKeyboard(page: Page, dialog: Locator) {
   for (const key of ['Tab', 'Shift+Tab']) {
     for (let i = 0; i < count; i++) {
       await page.keyboard.press(key)
-      expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true)
+      expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(
+        true,
+      )
     }
     await expect(controls.first()).toBeFocused()
   }
@@ -818,7 +1069,9 @@ async function checkDialogKeyboard(page: Page, dialog: Locator) {
   await expect(controls.first()).toBeFocused()
 }
 
-test('every dialog supports both Tab directions, keyboard transitions and meaningful focus restoration', async ({ page }) => {
+test('every dialog supports both Tab directions, keyboard transitions and meaningful focus restoration', async ({
+  page,
+}) => {
   await openGame(page, false, false)
   const zen = page.getByRole('button', { name: 'Zen', exact: true })
   await zen.focus()
@@ -890,7 +1143,10 @@ test('every dialog supports both Tab directions, keyboard transitions and meanin
   await advance(page, 20_000)
   await results.getByRole('button', { name: 'Run Again', exact: true }).focus()
   await page.keyboard.press('Space')
-  await checkDialogKeyboard(page, page.getByRole('dialog', { name: 'Ready for Classic?', exact: true }))
+  await checkDialogKeyboard(
+    page,
+    page.getByRole('dialog', { name: 'Ready for Classic?', exact: true }),
+  )
   await page.keyboard.press('Escape')
   await advance(page, 32)
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeFocused()
@@ -902,7 +1158,9 @@ test('every dialog supports both Tab directions, keyboard transitions and meanin
   await expect(page.getByRole('button', { name: 'Classic', exact: true })).toBeFocused()
 })
 
-test('game shortcuts respect native controls, browser modifiers and held keys', async ({ page }) => {
+test('game shortcuts respect native controls, browser modifiers and held keys', async ({
+  page,
+}) => {
   await openGame(page)
   await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
   await page.keyboard.press('Control+d')
@@ -969,14 +1227,18 @@ test('game shortcuts respect native controls, browser modifiers and held keys', 
   await expect(page.getByRole('button', { name: 'Zen', exact: true })).toBeFocused()
 })
 
-test('OS motion defaults and every keyboard setting persist across profile, pause and practice', async ({ page }) => {
+test('OS motion defaults and every keyboard setting persist across profile, pause and practice', async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await openGame(page)
   await page.getByRole('button', { name: 'Profile & Rewards', exact: true }).click()
   const profile = page.getByRole('dialog', { name: 'Profile & Rewards', exact: true })
   const motion = profile.getByRole('checkbox', { name: 'Reduce motion and flashes', exact: true })
   await expect(motion).toBeChecked()
-  await expect(motion).toHaveAccessibleDescription('Hides flashes, bursts and particles. Score and bomb messages stay visible.')
+  await expect(motion).toHaveAccessibleDescription(
+    'Hides flashes, bursts and particles. Score and bomb messages stay visible.',
+  )
   for (const name of ['Music', 'SFX']) {
     const slider = profile.getByRole('slider', { name, exact: true })
     await slider.focus()
@@ -1014,7 +1276,8 @@ test('OS motion defaults and every keyboard setting persist across profile, paus
   await startMode(page, 'Zen')
   await page.getByRole('button', { name: 'Pause', exact: true }).click()
   const paused = page.getByRole('dialog', { name: 'Run Paused', exact: true })
-  for (const name of ['Music', 'SFX']) await expect(paused.getByRole('slider', { name, exact: true })).toHaveValue('0')
+  for (const name of ['Music', 'SFX'])
+    await expect(paused.getByRole('slider', { name, exact: true })).toHaveValue('0')
   const pauseSensitivity = paused.getByRole('slider', { name: 'Blade sensitivity', exact: true })
   await expect(pauseSensitivity).toHaveValue('0.5')
   await pauseSensitivity.focus()

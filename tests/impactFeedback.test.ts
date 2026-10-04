@@ -9,7 +9,12 @@ function canvasProbe() {
   const labels: { text: string; x: number; y: number }[] = []
   const fills: number[][] = []
   const ctx = {
-    save() {}, restore() {}, beginPath() {}, stroke() {}, moveTo() {}, lineTo() {},
+    save() {},
+    restore() {},
+    beginPath() {},
+    stroke() {},
+    moveTo() {},
+    lineTo() {},
     arc: (...args: number[]) => arcs.push(args),
     fillRect: (...args: number[]) => fills.push(args),
     fillText: (text: string, x: number, y: number) => labels.push({ text, x, y }),
@@ -21,12 +26,23 @@ function canvasProbe() {
 const bounds = { x: 720, y: 1280 }
 const viewport = { scale: 0.5, offsetX: 0, offsetY: 0 }
 const bomb = (id = 1, penalty = 0): GamePresentationEvent => ({
-  id, runId: 'run', atMs: 10, type: 'bomb-hit', entityId: 'entity_1',
-  position: { x: 360, y: 640 }, penalty,
+  id,
+  runId: 'run',
+  atMs: 10,
+  type: 'bomb-hit',
+  entityId: 'entity_1',
+  position: { x: 360, y: 640 },
+  penalty,
 })
 const combo = (id: number, strokeId = 1): GamePresentationEvent => ({
-  id, runId: 'run', atMs: 10, type: 'stroke-combo', strokeId,
-  fruitCount: id + 2, bonus: 15, position: { x: 360, y: 640 },
+  id,
+  runId: 'run',
+  atMs: 10,
+  type: 'stroke-combo',
+  strokeId,
+  fruitCount: id + 2,
+  bonus: 15,
+  position: { x: 360, y: 640 },
 })
 
 test('bomb impact is centered, names actual penalties, and expires on presentation time', () => {
@@ -66,7 +82,11 @@ test('growing stroke combos coalesce and catch-up effects have a fixed work budg
   const single = canvasProbe()
   feedback.draw(single.ctx, 100, viewport, bounds, 360, 640, false)
   expect(single.arcs).toHaveLength(2)
-  feedback.consume(Array.from({ length: 40 }, (_, i) => combo(i + 4, i + 2)), 100, bounds)
+  feedback.consume(
+    Array.from({ length: 40 }, (_, i) => combo(i + 4, i + 2)),
+    100,
+    bounds,
+  )
   const bounded = canvasProbe()
   feedback.draw(bounded.ctx, 100, viewport, bounds, 360, 640, false)
   expect(bounded.arcs).toHaveLength(24)
@@ -103,32 +123,51 @@ test('reset clears old impacts and permits a fresh run with reused event IDs', (
   expect(cleared.arcs).toHaveLength(2)
 })
 
-test.each(['classic', 'arcade'] as const)('%s bomb feedback does not advance gameplay, timers or random streams', (mode) => {
-  const engine = createGameEngine({ seed: 7, mode })
-  engine.start()
-  const state = engine.getState()
-  state.world.spawn.nextWaveAtMs = Infinity
-  state.score.current = 100
-  const entity = createBombEntity({ position: { x: 360, y: 300 }, velocity: { x: 0, y: 0 },
-    radius: 30, color: '#000', rotationRad: 0, angularVelocityRadPerS: 0 })
-  state.world.entities[entity.id] = entity
-  let events: readonly GamePresentationEvent[] = []
-  engine.subscribeEvents((batch) => { events = batch })
-  engine.setInputTrails([{ pointerId: 1, points: [{ x: 300, y: 300, tMs: 0 }, { x: 420, y: 300, tMs: 10 }] }])
-  engine.advanceBy(100)
-  expect(state.phase).toBe(mode === 'classic' ? 'game-over' : 'running')
-  const before = JSON.stringify(state)
-  const eventSnapshot = JSON.stringify(events)
-  const feedback = createImpactFeedback()
-  feedback.consume(events, 100, state.world.bounds)
-  for (const reduced of [false, true]) {
-    const first = canvasProbe()
-    feedback.draw(first.ctx, 100, viewport, state.world.bounds, 360, 640, reduced)
-    expect(first.labels[0].text).toBe(mode === 'classic' ? 'BOMB HIT' : 'BOMB · −50')
-  }
-  const expired = canvasProbe()
-  feedback.draw(expired.ctx, 800, viewport, state.world.bounds, 360, 640, false)
-  expect(expired.labels).toHaveLength(0)
-  expect(JSON.stringify(state)).toBe(before)
-  expect(JSON.stringify(events)).toBe(eventSnapshot)
-})
+test.each(['classic', 'arcade'] as const)(
+  '%s bomb feedback does not advance gameplay, timers or random streams',
+  (mode) => {
+    const engine = createGameEngine({ seed: 7, mode })
+    engine.start()
+    const state = engine.getState()
+    state.world.spawn.nextWaveAtMs = Infinity
+    state.score.current = 100
+    const entity = createBombEntity({
+      position: { x: 360, y: 300 },
+      velocity: { x: 0, y: 0 },
+      radius: 30,
+      color: '#000',
+      rotationRad: 0,
+      angularVelocityRadPerS: 0,
+    })
+    state.world.entities[entity.id] = entity
+    let events: readonly GamePresentationEvent[] = []
+    engine.subscribeEvents((batch) => {
+      events = batch
+    })
+    engine.setInputTrails([
+      {
+        pointerId: 1,
+        points: [
+          { x: 300, y: 300, tMs: 0 },
+          { x: 420, y: 300, tMs: 10 },
+        ],
+      },
+    ])
+    engine.advanceBy(100)
+    expect(state.phase).toBe(mode === 'classic' ? 'game-over' : 'running')
+    const before = JSON.stringify(state)
+    const eventSnapshot = JSON.stringify(events)
+    const feedback = createImpactFeedback()
+    feedback.consume(events, 100, state.world.bounds)
+    for (const reduced of [false, true]) {
+      const first = canvasProbe()
+      feedback.draw(first.ctx, 100, viewport, state.world.bounds, 360, 640, reduced)
+      expect(first.labels[0].text).toBe(mode === 'classic' ? 'BOMB HIT' : 'BOMB · −50')
+    }
+    const expired = canvasProbe()
+    feedback.draw(expired.ctx, 800, viewport, state.world.bounds, 360, 640, false)
+    expect(expired.labels).toHaveLength(0)
+    expect(JSON.stringify(state)).toBe(before)
+    expect(JSON.stringify(events)).toBe(eventSnapshot)
+  },
+)

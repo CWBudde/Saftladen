@@ -11,7 +11,12 @@ function squaredDistance(a: Vec2, b: Vec2): number {
 }
 
 /** First blade contact in [0, 1], including a tangent or a start inside the circle. */
-export function segmentCircleHitFraction(start: Vec2, end: Vec2, center: Vec2, radius: number): number | null {
+export function segmentCircleHitFraction(
+  start: Vec2,
+  end: Vec2,
+  center: Vec2,
+  radius: number,
+): number | null {
   if (!Number.isFinite(radius) || radius < 0) return null
   const dx = end.x - start.x
   const dy = end.y - start.y
@@ -34,7 +39,11 @@ export function segmentCircleHitFraction(start: Vec2, end: Vec2, center: Vec2, r
  * tick, rather than assuming pointer timestamps share the simulation clock.
  */
 export function segmentCapsuleHitFraction(
-  start: Vec2, end: Vec2, previousCenter: Vec2, center: Vec2, radius: number,
+  start: Vec2,
+  end: Vec2,
+  previousCenter: Vec2,
+  center: Vec2,
+  radius: number,
 ): number | null {
   const motionX = center.x - previousCenter.x
   const motionY = center.y - previousCenter.y
@@ -71,21 +80,34 @@ export function segmentCapsuleHitFraction(
   const previousHit = segmentCircleHitFraction(start, end, previousCenter, radius)
   const currentHit = segmentCircleHitFraction(start, end, center, radius)
   let earliest = stripHit
-  if (previousHit !== null) earliest = earliest === null ? previousHit : Math.min(earliest, previousHit)
-  if (currentHit !== null) earliest = earliest === null ? currentHit : Math.min(earliest, currentHit)
+  if (previousHit !== null)
+    earliest = earliest === null ? previousHit : Math.min(earliest, previousHit)
+  if (currentHit !== null)
+    earliest = earliest === null ? currentHit : Math.min(earliest, currentHit)
   return earliest
 }
 
 export function segmentMayHitSweptCircleByAabb(
-  start: Vec2, end: Vec2, previousCenter: Vec2, center: Vec2, radius: number,
+  start: Vec2,
+  end: Vec2,
+  previousCenter: Vec2,
+  center: Vec2,
+  radius: number,
 ): boolean {
-  return Math.max(start.x, end.x) >= Math.min(previousCenter.x, center.x) - radius &&
+  return (
+    Math.max(start.x, end.x) >= Math.min(previousCenter.x, center.x) - radius &&
     Math.min(start.x, end.x) <= Math.max(previousCenter.x, center.x) + radius &&
     Math.max(start.y, end.y) >= Math.min(previousCenter.y, center.y) - radius &&
     Math.min(start.y, end.y) <= Math.max(previousCenter.y, center.y) + radius
+  )
 }
 
-export function segmentIntersectsCircle(start: Vec2, end: Vec2, center: Vec2, radius: number): boolean {
+export function segmentIntersectsCircle(
+  start: Vec2,
+  end: Vec2,
+  center: Vec2,
+  radius: number,
+): boolean {
   const radiusSq = radius * radius
 
   if (squaredDistance(start, center) <= radiusSq || squaredDistance(end, center) <= radiusSq) {
@@ -116,11 +138,19 @@ export function closestPointOnSegment(start: Vec2, end: Vec2, point: Vec2): Vec2
   const dx = end.x - start.x
   const dy = end.y - start.y
   const lengthSq = dx * dx + dy * dy
-  const t = lengthSq > 0 ? Math.max(0, Math.min(1, dot(point.x - start.x, point.y - start.y, dx, dy) / lengthSq)) : 0
+  const t =
+    lengthSq > 0
+      ? Math.max(0, Math.min(1, dot(point.x - start.x, point.y - start.y, dx, dy) / lengthSq))
+      : 0
   return { x: start.x + dx * t, y: start.y + dy * t }
 }
 
-export function segmentMayHitCircleByAabb(start: Vec2, end: Vec2, center: Vec2, radius: number): boolean {
+export function segmentMayHitCircleByAabb(
+  start: Vec2,
+  end: Vec2,
+  center: Vec2,
+  radius: number,
+): boolean {
   const minX = Math.min(start.x, end.x) - radius
   const maxX = Math.max(start.x, end.x) + radius
   const minY = Math.min(start.y, end.y) - radius

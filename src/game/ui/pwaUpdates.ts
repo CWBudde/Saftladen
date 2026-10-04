@@ -7,14 +7,16 @@ let started = false
 
 function publish(change: Partial<UpdateSnapshot>) {
   snapshot = { ...snapshot, ...change }
-  listeners.forEach(listener => listener())
+  listeners.forEach((listener) => listener())
 }
 
 export const pwaUpdates = {
   getSnapshot: () => snapshot,
   subscribe: (listener: () => void) => {
     listeners.add(listener)
-    return () => { listeners.delete(listener) }
+    return () => {
+      listeners.delete(listener)
+    }
   },
   apply: async () => {
     if (snapshot.canReload) {
@@ -78,12 +80,18 @@ export function startPwaUpdates() {
     try {
       // A failed first install may unregister itself. Its old registration
       // handle cannot be updated; register again after the connection returns.
-      if (registration && !registration.active && !registration.installing && !registration.waiting) {
+      if (
+        registration &&
+        !registration.active &&
+        !registration.installing &&
+        !registration.waiting
+      ) {
         registration = undefined
       }
       if (!registration) {
         registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
-          scope: import.meta.env.BASE_URL, updateViaCache: 'none',
+          scope: import.meta.env.BASE_URL,
+          updateViaCache: 'none',
         })
         watch(registration)
       } else {
@@ -95,7 +103,9 @@ export function startPwaUpdates() {
       checking = false
     }
   }
-  window.addEventListener('online', () => { void check() })
+  window.addEventListener('online', () => {
+    void check()
+  })
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) void check()
   })

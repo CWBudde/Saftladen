@@ -1,4 +1,5 @@
-export type AudioSfxName = 'slice' | 'miss' | 'bomb' | 'game-over' | 'power-up' | 'power-up-expired' | 'combo' | 'ui-click'
+export type AudioSfxName =
+  'slice' | 'miss' | 'bomb' | 'game-over' | 'power-up' | 'power-up-expired' | 'combo' | 'ui-click'
 
 const SFX_GAINS: Record<AudioSfxName, number> = {
   slice: 1,

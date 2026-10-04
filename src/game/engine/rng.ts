@@ -7,7 +7,7 @@ export type SeededRng = {
 }
 
 function normalizeSeed(seed: number): number {
-  return (Math.floor(seed) >>> 0) || 1
+  return Math.floor(seed) >>> 0 || 1
 }
 
 export function createSeededRng(initialSeed: number): SeededRng {

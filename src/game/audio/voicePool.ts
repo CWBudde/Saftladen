@@ -8,7 +8,9 @@ export function createVoicePool(limit = 8) {
       voices = voices.filter((voice) => voice.playing())
       while (voices.length >= limit) voices.shift()?.stop()
     },
-    add(voice: Voice) { voices.push(voice) },
+    add(voice: Voice) {
+      voices.push(voice)
+    },
     clear() {
       voices.forEach((voice) => voice.stop())
       voices.length = 0
