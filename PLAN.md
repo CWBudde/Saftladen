@@ -182,7 +182,7 @@ than release prerequisites.
 
 ## Completed baseline — reference only
 
-Implementation batches 1–21 (2026-10-03–04) are condensed here. Detailed change
+Earlier implementation batches (2026-10-03–04) are condensed here. Detailed change
 history remains in Git; current architecture and measurements live in the linked
 guides. Completed work is not part of the active execution queue.
 
@@ -196,6 +196,9 @@ guides. Completed work is not part of the active execution queue.
   tapered blades, bounded combo/bomb bursts and readable reduced-motion text;
   layered WAV variants, eight-voice cap, mute/ducking, safe practice/help and
   foreground-only ready countdown. [Player guide](README.md).
+- **Compact results:** fruit-stall receipt with score, quick stats, earnings and
+  replay first; full statistics/goals expand on demand. Portrait/landscape layout,
+  disclosure keyboard focus and unlock/equip/replay flows have browser coverage.
 - **Progression/equipment:** validated saves, exactly-once settlement, lifetime
   earned unlocks, three blades/three dojos with persisted live selections,
   unlock/equip results, six achievements and three rotating challenges without expiry.
@@ -205,7 +208,8 @@ guides. Completed work is not part of the active execution queue.
 - **PWA/assets:** decoded loading/retry/explicit fallback, all 18 images offline,
   deliberate updates, failed-install/update recovery and active-tab preservation.
   Seventeen lossless WebPs save 28.5% sprite payload / 18.9% precache
-  (29 entries / 3313.82 KiB); exact source RGBA, browser opaque rounding ≤1/255.
+  (compression pass: 29 entries / 3313.82 KiB); exact source RGBA,
+  browser opaque rounding ≤1/255.
   [PWA](docs/PWA.md), [compression](docs/ASSET_COMPRESSION.md),
   [asset policy](src/game/assets/README.md).
 - **Code/tooling:** focused renderer/UI modules, keyboard hook, dead-state cleanup,

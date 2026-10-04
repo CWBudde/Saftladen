@@ -48,9 +48,11 @@ export function GameDialog({
       aria-labelledby={labelledBy}
       onKeyDown={(event) => {
         if (event.key !== 'Tab') return
-        const controls = event.currentTarget.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]',
-        )
+        const controls = Array.from(
+          event.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex="0"]',
+          ),
+        ).filter((control) => control.getClientRects().length > 0)
         const first = controls[0]
         const last = controls[controls.length - 1]
         if (!first || !last) return

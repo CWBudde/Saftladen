@@ -13,6 +13,7 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
     target.tagName === 'INPUT' ||
     target.tagName === 'SELECT' ||
     target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SUMMARY' ||
     target.isContentEditable
   )
 }

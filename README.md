@@ -158,6 +158,8 @@ on headphones and phone speakers. Generated WAVs and the page are ignored by Git
 The HUD displays score, lives or time, stroke combos, timed streaks and power-up
 remaining durations. Results include fruit sliced, misses, bomb hits, best stroke
 combo, peak streak and stroke accuracy (fruit-hitting gestures / moving gestures).
+The compact fruit-stall receipt puts score, earnings and replay first; expand
+**Run details & goals** for the full statistics and saved goal progress.
 A stroke combo counts fruit cut during one held gesture; three fruit earn a
 15-point bonus, with 5 more for each additional fruit. Separate swipes never
 combine into a stroke combo. A timed streak chains cuts within 320ms and raises

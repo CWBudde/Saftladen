@@ -214,7 +214,7 @@ async function swipeVisibleFruit(page: Page) {
 }
 
 for (const mode of ['Classic', 'Arcade', 'Zen']) {
-  test(`${mode}: menu, pause/resume, natural results and replay`, async ({ page }) => {
+  test(`${mode}: menu, pause/resume, natural results and replay`, async ({ page }, testInfo) => {
     await openGame(page)
     await startMode(page, mode)
     await advance(page, 32)
@@ -239,6 +239,53 @@ for (const mode of ['Classic', 'Arcade', 'Zen']) {
     await expect(results).toContainText('Best stroke combo')
     await expect(results).toContainText('Stroke accuracy')
     await expect(results).toContainText('at least 5 seconds')
+    if (mode === 'Classic') {
+      await expect(results.getByRole('button', { name: 'Run Again', exact: true })).toBeFocused()
+      await expect(results.locator('.result-details')).not.toHaveAttribute('open')
+      for (const [width, height] of [
+        [390, 844],
+        [320, 568],
+        [844, 390],
+        [1440, 900],
+      ]) {
+        await page.setViewportSize({ width, height })
+        const bounds = await results.boundingBox()
+        expect(bounds).not.toBeNull()
+        expect(bounds!.height).toBeLessThanOrEqual(Math.min(480, height - 32))
+        expect(bounds!.width).toBeLessThanOrEqual(height <= 500 ? 560 : 380)
+        const fits = await results.evaluate((dialog) => ({
+          vertical: dialog.scrollHeight <= dialog.clientHeight + 1,
+          horizontal: dialog.scrollWidth <= dialog.clientWidth + 1,
+        }))
+        expect(fits).toEqual({ vertical: true, horizontal: true })
+        for (const name of ['Run Again', 'Choose equipment', 'Main Menu']) {
+          const control = await results.getByRole('button', { name, exact: true }).boundingBox()
+          expect(control, `${name} at ${width}px`).not.toBeNull()
+          // Transformed button bounds can round 44px to 43.999… in Chromium.
+          expect(control!.height, `${name} touch target`).toBeGreaterThanOrEqual(43.99)
+          expect(control!.y, `${name} top`).toBeGreaterThanOrEqual(bounds!.y)
+          expect(control!.y + control!.height, `${name} bottom`).toBeLessThanOrEqual(
+            bounds!.y + bounds!.height,
+          )
+          expect(
+            await results
+              .getByRole('button', { name, exact: true })
+              .evaluate((button) => parseFloat(getComputedStyle(button).minHeight)),
+          ).toBeGreaterThanOrEqual(44)
+        }
+        await page.screenshot({ path: testInfo.outputPath(`results-${width}.png`) })
+      }
+      await page.setViewportSize({ width: 390, height: 844 })
+      const details = results.locator('summary')
+      await details.focus()
+      await page.keyboard.press('Enter')
+      await expect(
+        results.getByRole('list', { name: 'Challenge progress', exact: true }),
+      ).toBeVisible()
+      await details.focus()
+      await page.keyboard.press('Space')
+      await expect(results.locator('.result-details')).not.toHaveAttribute('open')
+    }
     await page.getByRole('button', { name: 'Run Again', exact: true }).click()
     await page.getByRole('button', { name: 'Start now', exact: true }).click()
     await advance(page, 32)
@@ -326,6 +373,7 @@ test('one held gesture cuts a rendered fruit group and reports a stroke combo', 
   expect(samples.every((sample) => sample.rate >= 0.8 && sample.rate <= 1.4)).toBe(true)
   await advance(page, 91_000)
   const results = page.getByRole('dialog', { name: 'Run Complete' })
+  await results.locator('summary').click()
   const bestStroke = results
     .locator('.result-stats > div')
     .filter({ has: page.getByText('Best stroke combo', { exact: true }) })
@@ -619,6 +667,7 @@ test('earned unlocks celebrate once, equip from results and carry into replay', 
   const celebration = results.getByRole('region', { name: 'New cosmetic unlocks' })
   await expect(celebration).toContainText('Comet Blade')
   await expect(celebration).toContainText('Sunset Harbor Dojo')
+  await results.locator('summary').click()
   await expect(
     results
       .getByRole('list', { name: 'Objective progress' })
@@ -1011,6 +1060,7 @@ test('saved challenge progress rotates from real play and offers a keyboard next
   await expect(results).toContainText('Goals completed: Zen Small Harvest')
   await expect(results).toContainText('A fresh challenge set is ready!')
   await expect(page.getByRole('status')).toContainText('Goals completed: Zen Small Harvest')
+  await results.locator('summary').click()
   await expect(
     results.getByRole('list', { name: 'Challenge progress', exact: true }),
   ).toContainText('Zen Back to the Stall')
@@ -1064,7 +1114,9 @@ test('saved challenge progress rotates from real play and offers a keyboard next
 async function checkDialogKeyboard(page: Page, dialog: Locator) {
   await expect(dialog).toBeVisible()
   expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true)
-  const controls = dialog.locator('button:not(:disabled), input:not(:disabled), a[href]')
+  const controls = dialog.locator(
+    'button:not(:disabled):visible, input:not(:disabled):visible, a[href]:visible, summary:visible',
+  )
   const count = await controls.count()
   expect(count).toBeGreaterThan(0)
   await controls.first().focus()
@@ -1149,6 +1201,12 @@ test('every dialog supports both Tab directions, keyboard transitions and meanin
   await startMode(page, 'Classic')
   await advance(page, 20_000)
   const results = page.getByRole('dialog', { name: 'Run Complete', exact: true })
+  await checkDialogKeyboard(page, results)
+  await results.locator('summary').focus()
+  await page.keyboard.press('Enter')
+  await checkDialogKeyboard(page, results)
+  await results.locator('summary').focus()
+  await page.keyboard.press('Space')
   await checkDialogKeyboard(page, results)
   await results.getByRole('button', { name: 'Choose equipment', exact: true }).focus()
   await page.keyboard.press('Enter')
